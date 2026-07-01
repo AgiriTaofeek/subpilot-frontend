@@ -3,8 +3,8 @@ import { HttpResponse, http } from "msw";
 import { describe, expect, test, vi } from "vitest";
 
 import {
-    getOptionalMerchantSessionRequest,
-    signupMerchantRequest,
+	getOptionalMerchantSessionRequest,
+	signupMerchantRequest,
 } from "#/lib/api/auth.ts";
 import { server } from "#/test/setup.ts";
 

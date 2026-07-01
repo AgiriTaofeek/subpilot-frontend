@@ -1,18 +1,4 @@
 import {
-	Sidebar,
-	SidebarContent,
-	SidebarFooter,
-	SidebarGroup,
-	SidebarGroupContent,
-	SidebarHeader,
-	SidebarMenu,
-	SidebarMenuButton,
-	SidebarMenuItem,
-	SidebarRail,
-} from "#/components/ui/sidebar.tsx";
-import { logoutMerchant } from "#/lib/api/auth.ts";
-import type { AuthSessionDto } from "#/types/api.ts";
-import {
 	ArrowsClockwiseIcon,
 	ChartLineUpIcon,
 	ClipboardTextIcon,
@@ -26,6 +12,20 @@ import {
 } from "@phosphor-icons/react";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { toast } from "sonner";
+import {
+	Sidebar,
+	SidebarContent,
+	SidebarFooter,
+	SidebarGroup,
+	SidebarGroupContent,
+	SidebarHeader,
+	SidebarMenu,
+	SidebarMenuButton,
+	SidebarMenuItem,
+	SidebarRail,
+} from "#/components/ui/sidebar.tsx";
+import { logoutMerchant } from "#/lib/api/auth.ts";
+import type { AuthSessionDto } from "#/types/api.ts";
 
 const navItems = [
 	{

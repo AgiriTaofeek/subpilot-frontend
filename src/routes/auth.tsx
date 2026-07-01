@@ -1,10 +1,10 @@
-import { getOptionalMerchantSession } from "#/lib/api/auth.ts";
 import {
 	createFileRoute,
 	Link,
 	Outlet,
 	redirect,
 } from "@tanstack/react-router";
+import { getOptionalMerchantSession } from "#/lib/api/auth.ts";
 
 export const Route = createFileRoute("/auth")({
 	beforeLoad: async ({ location }) => {
