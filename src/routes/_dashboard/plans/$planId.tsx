@@ -1,5 +1,10 @@
 import { CopyIcon, DotsThreeIcon } from "@phosphor-icons/react";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import {
+	useMutation,
+	useQueryClient,
+	useSuspenseQuery,
+} from "@tanstack/react-query";
+import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -24,37 +29,37 @@ import {
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "#/components/ui/dropdown-menu.tsx";
-import {
-	Empty,
-	EmptyContent,
-	EmptyDescription,
-	EmptyHeader,
-	EmptyTitle,
-} from "#/components/ui/empty.tsx";
 import { Input } from "#/components/ui/input.tsx";
 import { Separator } from "#/components/ui/separator.tsx";
 import { StatusBadge } from "#/components/ui/status-badge.tsx";
 import { Textarea } from "#/components/ui/textarea.tsx";
 import {
+	archivePlan,
 	checkoutUrl,
 	formatInterval,
 	type Plan,
-	plans,
+	planDetailQueryOptions,
 	prorationLabels,
+	publishPlan,
 	statusTone,
+	updatePlan,
 } from "#/data/plans.ts";
 import { formatNGN } from "#/lib/currency.ts";
 
 export const Route = createFileRoute("/_dashboard/plans/$planId")({
+	loader: async ({ context, params }) => {
+		await context.queryClient.ensureQueryData(
+			planDetailQueryOptions(params.planId),
+		);
+	},
 	component: PlanDetailPage,
 	head: () => ({ meta: [{ title: "Plan | SubPilot" }] }),
 });
 
 function PlanDetailPage() {
 	const { planId } = Route.useParams();
-	const [plan, setPlan] = useState<Plan | undefined>(() =>
-		plans.find((p) => p.id === planId),
-	);
+	const queryClient = useQueryClient();
+	const { data: plan } = useSuspenseQuery(planDetailQueryOptions(planId));
 	const [isEditing, setIsEditing] = useState(false);
 	const [editName, setEditName] = useState(plan?.name ?? "");
 	const [editDescription, setEditDescription] = useState(
@@ -64,27 +69,65 @@ function PlanDetailPage() {
 	const [publishDialogOpen, setPublishDialogOpen] = useState(false);
 	const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
 
-	if (!plan) {
-		return (
-			<div className="flex flex-1 items-center justify-center p-10">
-				<Empty className="max-w-sm rounded-2xl border border-dashed border-(--line) bg-(--surface-1)">
-					<EmptyHeader>
-						<EmptyTitle className="font-sans text-lg normal-case tracking-tight text-(--ink)">
-							Plan not found
-						</EmptyTitle>
-						<EmptyDescription className="text-(--ink-3)">
-							This plan may have been removed or the link is incorrect.
-						</EmptyDescription>
-					</EmptyHeader>
-					<EmptyContent>
-						<Button asChild variant="outline" className="border-(--line)">
-							<Link to="/plans">Back to plans</Link>
-						</Button>
-					</EmptyContent>
-				</Empty>
-			</div>
-		);
-	}
+	const updateMutation = useMutation({
+		mutationFn: (nextPlan: Pick<Plan, "description" | "name" | "trialDays">) =>
+			updatePlan({
+				planId,
+				name: nextPlan.name,
+				description: nextPlan.description ?? "",
+				trialDays: nextPlan.trialDays,
+			}),
+		onSuccess: async (updatedPlan) => {
+			queryClient.setQueryData(
+				planDetailQueryOptions(planId).queryKey,
+				updatedPlan,
+			);
+			await queryClient.invalidateQueries({ queryKey: ["plans"] });
+			setIsEditing(false);
+			toast.success("Plan updated");
+		},
+		onError: (error) => {
+			toast.error(
+				error instanceof Error ? error.message : "Couldn't update the plan.",
+			);
+		},
+	});
+
+	const publishMutation = useMutation({
+		mutationFn: () => publishPlan(planId),
+		onSuccess: async (updatedPlan) => {
+			queryClient.setQueryData(
+				planDetailQueryOptions(planId).queryKey,
+				updatedPlan,
+			);
+			await queryClient.invalidateQueries({ queryKey: ["plans"] });
+			setPublishDialogOpen(false);
+			toast.success("Plan published");
+		},
+		onError: (error) => {
+			toast.error(
+				error instanceof Error ? error.message : "Couldn't publish the plan.",
+			);
+		},
+	});
+
+	const archiveMutation = useMutation({
+		mutationFn: () => archivePlan(planId),
+		onSuccess: async (updatedPlan) => {
+			queryClient.setQueryData(
+				planDetailQueryOptions(planId).queryKey,
+				updatedPlan,
+			);
+			await queryClient.invalidateQueries({ queryKey: ["plans"] });
+			setArchiveDialogOpen(false);
+			toast.success("Plan archived");
+		},
+		onError: (error) => {
+			toast.error(
+				error instanceof Error ? error.message : "Couldn't archive the plan.",
+			);
+		},
+	});
 
 	const primaryAction =
 		plan.status === "draft"
@@ -105,30 +148,20 @@ function PlanDetailPage() {
 	}
 
 	function saveEdit() {
-		setPlan((prev) =>
-			prev
-				? {
-						...prev,
-						name: editName.trim() || prev.name,
-						description: editDescription,
-						trialDays: prev.status === "draft" ? editTrialDays : prev.trialDays,
-					}
-				: prev,
-		);
-		setIsEditing(false);
-		toast.success("Plan updated");
+		updateMutation.mutate({
+			...plan,
+			name: editName.trim() || plan.name,
+			description: editDescription,
+			trialDays: plan.status === "draft" ? editTrialDays : plan.trialDays,
+		});
 	}
 
 	function handlePublish() {
-		setPlan((prev) => (prev ? { ...prev, status: "published" } : prev));
-		setPublishDialogOpen(false);
-		toast.success("Plan published");
+		publishMutation.mutate();
 	}
 
 	function handleArchive() {
-		setPlan((prev) => (prev ? { ...prev, status: "archived" } : prev));
-		setArchiveDialogOpen(false);
-		toast.success("Plan archived");
+		archiveMutation.mutate();
 	}
 
 	async function handleCopyUrl() {

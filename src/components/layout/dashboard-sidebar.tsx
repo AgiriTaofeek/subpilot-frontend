@@ -10,8 +10,8 @@ import {
 	SquaresFourIcon,
 	UsersIcon,
 } from "@phosphor-icons/react";
-import { Link, useRouterState } from "@tanstack/react-router";
-
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
+import { toast } from "sonner";
 import {
 	Sidebar,
 	SidebarContent,
@@ -25,6 +25,7 @@ import {
 	SidebarRail,
 } from "#/components/ui/sidebar.tsx";
 import { account } from "#/data/account.ts";
+import { logoutMerchant } from "#/lib/api/auth.ts";
 
 const navItems = [
 	{
@@ -85,6 +86,19 @@ const navItems = [
 
 export function DashboardSidebar() {
 	const pathname = useRouterState({ select: (s) => s.location.pathname });
+	const navigate = useNavigate();
+
+	async function handleLogout() {
+		try {
+			await logoutMerchant();
+			toast.success("Logged out");
+			await navigate({ to: "/auth/login" });
+		} catch (error) {
+			toast.error(
+				error instanceof Error ? error.message : "Couldn't log you out.",
+			);
+		}
+	}
 
 	return (
 		<Sidebar collapsible="icon">
@@ -151,13 +165,14 @@ export function DashboardSidebar() {
 						</div>
 					</SidebarMenuItem>
 					<SidebarMenuItem>
-						<SidebarMenuButton
-							tooltip="Log out"
-							className="text-sidebar-foreground/60 hover:text-sidebar-foreground"
+						<button
+							type="button"
+							onClick={handleLogout}
+							className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground"
 						>
 							<SignOutIcon />
 							<span>Log out</span>
-						</SidebarMenuButton>
+						</button>
 					</SidebarMenuItem>
 				</SidebarMenu>
 			</SidebarFooter>

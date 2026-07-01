@@ -1,6 +1,8 @@
 import { useForm } from "@tanstack/react-form";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { createFileRoute } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
+import { toast } from "sonner";
 import { z } from "zod";
 
 import { Button } from "#/components/ui/button.tsx";
@@ -18,11 +20,19 @@ import {
 } from "#/components/ui/field.tsx";
 import { Input } from "#/components/ui/input.tsx";
 import { Separator } from "#/components/ui/separator.tsx";
-import { formatInterval, resolvePublicPlan } from "#/data/plans.ts";
-import { merchantDisplayName, registerCheckoutSession } from "#/data/portal.ts";
+import {
+	formatInterval,
+	initiatePublicCheckout,
+	publicPlanQueryOptions,
+} from "#/data/plans.ts";
 import { formatNGN } from "#/lib/currency.ts";
 
 export const Route = createFileRoute("/pay/$merchantSlug/$planSlug")({
+	loader: async ({ context, params }) => {
+		await context.queryClient.ensureQueryData(
+			publicPlanQueryOptions(params.merchantSlug, params.planSlug),
+		);
+	},
 	component: PublicCheckoutPage,
 	head: () => ({ meta: [{ title: "Checkout | SubPilot" }] }),
 });
@@ -35,8 +45,9 @@ const checkoutSchema = z.object({
 
 function PublicCheckoutPage() {
 	const { merchantSlug, planSlug } = Route.useParams();
-	const navigate = useNavigate();
-	const plan = resolvePublicPlan(merchantSlug, planSlug);
+	const { data: plan } = useSuspenseQuery(
+		publicPlanQueryOptions(merchantSlug, planSlug),
+	);
 
 	const [slowMessage, setSlowMessage] = useState<
 		"none" | "preparing" | "stalled"
@@ -50,7 +61,6 @@ function PublicCheckoutPage() {
 		defaultValues: { fullName: "", email: "", phone: "" },
 		validators: { onSubmit: checkoutSchema },
 		onSubmit: async ({ value }) => {
-			if (!plan) return;
 			setSlowMessage("none");
 			timersRef.current.slow = setTimeout(
 				() => setSlowMessage("preparing"),
@@ -61,14 +71,27 @@ function PublicCheckoutPage() {
 				10000,
 			);
 
-			// Simulate a checkout-init POST to the backend / Nomba.
-			await new Promise((resolve) => setTimeout(resolve, 1400));
+			try {
+				const result = await initiatePublicCheckout({
+					merchantSlug,
+					planSlug,
+					fullName: value.fullName,
+					email: value.email,
+					phone: value.phone,
+				});
 
-			clearTimeout(timersRef.current.slow);
-			clearTimeout(timersRef.current.stalled);
-
-			const ref = registerCheckoutSession({ ...value, plan });
-			await navigate({ to: "/checkout/return", search: { ref } });
+				clearTimeout(timersRef.current.slow);
+				clearTimeout(timersRef.current.stalled);
+				window.location.assign(result.checkoutUrl);
+			} catch (error) {
+				clearTimeout(timersRef.current.slow);
+				clearTimeout(timersRef.current.stalled);
+				const message =
+					error instanceof Error
+						? error.message
+						: "Couldn't start checkout. Please try again.";
+				toast.error(message);
+			}
 		},
 	});
 
@@ -79,21 +102,6 @@ function PublicCheckoutPage() {
 		};
 	}, []);
 
-	if (!plan) {
-		return (
-			<div className="flex min-h-screen items-center justify-center bg-(--surface) px-4">
-				<div className="max-w-sm flex flex-col gap-2 rounded-2xl border border-(--line) bg-(--surface-1) p-8 text-center shadow-sm">
-					<h1 className="text-lg font-semibold tracking-tight text-(--ink)">
-						This plan isn't available
-					</h1>
-					<p className="text-sm text-(--ink-3)">
-						It may have been unpublished or the link is incorrect.
-					</p>
-				</div>
-			</div>
-		);
-	}
-
 	return (
 		<div className="min-h-screen bg-(--surface)">
 			<header className="border-b border-(--line) px-4 py-4">
@@ -103,7 +111,7 @@ function PublicCheckoutPage() {
 					</span>
 					<span className="text-(--ink-3)">·</span>
 					<span className="font-heading text-sm text-(--ink-2)">
-						{merchantDisplayName}
+						{plan.merchantName}
 					</span>
 				</div>
 			</header>

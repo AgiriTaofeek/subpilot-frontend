@@ -1,9 +1,12 @@
+import { queryOptions } from "@tanstack/react-query";
 import { plans } from "#/data/plans.ts";
+import { listSubscriptionSummaries } from "#/lib/api/subscriptions.ts";
 
 export type SubscriptionStatus =
 	| "trialing"
 	| "active"
 	| "past_due"
+	| "suspended"
 	| "paused"
 	| "cancelled"
 	| "expired";
@@ -23,6 +26,11 @@ export interface Subscription {
 	createdAt: string;
 }
 
+export interface SubscriptionSummary extends Subscription {
+	customerId: string;
+	planName: string;
+}
+
 export const subscriptionStatusTone: Record<
 	SubscriptionStatus,
 	"brand" | "success" | "warning" | "neutral"
@@ -30,6 +38,7 @@ export const subscriptionStatusTone: Record<
 	trialing: "brand",
 	active: "success",
 	past_due: "warning",
+	suspended: "neutral",
 	paused: "neutral",
 	cancelled: "neutral",
 	expired: "neutral",
@@ -39,6 +48,7 @@ export const subscriptionStatusLabel: Record<SubscriptionStatus, string> = {
 	trialing: "Trialing",
 	active: "Active",
 	past_due: "Past due",
+	suspended: "Suspended",
 	paused: "Paused",
 	cancelled: "Cancelled",
 	expired: "Expired",
@@ -69,6 +79,12 @@ export function formatRelativeBillingDate(iso: string | null): string {
 		year: "numeric",
 	});
 }
+
+export const subscriptionsListQueryOptions = () =>
+	queryOptions({
+		queryKey: ["subscriptions"],
+		queryFn: () => listSubscriptionSummaries(),
+	});
 
 export const subscriptions: Subscription[] = [
 	{

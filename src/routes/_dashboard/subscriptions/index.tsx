@@ -3,6 +3,7 @@ import {
 	MagnifyingGlassIcon,
 	WarningCircleIcon,
 } from "@phosphor-icons/react";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import {
 	createFileRoute,
 	stripSearchParams,
@@ -63,15 +64,14 @@ import {
 	TableRow,
 } from "#/components/ui/table.tsx";
 import { ToggleGroup, ToggleGroupItem } from "#/components/ui/toggle-group.tsx";
-import { plans } from "#/data/plans.ts";
+import { plansQueryOptions } from "#/data/plans.ts";
 import {
-	subscriptions as allSubscriptions,
 	formatRelativeBillingDate,
-	planNameFor,
-	type Subscription,
 	type SubscriptionStatus,
+	type SubscriptionSummary,
 	subscriptionStatusLabel,
 	subscriptionStatusTone,
+	subscriptionsListQueryOptions,
 } from "#/data/subscriptions.ts";
 import { formatNGN } from "#/lib/currency.ts";
 
@@ -79,6 +79,7 @@ const statusValues = [
 	"trialing",
 	"active",
 	"past_due",
+	"suspended",
 	"paused",
 	"cancelled",
 	"expired",
@@ -97,6 +98,12 @@ export const Route = createFileRoute("/_dashboard/subscriptions/")({
 	validateSearch: subscriptionsSearchSchema,
 	search: {
 		middlewares: [stripSearchParams(defaultSubsSearch)],
+	},
+	loader: async ({ context }) => {
+		await Promise.all([
+			context.queryClient.ensureQueryData(subscriptionsListQueryOptions()),
+			context.queryClient.ensureQueryData(plansQueryOptions()),
+		]);
 	},
 	component: SubscriptionsListPage,
 	head: () => ({ meta: [{ title: "Subscriptions | SubPilot" }] }),
@@ -124,7 +131,10 @@ function statusRank(status: SubscriptionStatus): number {
 	return 2;
 }
 
-function compareSubscriptions(a: Subscription, b: Subscription): number {
+function compareSubscriptions(
+	a: SubscriptionSummary,
+	b: SubscriptionSummary,
+): number {
 	const rankDiff = statusRank(a.status) - statusRank(b.status);
 	if (rankDiff !== 0) return rankDiff;
 	if (a.status === "active" && b.status === "active") {
@@ -142,13 +152,22 @@ function compareSubscriptions(a: Subscription, b: Subscription): number {
 function SubscriptionsListPage() {
 	const { page, status, planId, q } = Route.useSearch();
 	const navigate = useNavigate({ from: Route.fullPath });
+	const { data: allSubscriptions } = useSuspenseQuery(
+		subscriptionsListQueryOptions(),
+	);
+	const { data: plans } = useSuspenseQuery(plansQueryOptions());
 
 	function handleStatusFilterChange(value: string) {
+		const nextStatus: (typeof statusValues)[number] | undefined = value
+			? (value as (typeof statusValues)[number])
+			: undefined;
+
 		navigate({
 			search: (prev) => ({
-				...prev,
-				status: (value || undefined) as SubscriptionStatus | undefined,
 				page: 1,
+				status: nextStatus,
+				planId: prev.planId,
+				q: prev.q,
 			}),
 			resetScroll: false,
 		});
@@ -157,9 +176,10 @@ function SubscriptionsListPage() {
 	function handlePlanFilterChange(value: string) {
 		navigate({
 			search: (prev) => ({
-				...prev,
-				planId: value === "all" ? undefined : value,
 				page: 1,
+				status: prev.status,
+				planId: value === "all" ? undefined : value,
+				q: prev.q,
 			}),
 			resetScroll: false,
 		});
@@ -167,16 +187,14 @@ function SubscriptionsListPage() {
 
 	function handleSearchChange(value: string) {
 		navigate({
-			search: (prev) => ({ ...prev, q: value, page: 1 }),
+			search: (prev) => ({
+				page: 1,
+				status: prev.status,
+				planId: prev.planId,
+				q: value,
+			}),
 			replace: true,
 			resetScroll: false,
-		});
-	}
-
-	function goToSubscription(subscriptionId: string) {
-		navigate({
-			to: "/subscriptions/$subscriptionId",
-			params: { subscriptionId },
 		});
 	}
 
@@ -197,7 +215,7 @@ function SubscriptionsListPage() {
 		})
 		.sort(compareSubscriptions);
 
-	const columns: ColumnDef<Subscription>[] = [
+	const columns: ColumnDef<SubscriptionSummary>[] = [
 		{
 			id: "customer",
 			header: "Customer",
@@ -216,9 +234,7 @@ function SubscriptionsListPage() {
 			id: "plan",
 			header: "Plan",
 			cell: ({ row }) => (
-				<span className="text-(--ink-2)">
-					{planNameFor(row.original.planId)}
-				</span>
+				<span className="text-(--ink-2)">{row.original.planName}</span>
 			),
 		},
 		{
@@ -264,23 +280,6 @@ function SubscriptionsListPage() {
 				<span className="text-(--ink-3)">
 					{formatDate(row.original.updatedAt)}
 				</span>
-			),
-		},
-		{
-			id: "actions",
-			header: "",
-			cell: ({ row }) => (
-				<Button
-					variant="ghost"
-					size="sm"
-					onClick={(e) => {
-						e.stopPropagation();
-						goToSubscription(row.original.id);
-					}}
-					className="text-(--ink-3) hover:text-(--ink)"
-				>
-					View
-				</Button>
 			),
 		},
 	];
@@ -488,11 +487,7 @@ function SubscriptionsListPage() {
 							</TableHeader>
 							<TableBody>
 								{table.getRowModel().rows.map((row) => (
-									<TableRow
-										key={row.id}
-										onClick={() => goToSubscription(row.original.id)}
-										className="cursor-pointer border-(--line) hover:bg-(--surface-2)"
-									>
+									<TableRow key={row.id} className="border-(--line)">
 										{row.getVisibleCells().map((cell) => (
 											<TableCell key={cell.id}>
 												{flexRender(
@@ -520,12 +515,6 @@ function SubscriptionsListPage() {
 											: "border-(--line) bg-(--surface-1)"
 									}`}
 								>
-									<button
-										type="button"
-										onClick={() => goToSubscription(sub.id)}
-										aria-label={`View ${sub.customerName}'s subscription`}
-										className="absolute inset-0 z-0 rounded-2xl"
-									/>
 									<div className="relative z-10 flex items-start justify-between gap-2">
 										<div>
 											<p className="m-0 font-medium text-(--ink)">
@@ -540,7 +529,7 @@ function SubscriptionsListPage() {
 										</StatusBadge>
 									</div>
 									<div className="relative z-10 text-sm text-(--ink-2)">
-										{planNameFor(sub.planId)} · {formatNGN(sub.amountKobo)}
+										{sub.planName} · {formatNGN(sub.amountKobo)}
 									</div>
 									<div className="relative z-10 text-xs text-(--ink-3)">
 										Next billing:{" "}

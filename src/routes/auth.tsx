@@ -7,6 +7,8 @@ import {
 
 export const Route = createFileRoute("/auth")({
 	beforeLoad: ({ location }) => {
+		// TODO(blocked): Redirect authenticated merchants away from /auth/* once the
+		// backend ships GET /v1/auth/me. See docs/BACKEND-GAPS.md Gap 1.
 		if (location.pathname === "/auth" || location.pathname === "/auth/") {
 			throw redirect({ to: "/auth/login" });
 		}

@@ -31,6 +31,7 @@ import {
 	type PasswordStrengthValue,
 } from "#/components/ui/password-strength.tsx";
 import { Spinner } from "#/components/ui/spinner.tsx";
+import { signupMerchant } from "#/lib/api/auth.ts";
 
 export const Route = createFileRoute("/auth/signup")({
 	component: SignupPage,
@@ -61,17 +62,18 @@ function SignupPage() {
 	const form = useForm({
 		defaultValues: { businessName: "", email: "", password: "", phone: "" },
 		validators: { onSubmit: schema },
-		onSubmit: async () => {
+		onSubmit: async ({ value }) => {
 			setEmailTakenError(null);
 			try {
-				// TODO: replace with TanStack Start server function proxying to /v1/auth/signup
-				// await signupServerFn({ ...value })
-				await new Promise<void>((_, reject) =>
-					setTimeout(
-						() => reject(new Error("Backend not yet connected.")),
-						800,
-					),
-				);
+				// TODO(blocked): The backend signup contract still has no phone field.
+				// Keep collecting it here for UX continuity until the backend accepts it.
+				await signupMerchant({
+					data: {
+						businessName: value.businessName,
+						email: value.email,
+						password: value.password,
+					},
+				});
 			} catch (err) {
 				const message = err instanceof Error ? err.message : "Unknown error";
 				if (

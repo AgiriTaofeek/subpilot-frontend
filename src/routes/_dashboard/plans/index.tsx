@@ -8,6 +8,11 @@ import {
 	PlusIcon,
 } from "@phosphor-icons/react";
 import {
+	useMutation,
+	useQueryClient,
+	useSuspenseQuery,
+} from "@tanstack/react-query";
+import {
 	createFileRoute,
 	Link,
 	stripSearchParams,
@@ -58,11 +63,14 @@ import {
 } from "#/components/ui/table.tsx";
 import { ToggleGroup, ToggleGroupItem } from "#/components/ui/toggle-group.tsx";
 import {
-	plans as allPlans,
+	archivePlan,
 	checkoutUrl,
 	formatInterval,
 	type Plan,
 	type PlanStatus,
+	planDetailQueryOptions,
+	plansQueryOptions,
+	publishPlan,
 	statusTone,
 } from "#/data/plans.ts";
 import { formatNGN } from "#/lib/currency.ts";
@@ -91,6 +99,9 @@ export const Route = createFileRoute("/_dashboard/plans/")({
 	validateSearch: plansSearchSchema,
 	search: {
 		middlewares: [stripSearchParams(defaultPlansSearch)],
+	},
+	loader: async ({ context }) => {
+		await context.queryClient.ensureQueryData(plansQueryOptions());
 	},
 	component: PlansListPage,
 	head: () => ({ meta: [{ title: "Plans | SubPilot" }] }),
@@ -141,6 +152,42 @@ function sortPlans(
 function PlansListPage() {
 	const { page, status, q, sort, order } = Route.useSearch();
 	const navigate = useNavigate({ from: Route.fullPath });
+	const queryClient = useQueryClient();
+	const { data: allPlans } = useSuspenseQuery(plansQueryOptions());
+
+	const publishMutation = useMutation({
+		mutationFn: (planId: string) => publishPlan(planId),
+		onSuccess: async (updatedPlan) => {
+			await queryClient.invalidateQueries({ queryKey: ["plans"] });
+			queryClient.setQueryData(
+				planDetailQueryOptions(updatedPlan.id).queryKey,
+				updatedPlan,
+			);
+			toast.success("Plan published");
+		},
+		onError: (error) => {
+			toast.error(
+				error instanceof Error ? error.message : "Couldn't publish the plan.",
+			);
+		},
+	});
+
+	const archiveMutation = useMutation({
+		mutationFn: (planId: string) => archivePlan(planId),
+		onSuccess: async (updatedPlan) => {
+			await queryClient.invalidateQueries({ queryKey: ["plans"] });
+			queryClient.setQueryData(
+				planDetailQueryOptions(updatedPlan.id).queryKey,
+				updatedPlan,
+			);
+			toast.success("Plan archived");
+		},
+		onError: (error) => {
+			toast.error(
+				error instanceof Error ? error.message : "Couldn't archive the plan.",
+			);
+		},
+	});
 
 	function handleStatusFilterChange(value: string) {
 		navigate({
@@ -292,10 +339,19 @@ function PlansListPage() {
 								View
 							</DropdownMenuItem>
 							{plan.status === "draft" && (
-								<DropdownMenuItem>Publish</DropdownMenuItem>
+								<DropdownMenuItem
+									disabled={publishMutation.isPending}
+									onClick={() => publishMutation.mutate(plan.id)}
+								>
+									Publish
+								</DropdownMenuItem>
 							)}
 							{plan.status !== "archived" && (
-								<DropdownMenuItem variant="destructive">
+								<DropdownMenuItem
+									variant="destructive"
+									disabled={archiveMutation.isPending}
+									onClick={() => archiveMutation.mutate(plan.id)}
+								>
 									Archive
 								</DropdownMenuItem>
 							)}

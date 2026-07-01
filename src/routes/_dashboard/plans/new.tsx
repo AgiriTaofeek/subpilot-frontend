@@ -1,4 +1,5 @@
 import { useForm } from "@tanstack/react-form";
+import { useQueryClient } from "@tanstack/react-query";
 import {
 	createFileRoute,
 	Link,
@@ -37,9 +38,9 @@ import { Spinner } from "#/components/ui/spinner.tsx";
 import { Textarea } from "#/components/ui/textarea.tsx";
 import { ToggleGroup, ToggleGroupItem } from "#/components/ui/toggle-group.tsx";
 import {
+	createPlan,
+	type EditablePlanInterval,
 	formatInterval,
-	merchantSlug,
-	type PlanInterval,
 } from "#/data/plans.ts";
 import { formatNGN } from "#/lib/currency.ts";
 
@@ -105,34 +106,33 @@ function slugify(name: string): string {
 
 function NewPlanPage() {
 	const navigate = useNavigate();
+	const queryClient = useQueryClient();
 
 	const form = useForm({
 		defaultValues: {
 			name: "",
 			description: "",
 			amountKobo: 0,
-			interval: { kind: "monthly" } as PlanInterval,
+			interval: { kind: "monthly" } as EditablePlanInterval,
 			trialDays: 0,
 			proration: "none" as "none" | "credit" | "charge",
 		},
 		validators: { onSubmit: schema },
-		onSubmit: async () => {
+		onSubmit: async ({ value }) => {
 			try {
-				// TODO: replace with TanStack Start server function proxying to POST /v1/plans
-				await new Promise<void>((_, reject) =>
-					setTimeout(
-						() => reject(new Error("Backend not yet connected.")),
-						800,
-					),
+				const plan = await createPlan(value);
+				await queryClient.invalidateQueries({ queryKey: ["plans"] });
+				form.reset();
+				await navigate({ to: "/plans/$planId", params: { planId: plan.id } });
+				toast.success("Plan created");
+			} catch (error) {
+				toast.error(
+					error instanceof Error
+						? error.message
+						: "Couldn't create the plan. Try again.",
 				);
-			} catch {
-				toast.error("Couldn't reach the server. Check your connection.");
 				return;
 			}
-			form.reset();
-			// TODO: redirect to /plans/$planId using the server-returned plan id
-			await navigate({ to: "/plans" });
-			toast.success("Plan created");
 		},
 	});
 
@@ -501,7 +501,7 @@ function NewPlanPage() {
 											<p className="text-xs leading-relaxed text-(--ink-3)">
 												You'll get a shareable checkout link at{" "}
 												<span className="font-heading text-(--ink-2)">
-													/pay/{merchantSlug}/{slug}
+													{`/pay/{merchant-slug}/${slug}`}
 												</span>
 												.
 											</p>

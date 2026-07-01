@@ -5,6 +5,8 @@ import { DashboardSidebar } from "#/components/layout/dashboard-sidebar.tsx";
 import { SidebarInset, SidebarProvider } from "#/components/ui/sidebar.tsx";
 
 export const Route = createFileRoute("/_dashboard")({
+	// TODO(blocked): Add the real beforeLoad merchant session bootstrap and redirect once
+	// the backend ships GET /v1/auth/me and a usable refresh contract. See docs/BACKEND-GAPS.md Gap 1.
 	component: DashboardLayout,
 });
 

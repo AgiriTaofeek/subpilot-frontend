@@ -92,6 +92,8 @@ docs/               Design docs and execution docs
 | [docs/architecture.md](docs/architecture.md)                                               | Components, request flow, technology choices                            |
 | [docs/frontend-bff-architecture.md](docs/frontend-bff-architecture.md)                     | Recommended TanStack Start BFF boundary and data-flow strategy          |
 | [docs/backend-auth-architecture-request.md](docs/backend-auth-architecture-request.md)     | Backend-facing auth/session contract request, backend-owned cookie auth |
+| [docs/backend-phase-b-handoff.md](docs/backend-phase-b-handoff.md)                         | Concrete backend changes needed to unblock Phase B frontend wiring      |
+| [docs/BACKEND-GAPS.md](docs/BACKEND-GAPS.md)                                               | Tracked backend blockers that still prevent parts of the frontend       |
 | [docs/auth-model.md](docs/auth-model.md)                                                   | Merchant cookie auth, portal token auth, and API-key auth surfaces      |
 | [docs/frontend-error-and-loading-strategy.md](docs/frontend-error-and-loading-strategy.md) | Loading, timeout, retry, error, and eventual-consistency UX rules       |
 | [docs/data-modeling.md](docs/data-modeling.md)                                             | TypeScript types mirroring backend DTOs                                 |
@@ -105,5 +107,6 @@ docs/               Design docs and execution docs
 - Understanding the architecture? Read [docs/architecture.md](docs/architecture.md).
 - Evaluating the BFF approach? Read [docs/frontend-bff-architecture.md](docs/frontend-bff-architecture.md).
 - Sending auth requirements to backend? Read [docs/backend-auth-architecture-request.md](docs/backend-auth-architecture-request.md).
+- Sending the exact Phase B backend fixes? Read [docs/backend-phase-b-handoff.md](docs/backend-phase-b-handoff.md).
 - Designing loading/error UX? Read [docs/frontend-error-and-loading-strategy.md](docs/frontend-error-and-loading-strategy.md).
 - Starting on a feature? Check [docs/roadmap.md](docs/roadmap.md) for current milestone scope.

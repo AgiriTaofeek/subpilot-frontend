@@ -61,6 +61,14 @@ Per TanStack Start's own hosting docs, **Cloudflare, Netlify, and Railway are th
 
 This is the part that's actually judged (state-machine completeness, dunning, multi-tenant cleanliness, API ergonomics all need to be backed by something real, not just visually present). Keep the existing screens; swap their data source underneath them, one domain at a time, in this order (matches `docs/frontend-build-order.md`'s sequencing logic, which holds regardless of which HTTP/form stack is used — auth has to come first because everything downstream needs merchant identity):
 
+Current implementation status:
+
+- signup/login submissions are now wired through TanStack Start server functions and the dashboard sidebar logout action is real
+- dashboard bootstrap and redirect guards are still blocked by the missing `GET /v1/auth/me` contract in `docs/BACKEND-GAPS.md`
+- plans create/list/detail/publish/archive are now wired to the real backend
+- public hosted checkout now loads the real public plan contract and redirects to the backend-provided Nomba checkout URL
+- the subscriptions list now uses real backend data, aggregated with customer and plan data on the Start side; the richer subscription detail view remains outside the tracer-bullet scope
+
 1. **Auth (signup/login/me/logout), cookie-based.** Cookie-setting requires a server boundary — client components cannot set `HttpOnly` cookies directly. Add TanStack Start server functions (`createServerFn`) for `POST /v1/auth/signup`, `POST /v1/auth/login`, `POST /v1/auth/logout`, and a loader/`beforeLoad`-driven `GET /v1/auth/me` bootstrap on the `_dashboard` pathless layout (`src/routes/_dashboard.tsx`) to gate dashboard routes server-side, forwarding the backend's `Set-Cookie` back to the browser. Replace `login.tsx`/`signup.tsx`'s `setTimeout(...reject("Backend not yet connected."))` stubs with real calls to these server functions, keeping the existing TanStack Form usage as-is — only the `onSubmit` body changes.
 2. **Plans**: create + publish, replacing the mock array push in `src/data/plans.ts` with real `GET/POST /v1/plans`, `POST /v1/plans/:id/publish` calls via TanStack Query (`useMutation`/`useQuery`), reusing `plans/new.tsx` and `plans/$planId.tsx` as-is.
 3. **Public checkout**: `GET /v1/public/plans/:merchantSlug/:planSlug` and `POST /v1/public/plans/:merchantSlug/:planSlug/checkout`, replacing `resolvePublicPlan` in `src/data/plans.ts` and wiring the real Nomba redirect in `pay.$merchantSlug.$planSlug.tsx`.
@@ -74,7 +82,14 @@ Everything else (invoices, customers, revenue, webhooks, events, portal, API key
 
 Given the deadline, skip the three-branch model for now. Single `main`. Unlike Cloudflare Pages, Workers deployment via Wrangler is not git-triggered automatically — it needs an explicit `wrangler deploy` step, so this phase has two workflow files instead of one:
 
-- **`.github/workflows/ci.yml`** — triggers on `push` and `pull_request` to `main`. Steps: checkout, `pnpm/action-setup`, `actions/setup-node` with `node-version-file: .nvmrc` and `cache: pnpm`, `pnpm install --frozen-lockfile`, `pnpm check` (Biome), `tsc --noEmit`, `pnpm build`. Add `pnpm test` once the first real backend-wiring PR lands with actual test coverage (see below) — don't gate on the currently-empty `vitest run`.
+Current implementation status:
+
+- `.github/workflows/ci.yml` and `.github/workflows/deploy.yml` now exist
+- `formatNGN` and auth backend-request coverage now exist under Vitest + MSW
+- the CI lint step currently uses `pnpm check:ci` instead of repo-wide `pnpm check`, because there is still pre-existing Biome debt in shared UI primitives and editor config files that sits outside the hackathon-critical tracer-bullet slice
+- repo-wide Biome cleanup remains deferred to the post-deadline docs/tooling reconciliation pass
+
+- **`.github/workflows/ci.yml`** — triggers on `push` and `pull_request` to `main`. Steps: checkout, `pnpm/action-setup`, `actions/setup-node` with `node-version-file: .nvmrc` and `cache: pnpm`, `pnpm install --frozen-lockfile`, `pnpm check:ci` (Biome on active app/config surfaces), `pnpm typecheck`, `pnpm test`, `pnpm build`.
 - **`.github/workflows/deploy.yml`** — triggers on `push` to `main` (after `ci.yml` passes, or as a second job gated on the first). Same setup steps, then `pnpm build` followed by `wrangler deploy` via `cloudflare/wrangler-action@v3`, authenticated with the `CLOUDFLARE_API_TOKEN` secret created in Phase A step 6.
 - Add exactly two tests alongside the Phase B auth work (not more, not a full suite — deadline-appropriate): one for `formatNGN` (the single most bug-prone conversion point per `AGENTS.md`'s own monetary-handling rule) and one integration test for the auth server function (signup success + backend error message surfaced), using MSW (already listed as a Phase 0 dependency in the docs and worth keeping regardless of the stack decision, since it's the standard way to test server functions without hitting the real backend in CI).
 - Skip PR preview deployments for now — Workers/Wrangler doesn't give the same zero-config preview URL as Pages. Wrangler does support a "versions" preview-URL feature; revisit as a Phase D nice-to-have, not before the deadline.

@@ -25,6 +25,7 @@ import {
 	InputGroupInput,
 } from "#/components/ui/input-group.tsx";
 import { Spinner } from "#/components/ui/spinner.tsx";
+import { loginMerchant } from "#/lib/api/auth.ts";
 
 export const Route = createFileRoute("/auth/login")({
 	component: LoginPage,
@@ -44,17 +45,12 @@ function LoginPage() {
 	const form = useForm({
 		defaultValues: { email: "", password: "" },
 		validators: { onSubmit: schema },
-		onSubmit: async () => {
+		onSubmit: async ({ value }) => {
 			setCredentialError(null);
 			try {
-				// TODO: replace with TanStack Start server function proxying to /v1/auth/login
-				// await loginServerFn({ email: value.email, password: value.password })
-				await new Promise<void>((_, reject) =>
-					setTimeout(
-						() => reject(new Error("Backend not yet connected.")),
-						800,
-					),
-				);
+				await loginMerchant({
+					data: { email: value.email, password: value.password },
+				});
 			} catch (err) {
 				const message = err instanceof Error ? err.message : "Unknown error";
 				if (

@@ -86,6 +86,7 @@ const transitions: Record<SubscriptionStatus, SubscriptionStatus[]> = {
 	trialing: ["active", "cancelled"],
 	active: ["past_due", "paused", "cancelled"],
 	past_due: ["active", "cancelled", "expired"],
+	suspended: ["active", "cancelled"],
 	paused: ["active", "cancelled"],
 	cancelled: [],
 	expired: [],
@@ -100,6 +101,8 @@ const transitionLabels: Record<string, string> = {
 	"past_due->active": "payment recovers",
 	"past_due->cancelled": "dunning exhausted",
 	"past_due->expired": "retries exhausted",
+	"suspended->active": "resume",
+	"suspended->cancelled": "cancel",
 	"paused->active": "resume",
 	"paused->cancelled": "cancel",
 };
