@@ -1,4 +1,3 @@
-import { getLocale } from "#/paraglide/runtime";
 import { TanStackDevtools } from "@tanstack/react-devtools";
 import type { QueryClient } from "@tanstack/react-query";
 import {
@@ -7,8 +6,10 @@ import {
 	Scripts,
 } from "@tanstack/react-router";
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
+import { Toaster } from "#/components/ui/sonner.tsx";
+import { TooltipProvider } from "#/components/ui/tooltip.tsx";
+import { getLocale } from "#/paraglide/runtime";
 import TanStackQueryDevtools from "../integrations/tanstack-query/devtools";
-import StoreDevtools from "../lib/demo-store-devtools";
 import appCss from "../styles.css?url";
 
 interface MyRouterContext {
@@ -57,8 +58,9 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 				<script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
 				<HeadContent />
 			</head>
-			<body className="font-sans antialiased [overflow-wrap:anywhere]">
-				{children}
+			<body className="font-sans antialiased wrap-anywhere">
+				<TooltipProvider>{children}</TooltipProvider>
+				<Toaster position="bottom-right" richColors />
 				<TanStackDevtools
 					config={{
 						position: "bottom-right",
@@ -68,7 +70,6 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 							name: "Tanstack Router",
 							render: <TanStackRouterDevtoolsPanel />,
 						},
-						StoreDevtools,
 						TanStackQueryDevtools,
 					]}
 				/>

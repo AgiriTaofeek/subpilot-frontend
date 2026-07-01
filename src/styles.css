@@ -31,14 +31,14 @@
     --chart-4: oklch(0.37 0.013 285.805);
     --chart-5: oklch(0.274 0.006 286.033);
     --radius: 0.45rem;
-    --sidebar: oklch(0.985 0 0);
-    --sidebar-foreground: oklch(0.141 0.005 285.823);
-    --sidebar-primary: oklch(0.21 0.006 285.885);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.967 0.001 286.375);
-    --sidebar-accent-foreground: oklch(0.21 0.006 285.885);
-    --sidebar-border: oklch(0.92 0.004 286.32);
-    --sidebar-ring: oklch(0.705 0.015 286.067);
+    --sidebar: var(--surface-1);
+    --sidebar-foreground: var(--ink);
+    --sidebar-primary: var(--brand);
+    --sidebar-primary-foreground: var(--brand-fg);
+    --sidebar-accent: var(--surface-2);
+    --sidebar-accent-foreground: var(--ink);
+    --sidebar-border: var(--line);
+    --sidebar-ring: var(--brand);
 }
 
 .dark {
@@ -65,14 +65,14 @@
     --chart-3: oklch(0.442 0.017 285.786);
     --chart-4: oklch(0.37 0.013 285.805);
     --chart-5: oklch(0.274 0.006 286.033);
-    --sidebar: oklch(0.21 0.006 285.885);
-    --sidebar-foreground: oklch(0.985 0 0);
-    --sidebar-primary: oklch(0.488 0.243 264.376);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.274 0.006 286.033);
-    --sidebar-accent-foreground: oklch(0.985 0 0);
-    --sidebar-border: oklch(1 0 0 / 10%);
-    --sidebar-ring: oklch(0.552 0.016 285.938);
+    --sidebar: var(--surface-1);
+    --sidebar-foreground: var(--ink);
+    --sidebar-primary: var(--brand);
+    --sidebar-primary-foreground: var(--brand-fg);
+    --sidebar-accent: var(--surface-2);
+    --sidebar-accent-foreground: var(--ink);
+    --sidebar-border: var(--line);
+    --sidebar-ring: var(--brand);
 }
 
 @theme inline {
@@ -128,4 +128,124 @@
   html {
     @apply font-sans;
     }
+}
+
+/* ─── Marketing design tokens ────────────────────────────────────────────── */
+:root {
+  /* Brand accent — fintech emerald green */
+  --brand:         oklch(0.54 0.175 153);
+  --brand-subtle:  oklch(0.54 0.175 153 / 0.12);
+  --brand-fg:      oklch(0.99 0.005 153);
+
+  /* Content surfaces — theme-adaptive (light: cool off-white, not stark white) */
+  --surface:       oklch(0.966 0.007 264);
+  --surface-1:     oklch(1 0 0);
+  --surface-2:     oklch(0.978 0.005 264);
+  --surface-3:     oklch(0.950 0.008 264);
+  --line:          oklch(0.890 0.008 264);
+  --line-subtle:   oklch(0.934 0.005 264);
+
+  /* Text hierarchy — theme-adaptive (light: dark slate, not harsh black) */
+  --ink:           oklch(0.165 0.012 264);
+  --ink-2:         oklch(0.420 0.015 264);
+  --ink-3:         oklch(0.600 0.012 264);
+
+  /* Status text — theme-adaptive, replaces ad-hoc dark: color overrides */
+  --success:       oklch(0.596 0.145 163.225);
+  --warning:       oklch(0.666 0.179 58.318);
+  --danger:        oklch(0.577 0.245 27.325);
+
+  /* Inverted panels — dark navy in light mode, elevated slate in dark mode */
+  --surface-invert:      oklch(0.120 0.018 235);
+  --surface-invert-2:    oklch(0.160 0.016 235);
+  --surface-invert-edge: oklch(0.260 0.014 235);
+  --ink-invert:          oklch(0.970 0.004 235);
+  --ink-invert-2:        oklch(0.640 0.012 235);
+
+  /* Hero / CTA sections — always dark navy, never flips */
+  --pitch:             oklch(0.090 0.020 235);
+  --pitch-1:           oklch(0.130 0.018 235);
+  --pitch-2:           oklch(0.170 0.016 235);
+  --pitch-3:           oklch(0.220 0.014 235);
+  --pitch-line:        oklch(0.260 0.014 235);
+  --pitch-line-subtle: oklch(0.190 0.013 235);
+  --pitch-fg:          oklch(0.970 0.004 235);
+  --pitch-fg-2:        oklch(0.640 0.012 235);
+  --pitch-fg-3:        oklch(0.400 0.012 235);
+}
+
+.dark {
+  --brand:         oklch(0.650 0.170 153);
+  --brand-subtle:  oklch(0.650 0.170 153 / 0.10);
+  --brand-fg:      oklch(0.090 0.010 153);
+
+  --surface:       oklch(0.090 0.015 264);
+  --surface-1:     oklch(0.130 0.014 264);
+  --surface-2:     oklch(0.170 0.013 264);
+  --surface-3:     oklch(0.210 0.012 264);
+  --line:          oklch(0.250 0.014 264);
+  --line-subtle:   oklch(0.190 0.012 264);
+
+  --ink:           oklch(0.970 0.003 264);
+  --ink-2:         oklch(0.720 0.010 264);
+  --ink-3:         oklch(0.510 0.012 264);
+
+  --success:       oklch(0.765 0.177 163.223);
+  --warning:       oklch(0.828 0.189 84.429);
+  --danger:        oklch(0.704 0.191 22.216);
+
+  /* In dark mode inverted panels become elevated — clearly lighter than bg */
+  --surface-invert:      oklch(0.240 0.016 264);
+  --surface-invert-2:    oklch(0.300 0.015 264);
+  --surface-invert-edge: oklch(0.360 0.014 264);
+  --ink-invert:          oklch(0.970 0.003 264);
+  --ink-invert-2:        oklch(0.720 0.010 264);
+
+  /* Pitch panels must be elevated in dark mode — page bg is L=0.09 so
+     pitch stays dark-navy but visibly above the background */
+  --pitch:             oklch(0.140 0.018 235);
+  --pitch-1:           oklch(0.178 0.016 235);
+  --pitch-2:           oklch(0.212 0.015 235);
+  --pitch-3:           oklch(0.258 0.014 235);
+  --pitch-line:        oklch(0.305 0.013 235);
+  --pitch-line-subtle: oklch(0.228 0.012 235);
+}
+
+/* ─── Marketing utility classes ─────────────────────────────────────────── */
+.page-wrap {
+  margin-inline: auto;
+  width: 100%;
+  max-width: 72rem;
+}
+
+.island-kicker {
+  font-family: var(--font-heading);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.13em;
+  text-transform: uppercase;
+  color: var(--brand);
+}
+
+.island-shell {
+  border: 1px solid var(--line);
+  border-radius: 1rem;
+  background-color: var(--surface-1);
+}
+
+.site-footer {
+  border-top: 1px solid var(--line);
+}
+
+.feature-card {
+  transition: box-shadow 0.2s ease;
+}
+
+.rise-in {
+  animation-name: enter;
+  animation-duration: 700ms;
+  animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+  animation-fill-mode: both;
+  --tw-enter-opacity: 0;
+  --tw-enter-translate-y: 0.75rem;
 }

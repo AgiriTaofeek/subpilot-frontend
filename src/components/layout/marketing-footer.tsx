@@ -14,11 +14,11 @@ export default function MarketingFooter() {
 
 	return (
 		<footer className="site-footer mt-20 px-4 pb-12 pt-8">
-			<div className="page-wrap space-y-6">
+			<div className="page-wrap flex flex-col gap-6">
 				<div className="flex flex-col gap-6 md:flex-row md:items-end md:justify-between">
-					<div className="max-w-md space-y-2">
+					<div className="max-w-md flex flex-col gap-2">
 						<p className="island-kicker m-0">SubPilot</p>
-						<p className="m-0 text-sm leading-relaxed text-(--sea-ink-soft)">
+						<p className="m-0 text-sm leading-relaxed text-(--ink-2)">
 							Recurring billing for teams shipping on Nomba, with plan
 							management, proration, dunning, self-serve portal flows, and
 							operational webhooks.
@@ -30,7 +30,7 @@ export default function MarketingFooter() {
 							<a
 								key={link.label}
 								href={link.href}
-								className="text-sm font-medium text-(--sea-ink-soft) no-underline transition hover:text-(--sea-ink)"
+								className="text-sm font-medium text-(--ink-2) no-underline transition hover:text-(--ink)"
 							>
 								{link.label}
 							</a>
@@ -40,7 +40,7 @@ export default function MarketingFooter() {
 
 				<Separator className="bg-(--line)" />
 
-				<div className="flex flex-col gap-4 text-sm text-(--sea-ink-soft) sm:flex-row sm:items-center sm:justify-between">
+				<div className="flex flex-col gap-4 text-sm text-(--ink-2) sm:flex-row sm:items-center sm:justify-between">
 					<p className="m-0">
 						&copy; {year} SubPilot. Built for operational clarity.
 					</p>
@@ -49,8 +49,8 @@ export default function MarketingFooter() {
 						<a
 							href="https://github.com"
 							target="_blank"
-							rel="noreferrer"
-							className="inline-flex items-center gap-2 rounded-full border border-(--chip-line) bg-(--chip-bg) px-3 py-1.5 text-(--sea-ink) no-underline shadow-[0_8px_22px_rgba(30,90,72,0.08)]"
+							rel="noreferrer noopener"
+							className="inline-flex items-center gap-2 rounded-full border border-(--line) bg-(--surface-2) px-3 py-1.5 text-(--ink) no-underline"
 						>
 							<GithubLogoIcon className="size-4" />
 							GitHub
@@ -58,8 +58,8 @@ export default function MarketingFooter() {
 						<a
 							href="https://x.com"
 							target="_blank"
-							rel="noreferrer"
-							className="inline-flex items-center gap-2 rounded-full border border-(--chip-line) bg-(--chip-bg) px-3 py-1.5 text-(--sea-ink) no-underline shadow-[0_8px_22px_rgba(30,90,72,0.08)]"
+							rel="noreferrer noopener"
+							className="inline-flex items-center gap-2 rounded-full border border-(--line) bg-(--surface-2) px-3 py-1.5 text-(--ink) no-underline"
 						>
 							<XLogoIcon className="size-4" />X
 						</a>

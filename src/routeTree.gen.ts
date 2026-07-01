@@ -9,13 +9,47 @@
 // Additionally, you should also exclude this file from your linter and/or formatter to prevent it from being checked or modified.
 
 import { Route as rootRouteImport } from './routes/__root'
+import { Route as AuthRouteImport } from './routes/auth'
 import { Route as MarketingRouteImport } from './routes/_marketing'
-import { Route as MarketingIndexRouteImport } from './routes/_marketing.index'
-import { Route as DemoI18nRouteImport } from './routes/demo.i18n'
-import { Route as MarketingAboutRouteImport } from './routes/_marketing.about'
+import { Route as DashboardRouteImport } from './routes/_dashboard'
+import { Route as MarketingIndexRouteImport } from './routes/_marketing/index'
+import { Route as PortalTokenRouteImport } from './routes/portal.$token'
+import { Route as CheckoutReturnRouteImport } from './routes/checkout.return'
+import { Route as AuthSignupRouteImport } from './routes/auth/signup'
+import { Route as AuthLoginRouteImport } from './routes/auth/login'
+import { Route as DashboardRevenueRouteImport } from './routes/_dashboard/revenue'
+import { Route as DashboardOverviewRouteImport } from './routes/_dashboard/overview'
+import { Route as DashboardEventsRouteImport } from './routes/_dashboard/events'
+import { Route as PortalTokenIndexRouteImport } from './routes/portal.$token/index'
+import { Route as DashboardWebhooksIndexRouteImport } from './routes/_dashboard/webhooks/index'
+import { Route as DashboardSubscriptionsIndexRouteImport } from './routes/_dashboard/subscriptions/index'
+import { Route as DashboardPlansIndexRouteImport } from './routes/_dashboard/plans/index'
+import { Route as DashboardInvoicesIndexRouteImport } from './routes/_dashboard/invoices/index'
+import { Route as DashboardCustomersIndexRouteImport } from './routes/_dashboard/customers/index'
+import { Route as PortalTokenPlansRouteImport } from './routes/portal.$token/plans'
+import { Route as PortalTokenInvoicesRouteImport } from './routes/portal.$token/invoices'
+import { Route as PortalTokenCardUpdatedRouteImport } from './routes/portal.$token/card-updated'
+import { Route as PayMerchantSlugPlanSlugRouteImport } from './routes/pay.$merchantSlug.$planSlug'
+import { Route as DashboardWebhooksDeliveriesRouteImport } from './routes/_dashboard/webhooks/deliveries'
+import { Route as DashboardSubscriptionsSubscriptionIdRouteImport } from './routes/_dashboard/subscriptions/$subscriptionId'
+import { Route as DashboardSettingsApiKeysRouteImport } from './routes/_dashboard/settings/api-keys'
+import { Route as DashboardSettingsAccountRouteImport } from './routes/_dashboard/settings/account'
+import { Route as DashboardPlansNewRouteImport } from './routes/_dashboard/plans/new'
+import { Route as DashboardPlansPlanIdRouteImport } from './routes/_dashboard/plans/$planId'
+import { Route as DashboardInvoicesInvoiceIdRouteImport } from './routes/_dashboard/invoices/$invoiceId'
+import { Route as DashboardCustomersCustomerIdRouteImport } from './routes/_dashboard/customers/$customerId'
 
+const AuthRoute = AuthRouteImport.update({
+  id: '/auth',
+  path: '/auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const MarketingRoute = MarketingRouteImport.update({
   id: '/_marketing',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardRoute = DashboardRouteImport.update({
+  id: '/_dashboard',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MarketingIndexRoute = MarketingIndexRouteImport.update({
@@ -23,59 +57,349 @@ const MarketingIndexRoute = MarketingIndexRouteImport.update({
   path: '/',
   getParentRoute: () => MarketingRoute,
 } as any)
-const DemoI18nRoute = DemoI18nRouteImport.update({
-  id: '/demo/i18n',
-  path: '/demo/i18n',
+const PortalTokenRoute = PortalTokenRouteImport.update({
+  id: '/portal/$token',
+  path: '/portal/$token',
   getParentRoute: () => rootRouteImport,
 } as any)
-const MarketingAboutRoute = MarketingAboutRouteImport.update({
-  id: '/about',
-  path: '/about',
-  getParentRoute: () => MarketingRoute,
+const CheckoutReturnRoute = CheckoutReturnRouteImport.update({
+  id: '/checkout/return',
+  path: '/checkout/return',
+  getParentRoute: () => rootRouteImport,
 } as any)
+const AuthSignupRoute = AuthSignupRouteImport.update({
+  id: '/signup',
+  path: '/signup',
+  getParentRoute: () => AuthRoute,
+} as any)
+const AuthLoginRoute = AuthLoginRouteImport.update({
+  id: '/login',
+  path: '/login',
+  getParentRoute: () => AuthRoute,
+} as any)
+const DashboardRevenueRoute = DashboardRevenueRouteImport.update({
+  id: '/revenue',
+  path: '/revenue',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardOverviewRoute = DashboardOverviewRouteImport.update({
+  id: '/overview',
+  path: '/overview',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardEventsRoute = DashboardEventsRouteImport.update({
+  id: '/events',
+  path: '/events',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const PortalTokenIndexRoute = PortalTokenIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => PortalTokenRoute,
+} as any)
+const DashboardWebhooksIndexRoute = DashboardWebhooksIndexRouteImport.update({
+  id: '/webhooks/',
+  path: '/webhooks/',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardSubscriptionsIndexRoute =
+  DashboardSubscriptionsIndexRouteImport.update({
+    id: '/subscriptions/',
+    path: '/subscriptions/',
+    getParentRoute: () => DashboardRoute,
+  } as any)
+const DashboardPlansIndexRoute = DashboardPlansIndexRouteImport.update({
+  id: '/plans/',
+  path: '/plans/',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardInvoicesIndexRoute = DashboardInvoicesIndexRouteImport.update({
+  id: '/invoices/',
+  path: '/invoices/',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardCustomersIndexRoute = DashboardCustomersIndexRouteImport.update({
+  id: '/customers/',
+  path: '/customers/',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const PortalTokenPlansRoute = PortalTokenPlansRouteImport.update({
+  id: '/plans',
+  path: '/plans',
+  getParentRoute: () => PortalTokenRoute,
+} as any)
+const PortalTokenInvoicesRoute = PortalTokenInvoicesRouteImport.update({
+  id: '/invoices',
+  path: '/invoices',
+  getParentRoute: () => PortalTokenRoute,
+} as any)
+const PortalTokenCardUpdatedRoute = PortalTokenCardUpdatedRouteImport.update({
+  id: '/card-updated',
+  path: '/card-updated',
+  getParentRoute: () => PortalTokenRoute,
+} as any)
+const PayMerchantSlugPlanSlugRoute = PayMerchantSlugPlanSlugRouteImport.update({
+  id: '/pay/$merchantSlug/$planSlug',
+  path: '/pay/$merchantSlug/$planSlug',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const DashboardWebhooksDeliveriesRoute =
+  DashboardWebhooksDeliveriesRouteImport.update({
+    id: '/webhooks/deliveries',
+    path: '/webhooks/deliveries',
+    getParentRoute: () => DashboardRoute,
+  } as any)
+const DashboardSubscriptionsSubscriptionIdRoute =
+  DashboardSubscriptionsSubscriptionIdRouteImport.update({
+    id: '/subscriptions/$subscriptionId',
+    path: '/subscriptions/$subscriptionId',
+    getParentRoute: () => DashboardRoute,
+  } as any)
+const DashboardSettingsApiKeysRoute =
+  DashboardSettingsApiKeysRouteImport.update({
+    id: '/settings/api-keys',
+    path: '/settings/api-keys',
+    getParentRoute: () => DashboardRoute,
+  } as any)
+const DashboardSettingsAccountRoute =
+  DashboardSettingsAccountRouteImport.update({
+    id: '/settings/account',
+    path: '/settings/account',
+    getParentRoute: () => DashboardRoute,
+  } as any)
+const DashboardPlansNewRoute = DashboardPlansNewRouteImport.update({
+  id: '/plans/new',
+  path: '/plans/new',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardPlansPlanIdRoute = DashboardPlansPlanIdRouteImport.update({
+  id: '/plans/$planId',
+  path: '/plans/$planId',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardInvoicesInvoiceIdRoute =
+  DashboardInvoicesInvoiceIdRouteImport.update({
+    id: '/invoices/$invoiceId',
+    path: '/invoices/$invoiceId',
+    getParentRoute: () => DashboardRoute,
+  } as any)
+const DashboardCustomersCustomerIdRoute =
+  DashboardCustomersCustomerIdRouteImport.update({
+    id: '/customers/$customerId',
+    path: '/customers/$customerId',
+    getParentRoute: () => DashboardRoute,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof MarketingIndexRoute
-  '/about': typeof MarketingAboutRoute
-  '/demo/i18n': typeof DemoI18nRoute
+  '/auth': typeof AuthRouteWithChildren
+  '/events': typeof DashboardEventsRoute
+  '/overview': typeof DashboardOverviewRoute
+  '/revenue': typeof DashboardRevenueRoute
+  '/auth/login': typeof AuthLoginRoute
+  '/auth/signup': typeof AuthSignupRoute
+  '/checkout/return': typeof CheckoutReturnRoute
+  '/portal/$token': typeof PortalTokenRouteWithChildren
+  '/customers/$customerId': typeof DashboardCustomersCustomerIdRoute
+  '/invoices/$invoiceId': typeof DashboardInvoicesInvoiceIdRoute
+  '/plans/$planId': typeof DashboardPlansPlanIdRoute
+  '/plans/new': typeof DashboardPlansNewRoute
+  '/settings/account': typeof DashboardSettingsAccountRoute
+  '/settings/api-keys': typeof DashboardSettingsApiKeysRoute
+  '/subscriptions/$subscriptionId': typeof DashboardSubscriptionsSubscriptionIdRoute
+  '/webhooks/deliveries': typeof DashboardWebhooksDeliveriesRoute
+  '/pay/$merchantSlug/$planSlug': typeof PayMerchantSlugPlanSlugRoute
+  '/portal/$token/card-updated': typeof PortalTokenCardUpdatedRoute
+  '/portal/$token/invoices': typeof PortalTokenInvoicesRoute
+  '/portal/$token/plans': typeof PortalTokenPlansRoute
+  '/customers/': typeof DashboardCustomersIndexRoute
+  '/invoices/': typeof DashboardInvoicesIndexRoute
+  '/plans/': typeof DashboardPlansIndexRoute
+  '/subscriptions/': typeof DashboardSubscriptionsIndexRoute
+  '/webhooks/': typeof DashboardWebhooksIndexRoute
+  '/portal/$token/': typeof PortalTokenIndexRoute
 }
 export interface FileRoutesByTo {
-  '/about': typeof MarketingAboutRoute
-  '/demo/i18n': typeof DemoI18nRoute
   '/': typeof MarketingIndexRoute
+  '/auth': typeof AuthRouteWithChildren
+  '/events': typeof DashboardEventsRoute
+  '/overview': typeof DashboardOverviewRoute
+  '/revenue': typeof DashboardRevenueRoute
+  '/auth/login': typeof AuthLoginRoute
+  '/auth/signup': typeof AuthSignupRoute
+  '/checkout/return': typeof CheckoutReturnRoute
+  '/customers/$customerId': typeof DashboardCustomersCustomerIdRoute
+  '/invoices/$invoiceId': typeof DashboardInvoicesInvoiceIdRoute
+  '/plans/$planId': typeof DashboardPlansPlanIdRoute
+  '/plans/new': typeof DashboardPlansNewRoute
+  '/settings/account': typeof DashboardSettingsAccountRoute
+  '/settings/api-keys': typeof DashboardSettingsApiKeysRoute
+  '/subscriptions/$subscriptionId': typeof DashboardSubscriptionsSubscriptionIdRoute
+  '/webhooks/deliveries': typeof DashboardWebhooksDeliveriesRoute
+  '/pay/$merchantSlug/$planSlug': typeof PayMerchantSlugPlanSlugRoute
+  '/portal/$token/card-updated': typeof PortalTokenCardUpdatedRoute
+  '/portal/$token/invoices': typeof PortalTokenInvoicesRoute
+  '/portal/$token/plans': typeof PortalTokenPlansRoute
+  '/customers': typeof DashboardCustomersIndexRoute
+  '/invoices': typeof DashboardInvoicesIndexRoute
+  '/plans': typeof DashboardPlansIndexRoute
+  '/subscriptions': typeof DashboardSubscriptionsIndexRoute
+  '/webhooks': typeof DashboardWebhooksIndexRoute
+  '/portal/$token': typeof PortalTokenIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
+  '/_dashboard': typeof DashboardRouteWithChildren
   '/_marketing': typeof MarketingRouteWithChildren
-  '/_marketing/about': typeof MarketingAboutRoute
-  '/demo/i18n': typeof DemoI18nRoute
+  '/auth': typeof AuthRouteWithChildren
+  '/_dashboard/events': typeof DashboardEventsRoute
+  '/_dashboard/overview': typeof DashboardOverviewRoute
+  '/_dashboard/revenue': typeof DashboardRevenueRoute
+  '/auth/login': typeof AuthLoginRoute
+  '/auth/signup': typeof AuthSignupRoute
+  '/checkout/return': typeof CheckoutReturnRoute
+  '/portal/$token': typeof PortalTokenRouteWithChildren
   '/_marketing/': typeof MarketingIndexRoute
+  '/_dashboard/customers/$customerId': typeof DashboardCustomersCustomerIdRoute
+  '/_dashboard/invoices/$invoiceId': typeof DashboardInvoicesInvoiceIdRoute
+  '/_dashboard/plans/$planId': typeof DashboardPlansPlanIdRoute
+  '/_dashboard/plans/new': typeof DashboardPlansNewRoute
+  '/_dashboard/settings/account': typeof DashboardSettingsAccountRoute
+  '/_dashboard/settings/api-keys': typeof DashboardSettingsApiKeysRoute
+  '/_dashboard/subscriptions/$subscriptionId': typeof DashboardSubscriptionsSubscriptionIdRoute
+  '/_dashboard/webhooks/deliveries': typeof DashboardWebhooksDeliveriesRoute
+  '/pay/$merchantSlug/$planSlug': typeof PayMerchantSlugPlanSlugRoute
+  '/portal/$token/card-updated': typeof PortalTokenCardUpdatedRoute
+  '/portal/$token/invoices': typeof PortalTokenInvoicesRoute
+  '/portal/$token/plans': typeof PortalTokenPlansRoute
+  '/_dashboard/customers/': typeof DashboardCustomersIndexRoute
+  '/_dashboard/invoices/': typeof DashboardInvoicesIndexRoute
+  '/_dashboard/plans/': typeof DashboardPlansIndexRoute
+  '/_dashboard/subscriptions/': typeof DashboardSubscriptionsIndexRoute
+  '/_dashboard/webhooks/': typeof DashboardWebhooksIndexRoute
+  '/portal/$token/': typeof PortalTokenIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/about' | '/demo/i18n'
+  fullPaths:
+    | '/'
+    | '/auth'
+    | '/events'
+    | '/overview'
+    | '/revenue'
+    | '/auth/login'
+    | '/auth/signup'
+    | '/checkout/return'
+    | '/portal/$token'
+    | '/customers/$customerId'
+    | '/invoices/$invoiceId'
+    | '/plans/$planId'
+    | '/plans/new'
+    | '/settings/account'
+    | '/settings/api-keys'
+    | '/subscriptions/$subscriptionId'
+    | '/webhooks/deliveries'
+    | '/pay/$merchantSlug/$planSlug'
+    | '/portal/$token/card-updated'
+    | '/portal/$token/invoices'
+    | '/portal/$token/plans'
+    | '/customers/'
+    | '/invoices/'
+    | '/plans/'
+    | '/subscriptions/'
+    | '/webhooks/'
+    | '/portal/$token/'
   fileRoutesByTo: FileRoutesByTo
-  to: '/about' | '/demo/i18n' | '/'
+  to:
+    | '/'
+    | '/auth'
+    | '/events'
+    | '/overview'
+    | '/revenue'
+    | '/auth/login'
+    | '/auth/signup'
+    | '/checkout/return'
+    | '/customers/$customerId'
+    | '/invoices/$invoiceId'
+    | '/plans/$planId'
+    | '/plans/new'
+    | '/settings/account'
+    | '/settings/api-keys'
+    | '/subscriptions/$subscriptionId'
+    | '/webhooks/deliveries'
+    | '/pay/$merchantSlug/$planSlug'
+    | '/portal/$token/card-updated'
+    | '/portal/$token/invoices'
+    | '/portal/$token/plans'
+    | '/customers'
+    | '/invoices'
+    | '/plans'
+    | '/subscriptions'
+    | '/webhooks'
+    | '/portal/$token'
   id:
     | '__root__'
+    | '/_dashboard'
     | '/_marketing'
-    | '/_marketing/about'
-    | '/demo/i18n'
+    | '/auth'
+    | '/_dashboard/events'
+    | '/_dashboard/overview'
+    | '/_dashboard/revenue'
+    | '/auth/login'
+    | '/auth/signup'
+    | '/checkout/return'
+    | '/portal/$token'
     | '/_marketing/'
+    | '/_dashboard/customers/$customerId'
+    | '/_dashboard/invoices/$invoiceId'
+    | '/_dashboard/plans/$planId'
+    | '/_dashboard/plans/new'
+    | '/_dashboard/settings/account'
+    | '/_dashboard/settings/api-keys'
+    | '/_dashboard/subscriptions/$subscriptionId'
+    | '/_dashboard/webhooks/deliveries'
+    | '/pay/$merchantSlug/$planSlug'
+    | '/portal/$token/card-updated'
+    | '/portal/$token/invoices'
+    | '/portal/$token/plans'
+    | '/_dashboard/customers/'
+    | '/_dashboard/invoices/'
+    | '/_dashboard/plans/'
+    | '/_dashboard/subscriptions/'
+    | '/_dashboard/webhooks/'
+    | '/portal/$token/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
+  DashboardRoute: typeof DashboardRouteWithChildren
   MarketingRoute: typeof MarketingRouteWithChildren
-  DemoI18nRoute: typeof DemoI18nRoute
+  AuthRoute: typeof AuthRouteWithChildren
+  CheckoutReturnRoute: typeof CheckoutReturnRoute
+  PortalTokenRoute: typeof PortalTokenRouteWithChildren
+  PayMerchantSlugPlanSlugRoute: typeof PayMerchantSlugPlanSlugRoute
 }
 
 declare module '@tanstack/react-router' {
   interface FileRoutesByPath {
+    '/auth': {
+      id: '/auth'
+      path: '/auth'
+      fullPath: '/auth'
+      preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_marketing': {
       id: '/_marketing'
       path: ''
       fullPath: '/'
       preLoaderRoute: typeof MarketingRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_dashboard': {
+      id: '/_dashboard'
+      path: ''
+      fullPath: '/'
+      preLoaderRoute: typeof DashboardRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_marketing/': {
@@ -85,30 +409,232 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof MarketingIndexRouteImport
       parentRoute: typeof MarketingRoute
     }
-    '/demo/i18n': {
-      id: '/demo/i18n'
-      path: '/demo/i18n'
-      fullPath: '/demo/i18n'
-      preLoaderRoute: typeof DemoI18nRouteImport
+    '/portal/$token': {
+      id: '/portal/$token'
+      path: '/portal/$token'
+      fullPath: '/portal/$token'
+      preLoaderRoute: typeof PortalTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/_marketing/about': {
-      id: '/_marketing/about'
-      path: '/about'
-      fullPath: '/about'
-      preLoaderRoute: typeof MarketingAboutRouteImport
-      parentRoute: typeof MarketingRoute
+    '/checkout/return': {
+      id: '/checkout/return'
+      path: '/checkout/return'
+      fullPath: '/checkout/return'
+      preLoaderRoute: typeof CheckoutReturnRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/auth/signup': {
+      id: '/auth/signup'
+      path: '/signup'
+      fullPath: '/auth/signup'
+      preLoaderRoute: typeof AuthSignupRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/auth/login': {
+      id: '/auth/login'
+      path: '/login'
+      fullPath: '/auth/login'
+      preLoaderRoute: typeof AuthLoginRouteImport
+      parentRoute: typeof AuthRoute
+    }
+    '/_dashboard/revenue': {
+      id: '/_dashboard/revenue'
+      path: '/revenue'
+      fullPath: '/revenue'
+      preLoaderRoute: typeof DashboardRevenueRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/_dashboard/overview': {
+      id: '/_dashboard/overview'
+      path: '/overview'
+      fullPath: '/overview'
+      preLoaderRoute: typeof DashboardOverviewRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/_dashboard/events': {
+      id: '/_dashboard/events'
+      path: '/events'
+      fullPath: '/events'
+      preLoaderRoute: typeof DashboardEventsRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/portal/$token/': {
+      id: '/portal/$token/'
+      path: '/'
+      fullPath: '/portal/$token/'
+      preLoaderRoute: typeof PortalTokenIndexRouteImport
+      parentRoute: typeof PortalTokenRoute
+    }
+    '/_dashboard/webhooks/': {
+      id: '/_dashboard/webhooks/'
+      path: '/webhooks'
+      fullPath: '/webhooks/'
+      preLoaderRoute: typeof DashboardWebhooksIndexRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/_dashboard/subscriptions/': {
+      id: '/_dashboard/subscriptions/'
+      path: '/subscriptions'
+      fullPath: '/subscriptions/'
+      preLoaderRoute: typeof DashboardSubscriptionsIndexRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/_dashboard/plans/': {
+      id: '/_dashboard/plans/'
+      path: '/plans'
+      fullPath: '/plans/'
+      preLoaderRoute: typeof DashboardPlansIndexRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/_dashboard/invoices/': {
+      id: '/_dashboard/invoices/'
+      path: '/invoices'
+      fullPath: '/invoices/'
+      preLoaderRoute: typeof DashboardInvoicesIndexRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/_dashboard/customers/': {
+      id: '/_dashboard/customers/'
+      path: '/customers'
+      fullPath: '/customers/'
+      preLoaderRoute: typeof DashboardCustomersIndexRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/portal/$token/plans': {
+      id: '/portal/$token/plans'
+      path: '/plans'
+      fullPath: '/portal/$token/plans'
+      preLoaderRoute: typeof PortalTokenPlansRouteImport
+      parentRoute: typeof PortalTokenRoute
+    }
+    '/portal/$token/invoices': {
+      id: '/portal/$token/invoices'
+      path: '/invoices'
+      fullPath: '/portal/$token/invoices'
+      preLoaderRoute: typeof PortalTokenInvoicesRouteImport
+      parentRoute: typeof PortalTokenRoute
+    }
+    '/portal/$token/card-updated': {
+      id: '/portal/$token/card-updated'
+      path: '/card-updated'
+      fullPath: '/portal/$token/card-updated'
+      preLoaderRoute: typeof PortalTokenCardUpdatedRouteImport
+      parentRoute: typeof PortalTokenRoute
+    }
+    '/pay/$merchantSlug/$planSlug': {
+      id: '/pay/$merchantSlug/$planSlug'
+      path: '/pay/$merchantSlug/$planSlug'
+      fullPath: '/pay/$merchantSlug/$planSlug'
+      preLoaderRoute: typeof PayMerchantSlugPlanSlugRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/_dashboard/webhooks/deliveries': {
+      id: '/_dashboard/webhooks/deliveries'
+      path: '/webhooks/deliveries'
+      fullPath: '/webhooks/deliveries'
+      preLoaderRoute: typeof DashboardWebhooksDeliveriesRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/_dashboard/subscriptions/$subscriptionId': {
+      id: '/_dashboard/subscriptions/$subscriptionId'
+      path: '/subscriptions/$subscriptionId'
+      fullPath: '/subscriptions/$subscriptionId'
+      preLoaderRoute: typeof DashboardSubscriptionsSubscriptionIdRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/_dashboard/settings/api-keys': {
+      id: '/_dashboard/settings/api-keys'
+      path: '/settings/api-keys'
+      fullPath: '/settings/api-keys'
+      preLoaderRoute: typeof DashboardSettingsApiKeysRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/_dashboard/settings/account': {
+      id: '/_dashboard/settings/account'
+      path: '/settings/account'
+      fullPath: '/settings/account'
+      preLoaderRoute: typeof DashboardSettingsAccountRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/_dashboard/plans/new': {
+      id: '/_dashboard/plans/new'
+      path: '/plans/new'
+      fullPath: '/plans/new'
+      preLoaderRoute: typeof DashboardPlansNewRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/_dashboard/plans/$planId': {
+      id: '/_dashboard/plans/$planId'
+      path: '/plans/$planId'
+      fullPath: '/plans/$planId'
+      preLoaderRoute: typeof DashboardPlansPlanIdRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/_dashboard/invoices/$invoiceId': {
+      id: '/_dashboard/invoices/$invoiceId'
+      path: '/invoices/$invoiceId'
+      fullPath: '/invoices/$invoiceId'
+      preLoaderRoute: typeof DashboardInvoicesInvoiceIdRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/_dashboard/customers/$customerId': {
+      id: '/_dashboard/customers/$customerId'
+      path: '/customers/$customerId'
+      fullPath: '/customers/$customerId'
+      preLoaderRoute: typeof DashboardCustomersCustomerIdRouteImport
+      parentRoute: typeof DashboardRoute
     }
   }
 }
 
+interface DashboardRouteChildren {
+  DashboardEventsRoute: typeof DashboardEventsRoute
+  DashboardOverviewRoute: typeof DashboardOverviewRoute
+  DashboardRevenueRoute: typeof DashboardRevenueRoute
+  DashboardCustomersCustomerIdRoute: typeof DashboardCustomersCustomerIdRoute
+  DashboardInvoicesInvoiceIdRoute: typeof DashboardInvoicesInvoiceIdRoute
+  DashboardPlansPlanIdRoute: typeof DashboardPlansPlanIdRoute
+  DashboardPlansNewRoute: typeof DashboardPlansNewRoute
+  DashboardSettingsAccountRoute: typeof DashboardSettingsAccountRoute
+  DashboardSettingsApiKeysRoute: typeof DashboardSettingsApiKeysRoute
+  DashboardSubscriptionsSubscriptionIdRoute: typeof DashboardSubscriptionsSubscriptionIdRoute
+  DashboardWebhooksDeliveriesRoute: typeof DashboardWebhooksDeliveriesRoute
+  DashboardCustomersIndexRoute: typeof DashboardCustomersIndexRoute
+  DashboardInvoicesIndexRoute: typeof DashboardInvoicesIndexRoute
+  DashboardPlansIndexRoute: typeof DashboardPlansIndexRoute
+  DashboardSubscriptionsIndexRoute: typeof DashboardSubscriptionsIndexRoute
+  DashboardWebhooksIndexRoute: typeof DashboardWebhooksIndexRoute
+}
+
+const DashboardRouteChildren: DashboardRouteChildren = {
+  DashboardEventsRoute: DashboardEventsRoute,
+  DashboardOverviewRoute: DashboardOverviewRoute,
+  DashboardRevenueRoute: DashboardRevenueRoute,
+  DashboardCustomersCustomerIdRoute: DashboardCustomersCustomerIdRoute,
+  DashboardInvoicesInvoiceIdRoute: DashboardInvoicesInvoiceIdRoute,
+  DashboardPlansPlanIdRoute: DashboardPlansPlanIdRoute,
+  DashboardPlansNewRoute: DashboardPlansNewRoute,
+  DashboardSettingsAccountRoute: DashboardSettingsAccountRoute,
+  DashboardSettingsApiKeysRoute: DashboardSettingsApiKeysRoute,
+  DashboardSubscriptionsSubscriptionIdRoute:
+    DashboardSubscriptionsSubscriptionIdRoute,
+  DashboardWebhooksDeliveriesRoute: DashboardWebhooksDeliveriesRoute,
+  DashboardCustomersIndexRoute: DashboardCustomersIndexRoute,
+  DashboardInvoicesIndexRoute: DashboardInvoicesIndexRoute,
+  DashboardPlansIndexRoute: DashboardPlansIndexRoute,
+  DashboardSubscriptionsIndexRoute: DashboardSubscriptionsIndexRoute,
+  DashboardWebhooksIndexRoute: DashboardWebhooksIndexRoute,
+}
+
+const DashboardRouteWithChildren = DashboardRoute._addFileChildren(
+  DashboardRouteChildren,
+)
+
 interface MarketingRouteChildren {
-  MarketingAboutRoute: typeof MarketingAboutRoute
   MarketingIndexRoute: typeof MarketingIndexRoute
 }
 
 const MarketingRouteChildren: MarketingRouteChildren = {
-  MarketingAboutRoute: MarketingAboutRoute,
   MarketingIndexRoute: MarketingIndexRoute,
 }
 
@@ -116,9 +642,43 @@ const MarketingRouteWithChildren = MarketingRoute._addFileChildren(
   MarketingRouteChildren,
 )
 
+interface AuthRouteChildren {
+  AuthLoginRoute: typeof AuthLoginRoute
+  AuthSignupRoute: typeof AuthSignupRoute
+}
+
+const AuthRouteChildren: AuthRouteChildren = {
+  AuthLoginRoute: AuthLoginRoute,
+  AuthSignupRoute: AuthSignupRoute,
+}
+
+const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
+
+interface PortalTokenRouteChildren {
+  PortalTokenCardUpdatedRoute: typeof PortalTokenCardUpdatedRoute
+  PortalTokenInvoicesRoute: typeof PortalTokenInvoicesRoute
+  PortalTokenPlansRoute: typeof PortalTokenPlansRoute
+  PortalTokenIndexRoute: typeof PortalTokenIndexRoute
+}
+
+const PortalTokenRouteChildren: PortalTokenRouteChildren = {
+  PortalTokenCardUpdatedRoute: PortalTokenCardUpdatedRoute,
+  PortalTokenInvoicesRoute: PortalTokenInvoicesRoute,
+  PortalTokenPlansRoute: PortalTokenPlansRoute,
+  PortalTokenIndexRoute: PortalTokenIndexRoute,
+}
+
+const PortalTokenRouteWithChildren = PortalTokenRoute._addFileChildren(
+  PortalTokenRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
+  DashboardRoute: DashboardRouteWithChildren,
   MarketingRoute: MarketingRouteWithChildren,
-  DemoI18nRoute: DemoI18nRoute,
+  AuthRoute: AuthRouteWithChildren,
+  CheckoutReturnRoute: CheckoutReturnRoute,
+  PortalTokenRoute: PortalTokenRouteWithChildren,
+  PayMerchantSlugPlanSlugRoute: PayMerchantSlugPlanSlugRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
