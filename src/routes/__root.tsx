@@ -6,6 +6,7 @@ import {
 	Scripts,
 } from "@tanstack/react-router";
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
+import { RootErrorFallback } from "#/components/layout/root-error-fallback.tsx";
 import { Toaster } from "#/components/ui/sonner.tsx";
 import { TooltipProvider } from "#/components/ui/tooltip.tsx";
 import TanStackQueryDevtools from "../integrations/tanstack-query/devtools";
@@ -38,6 +39,7 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
 			},
 		],
 	}),
+	errorComponent: RootErrorFallback,
 	shellComponent: RootDocument,
 });
 

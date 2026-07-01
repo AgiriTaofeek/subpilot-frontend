@@ -2,6 +2,15 @@ import type { BackendErrorShape } from "#/types/api.ts";
 
 const DEFAULT_ERROR_MESSAGE = "Something went wrong. Please try again.";
 
+// response.statusText is unreliable across runtimes (empty under Node's
+// undici in some environments even for real error responses), so fall
+// back to a deterministic map for the codes callers branch on instead of
+// trusting the platform-provided text.
+const STATUS_FALLBACK_MESSAGE: Record<number, string> = {
+	401: "Unauthorized",
+	403: "Forbidden",
+};
+
 export class BackendApiError extends Error {
 	status: number;
 	code?: string;
@@ -50,7 +59,10 @@ async function parseBackendError(response: Response) {
 	}
 
 	const message =
-		payload?.error?.message || response.statusText || DEFAULT_ERROR_MESSAGE;
+		payload?.error?.message ||
+		STATUS_FALLBACK_MESSAGE[response.status] ||
+		response.statusText ||
+		DEFAULT_ERROR_MESSAGE;
 
 	return new BackendApiError({
 		message,
