@@ -9,12 +9,11 @@
   "scripts": {
     "dev": "vite dev --port 3000",
     "generate-routes": "tsr generate",
-    "i18n:compile": "pnpm exec paraglide-js compile --project ./project.inlang --outdir ./src/paraglide",
     "build": "vite build",
     "deploy": "pnpm build && wrangler deploy",
     "cf-typegen": "wrangler types",
     "preview": "vite preview",
-    "typecheck": "pnpm i18n:compile && tsc --noEmit",
+    "typecheck": "tsc --noEmit",
     "test": "vitest run",
     "check:ci": "biome check .github package.json vite.config.ts vitest.config.ts src/data src/lib src/routes src/components/layout src/types",
     "format": "biome format",
@@ -57,7 +56,6 @@
   "devDependencies": {
     "@biomejs/biome": "2.4.5",
     "@cloudflare/vite-plugin": "^1.42.4",
-    "@inlang/paraglide-js": "^2.13.1",
     "@rolldown/plugin-babel": "^0.2.3",
     "@tailwindcss/typography": "^0.5.16",
     "@tanstack/devtools-event-client": "latest",

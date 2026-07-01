@@ -1,5 +1,4 @@
 import { cloudflare } from "@cloudflare/vite-plugin";
-import { paraglideVitePlugin } from "@inlang/paraglide-js";
 import babel from "@rolldown/plugin-babel";
 import tailwindcss from "@tailwindcss/vite";
 import { devtools } from "@tanstack/devtools-vite";
@@ -12,11 +11,6 @@ const config = defineConfig({
 	resolve: { tsconfigPaths: true },
 	plugins: [
 		devtools(),
-		paraglideVitePlugin({
-			project: "./project.inlang",
-			outdir: "./src/paraglide",
-			strategy: ["url", "baseLocale"],
-		}),
 		cloudflare({ viteEnvironment: { name: "ssr" } }),
 		nitro({ rollupConfig: { external: [/^@sentry\//] } }),
 		tailwindcss(),
