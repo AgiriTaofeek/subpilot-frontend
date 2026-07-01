@@ -11,7 +11,14 @@ The backend now exposes the core cookie-auth pieces the frontend needed:
 - logout keyed off the refresh credential
 - CSRF protection for cookie-authenticated merchant mutations
 
-That means Gap 1 is no longer blocking the frontend tracer-bullet flow.
+But live end-to-end verification uncovered one remaining blocker inside that
+session model:
+
+- a valid `_subpilot_session` cookie created by signup can still cause
+  `GET /v1/auth/me` to return `500 internal_error`
+
+That means Gap 1 is no longer blocking implementation of the frontend auth
+surfaces, but it is still blocking a fully working live dashboard bootstrap.
 
 The remaining backend auth cleanup is now narrower and is tracked in:
 

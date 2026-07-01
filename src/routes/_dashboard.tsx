@@ -11,7 +11,7 @@ import { RouteErrorFallback } from "#/components/layout/route-error-fallback.tsx
 import { Button } from "#/components/ui/button.tsx";
 import { SidebarInset, SidebarProvider } from "#/components/ui/sidebar.tsx";
 import { getMerchantSession } from "#/lib/api/auth.ts";
-import { BackendApiError } from "#/lib/api/backend.ts";
+import { isUnauthenticatedBackendError } from "#/lib/api/backend.ts";
 import { isSessionError } from "#/lib/api/is-session-error.ts";
 
 export const Route = createFileRoute("/_dashboard")({
@@ -20,7 +20,7 @@ export const Route = createFileRoute("/_dashboard")({
 			const merchantSession = await getMerchantSession();
 			return { merchantSession };
 		} catch (error) {
-			if (error instanceof BackendApiError && error.status === 401) {
+			if (isUnauthenticatedBackendError(error)) {
 				throw redirect({ to: "/auth/login" });
 			}
 

@@ -1,7 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
-import { BackendApiError, backendRequest } from "#/lib/api/backend.ts";
+import {
+	backendRequest,
+	isUnauthenticatedBackendError,
+} from "#/lib/api/backend.ts";
 import type { AuthSessionDto } from "#/types/api.ts";
 
 const loginSchema = z.object({
@@ -50,7 +53,7 @@ export async function getOptionalMerchantSessionRequest() {
 	try {
 		return await getMerchantSessionRequest();
 	} catch (error) {
-		if (error instanceof BackendApiError && error.status === 401) {
+		if (isUnauthenticatedBackendError(error)) {
 			return null;
 		}
 

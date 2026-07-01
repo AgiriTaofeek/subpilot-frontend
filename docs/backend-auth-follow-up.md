@@ -41,3 +41,43 @@ response body.
 - keep refresh fully cookie-owned for browser usage
 - return `204 No Content` or another body shape that does not expose the raw
   refresh token
+
+### 3. `GET /v1/auth/me` returns `500` for a valid session after signup
+
+Live end-to-end verification on `2026-07-01` proved that the frontend signup flow
+now completes far enough to:
+
+- create the merchant successfully
+- set the `_subpilot_session` cookie in the browser
+- redirect the browser to `/overview`
+
+But the next authenticated bootstrap call to `GET /v1/auth/me` fails with:
+
+- `500 internal_error`
+- message: `An unexpected error occurred. Please try again.`
+
+That means the cookie-auth handshake is only partially working in production:
+the browser gets a session cookie, but the backend cannot consistently resolve
+that cookie back into the current merchant session.
+
+**Why this matters**
+
+- it blocks the dashboard from loading after signup
+- it makes the live tracer-bullet flow fail immediately after the first redirect
+- it prevents the frontend from distinguishing "signed in" from "broken session
+  bootstrap"
+
+**Observed evidence**
+
+- public auth pages now render correctly after the frontend `401`/`403`
+  handling fix
+- browser signup succeeds and lands on `/overview`
+- authenticated `curl` to `/v1/auth/me` with the issued `_subpilot_session`
+  cookie returns `500`
+
+**Preferred end state**
+
+- `GET /v1/auth/me` returns `200` with the existing `AuthResponse` shape for
+  every valid session cookie
+- anonymous requests return a consistent unauthenticated status (`401` or `403`,
+  but intentionally and documented)

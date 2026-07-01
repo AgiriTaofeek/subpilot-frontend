@@ -2,7 +2,10 @@ import { setResponseHeader } from "@tanstack/react-start/server";
 import { HttpResponse, http } from "msw";
 import { describe, expect, test, vi } from "vitest";
 
-import { signupMerchantRequest } from "#/lib/api/auth.ts";
+import {
+    getOptionalMerchantSessionRequest,
+    signupMerchantRequest,
+} from "#/lib/api/auth.ts";
 import { server } from "#/test/setup.ts";
 
 describe("signupMerchantRequest", () => {
@@ -77,5 +80,20 @@ describe("signupMerchantRequest", () => {
 				password: "Password123!",
 			}),
 		).rejects.toThrow("An account with this email already exists.");
+	});
+});
+
+describe("getOptionalMerchantSessionRequest", () => {
+	test("treats a 403 session check as signed out", async () => {
+		vi.stubEnv("VITE_API_BASE_URL", "https://api.test");
+
+		server.use(
+			http.get(
+				"https://api.test/v1/auth/me",
+				() => new HttpResponse(null, { status: 403 }),
+			),
+		);
+
+		await expect(getOptionalMerchantSessionRequest()).resolves.toBeNull();
 	});
 });

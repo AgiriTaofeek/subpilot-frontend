@@ -19,6 +19,7 @@ const STATUS_FALLBACK_MESSAGE: Record<number, string> = {
 	401: "Unauthorized",
 	403: "Forbidden",
 };
+const UNAUTHENTICATED_STATUSES = new Set([401, 403]);
 
 export class BackendApiError extends Error {
 	status: number;
@@ -30,6 +31,18 @@ export class BackendApiError extends Error {
 		this.status = input.status;
 		this.code = input.code;
 	}
+}
+
+export function isUnauthenticatedStatus(status: number) {
+	return UNAUTHENTICATED_STATUSES.has(status);
+}
+
+export function isUnauthenticatedBackendError(
+	error: unknown,
+): error is BackendApiError {
+	return (
+		error instanceof BackendApiError && isUnauthenticatedStatus(error.status)
+	);
 }
 
 function getApiBaseUrl() {
@@ -199,8 +212,8 @@ async function refreshMerchantSession(
 	await forwardResponseCookies(refreshResponse, serverHeaders);
 
 	if (!refreshResponse.ok) {
-		if (refreshResponse.status === 401) {
-			serverHeaders.setResponseStatus(401);
+		if (isUnauthenticatedStatus(refreshResponse.status)) {
+			serverHeaders.setResponseStatus(refreshResponse.status);
 			return null;
 		}
 
@@ -251,7 +264,7 @@ export async function backendRequest<T>(input: {
 	await forwardResponseCookies(response, serverHeaders);
 
 	if (
-		response.status === 401 &&
+		isUnauthenticatedStatus(response.status) &&
 		shouldForwardCookies &&
 		!NON_REFRESHABLE_PATHS.has(input.path)
 	) {
@@ -280,8 +293,8 @@ export async function backendRequest<T>(input: {
 	}
 
 	if (!response.ok) {
-		if (response.status === 401) {
-			serverHeaders.setResponseStatus(401);
+		if (isUnauthenticatedStatus(response.status)) {
+			serverHeaders.setResponseStatus(response.status);
 		}
 
 		throw await parseBackendError(response);
