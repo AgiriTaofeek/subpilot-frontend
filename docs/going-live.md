@@ -64,7 +64,7 @@ This is the part that's actually judged (state-machine completeness, dunning, mu
 Current implementation status:
 
 - signup/login submissions are now wired through TanStack Start server functions and the dashboard sidebar logout action is real
-- dashboard bootstrap and redirect guards are still blocked by the missing `GET /v1/auth/me` contract in `docs/BACKEND-GAPS.md`
+- dashboard bootstrap, auth-route redirect guards, CSRF header forwarding, and 401 -> refresh -> retry are now wired through the real backend session contract
 - plans create/list/detail/publish/archive are now wired to the real backend
 - public hosted checkout now loads the real public plan contract and redirects to the backend-provided Nomba checkout URL
 - the subscriptions list now uses real backend data, aggregated with customer and plan data on the Start side; the richer subscription detail view remains outside the tracer-bullet scope

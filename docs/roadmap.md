@@ -34,7 +34,7 @@ Each phase is complete when:
   - Axios, React Hook Form, Recharts
   - MSW for backend-client/server-function integration tests
 - [ ] Typed backend client structure exists under `src/lib/backend/` and server functions exist under `src/lib/server/functions/`
-- [ ] Merchant auth bootstrap exists via backend-owned cookies and `GET /v1/auth/me`
+- [x] Merchant auth bootstrap exists via backend-owned cookies and `GET /v1/auth/me`
 - [ ] Standard page states exist: loading, empty, error, forbidden, not found
 
 ### Test gates (Phase 0)

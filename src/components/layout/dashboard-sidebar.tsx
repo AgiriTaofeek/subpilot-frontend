@@ -1,4 +1,18 @@
 import {
+	Sidebar,
+	SidebarContent,
+	SidebarFooter,
+	SidebarGroup,
+	SidebarGroupContent,
+	SidebarHeader,
+	SidebarMenu,
+	SidebarMenuButton,
+	SidebarMenuItem,
+	SidebarRail,
+} from "#/components/ui/sidebar.tsx";
+import { logoutMerchant } from "#/lib/api/auth.ts";
+import type { AuthSessionDto } from "#/types/api.ts";
+import {
 	ArrowsClockwiseIcon,
 	ChartLineUpIcon,
 	ClipboardTextIcon,
@@ -12,20 +26,6 @@ import {
 } from "@phosphor-icons/react";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { toast } from "sonner";
-import {
-	Sidebar,
-	SidebarContent,
-	SidebarFooter,
-	SidebarGroup,
-	SidebarGroupContent,
-	SidebarHeader,
-	SidebarMenu,
-	SidebarMenuButton,
-	SidebarMenuItem,
-	SidebarRail,
-} from "#/components/ui/sidebar.tsx";
-import { account } from "#/data/account.ts";
-import { logoutMerchant } from "#/lib/api/auth.ts";
 
 const navItems = [
 	{
@@ -84,7 +84,11 @@ const navItems = [
 	},
 ] as const;
 
-export function DashboardSidebar() {
+export function DashboardSidebar({
+	merchantSession,
+}: {
+	merchantSession: AuthSessionDto;
+}) {
 	const pathname = useRouterState({ select: (s) => s.location.pathname });
 	const navigate = useNavigate();
 
@@ -157,11 +161,16 @@ export function DashboardSidebar() {
 					<SidebarMenuItem className="group-data-[collapsible=icon]:hidden">
 						<div className="flex items-center gap-2 px-2 py-1.5">
 							<span className="inline-flex size-6 shrink-0 items-center justify-center rounded-full bg-(--brand)/15 text-[0.6rem] font-semibold text-(--brand)">
-								{account.businessName.charAt(0)}
+								{merchantSession.businessName.charAt(0)}
 							</span>
-							<span className="truncate text-xs text-sidebar-foreground/70">
-								{account.email}
-							</span>
+							<div className="min-w-0">
+								<p className="truncate text-xs font-medium text-sidebar-foreground">
+									{merchantSession.businessName}
+								</p>
+								<p className="truncate text-[0.7rem] text-sidebar-foreground/70">
+									{merchantSession.email}
+								</p>
+							</div>
 						</div>
 					</SidebarMenuItem>
 					<SidebarMenuItem>

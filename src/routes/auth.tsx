@@ -1,3 +1,4 @@
+import { getOptionalMerchantSession } from "#/lib/api/auth.ts";
 import {
 	createFileRoute,
 	Link,
@@ -6,9 +7,13 @@ import {
 } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/auth")({
-	beforeLoad: ({ location }) => {
-		// TODO(blocked): Redirect authenticated merchants away from /auth/* once the
-		// backend ships GET /v1/auth/me. See docs/BACKEND-GAPS.md Gap 1.
+	beforeLoad: async ({ location }) => {
+		const merchantSession = await getOptionalMerchantSession();
+
+		if (merchantSession) {
+			throw redirect({ to: "/overview" });
+		}
+
 		if (location.pathname === "/auth" || location.pathname === "/auth/") {
 			throw redirect({ to: "/auth/login" });
 		}

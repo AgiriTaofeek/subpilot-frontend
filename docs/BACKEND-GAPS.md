@@ -2,27 +2,21 @@
 
 These are backend gaps that currently block parts of the frontend from being implemented cleanly.
 
-## Gap 1 — Merchant Session Lifecycle Is Incomplete
+## Gap 1 — Merchant Session Lifecycle Follow-Up
 
-The backend already sets the merchant access token as an `HttpOnly` cookie, and the auth filter already reads that cookie.
+The backend now exposes the core cookie-auth pieces the frontend needed:
 
-What is still missing for a reliable frontend auth flow:
-
-- `GET /v1/auth/me` for session bootstrap on page load and dashboard route protection
-- a usable refresh contract immediately after signup/login
-- logout that revokes refresh state even when the short-lived access cookie is already expired
+- `GET /v1/auth/me` for session bootstrap
+- refresh-cookie support
+- logout keyed off the refresh credential
 - CSRF protection for cookie-authenticated merchant mutations
 
-Why this blocks the frontend:
+That means Gap 1 is no longer blocking the frontend tracer-bullet flow.
 
-- login/signup can be wired, but the frontend cannot reliably restore merchant identity after reload
-- the frontend cannot build a durable refresh flow with confidence
-- the dashboard cannot add its real server-aware route guard yet
+The remaining backend auth cleanup is now narrower and is tracked in:
 
-See also:
-
+- `docs/backend-auth-follow-up.md`
 - `docs/backend-phase-b-handoff.md`
-- `docs/backend-auth-architecture-request.md`
 
 ## Gap 2 — Plan Response Omits Public-Link Fidelity
 

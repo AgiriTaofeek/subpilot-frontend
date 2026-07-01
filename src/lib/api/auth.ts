@@ -1,7 +1,7 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
-import { backendRequest } from "#/lib/api/backend.ts";
+import { BackendApiError, backendRequest } from "#/lib/api/backend.ts";
 import type { AuthSessionDto } from "#/types/api.ts";
 
 const loginSchema = z.object({
@@ -40,6 +40,24 @@ export async function logoutMerchantRequest() {
 	});
 }
 
+export async function getMerchantSessionRequest() {
+	return backendRequest<AuthSessionDto>({
+		path: "/v1/auth/me",
+	});
+}
+
+export async function getOptionalMerchantSessionRequest() {
+	try {
+		return await getMerchantSessionRequest();
+	} catch (error) {
+		if (error instanceof BackendApiError && error.status === 401) {
+			return null;
+		}
+
+		throw error;
+	}
+}
+
 export const loginMerchant = createServerFn({ method: "POST" })
 	.validator(loginSchema)
 	.handler(async ({ data }) => loginMerchantRequest(data));
@@ -47,6 +65,14 @@ export const loginMerchant = createServerFn({ method: "POST" })
 export const signupMerchant = createServerFn({ method: "POST" })
 	.validator(signupSchema)
 	.handler(async ({ data }) => signupMerchantRequest(data));
+
+export const getMerchantSession = createServerFn({ method: "GET" }).handler(
+	async () => getMerchantSessionRequest(),
+);
+
+export const getOptionalMerchantSession = createServerFn({
+	method: "GET",
+}).handler(async () => getOptionalMerchantSessionRequest());
 
 export const logoutMerchant = createServerFn({ method: "POST" }).handler(
 	async () => logoutMerchantRequest(),

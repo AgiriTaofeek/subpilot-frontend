@@ -1,15 +1,32 @@
-import { createFileRoute, Link, Outlet } from "@tanstack/react-router";
+import {
+	createFileRoute,
+	Link,
+	Outlet,
+	redirect,
+} from "@tanstack/react-router";
 
 import { DashboardHeader } from "#/components/layout/dashboard-header.tsx";
 import { DashboardSidebar } from "#/components/layout/dashboard-sidebar.tsx";
 import { RouteErrorFallback } from "#/components/layout/route-error-fallback.tsx";
 import { Button } from "#/components/ui/button.tsx";
 import { SidebarInset, SidebarProvider } from "#/components/ui/sidebar.tsx";
+import { getMerchantSession } from "#/lib/api/auth.ts";
+import { BackendApiError } from "#/lib/api/backend.ts";
 import { isSessionError } from "#/lib/api/is-session-error.ts";
 
 export const Route = createFileRoute("/_dashboard")({
-	// TODO(blocked): Add the real beforeLoad merchant session bootstrap and redirect once
-	// the backend ships GET /v1/auth/me and a usable refresh contract. See docs/BACKEND-GAPS.md Gap 1.
+	beforeLoad: async () => {
+		try {
+			const merchantSession = await getMerchantSession();
+			return { merchantSession };
+		} catch (error) {
+			if (error instanceof BackendApiError && error.status === 401) {
+				throw redirect({ to: "/auth/login" });
+			}
+
+			throw error;
+		}
+	},
 	component: DashboardLayout,
 	errorComponent: DashboardErrorFallback,
 });
@@ -52,9 +69,11 @@ function DashboardErrorFallback({
 }
 
 function DashboardLayout() {
+	const { merchantSession } = Route.useRouteContext();
+
 	return (
 		<SidebarProvider>
-			<DashboardSidebar />
+			<DashboardSidebar merchantSession={merchantSession} />
 			<SidebarInset>
 				<DashboardHeader />
 				<div className="flex flex-1 flex-col">

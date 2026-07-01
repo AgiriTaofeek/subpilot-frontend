@@ -1,5 +1,5 @@
 import { CopyIcon } from "@phosphor-icons/react";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, getRouteApi } from "@tanstack/react-router";
 import { toast } from "sonner";
 
 import { SettingsTabs } from "#/components/layout/settings-tabs.tsx";
@@ -11,8 +11,9 @@ import {
 	CardTitle,
 } from "#/components/ui/card.tsx";
 import { Input } from "#/components/ui/input.tsx";
-import { account } from "#/data/account.ts";
 import { merchantSlug } from "#/data/plans.ts";
+
+const dashboardRouteApi = getRouteApi("/_dashboard");
 
 export const Route = createFileRoute("/_dashboard/settings/account")({
 	component: SettingsAccountPage,
@@ -25,6 +26,8 @@ async function copySlugPrefix() {
 }
 
 function SettingsAccountPage() {
+	const { merchantSession } = dashboardRouteApi.useRouteContext();
+
 	return (
 		<div className="flex flex-1 flex-col gap-6 p-6">
 			<h1 className="text-2xl font-semibold tracking-tight text-(--ink)">
@@ -46,7 +49,7 @@ function SettingsAccountPage() {
 								Business name
 							</p>
 							<Input
-								value={account.businessName}
+								value={merchantSession.businessName}
 								readOnly
 								className="border-(--line) bg-(--surface) px-3 text-(--ink-3)"
 							/>
@@ -54,7 +57,7 @@ function SettingsAccountPage() {
 						<div className="flex flex-col gap-1.5">
 							<p className="text-sm font-medium text-(--ink-2)">Email</p>
 							<Input
-								value={account.email}
+								value={merchantSession.email}
 								readOnly
 								className="border-(--line) bg-(--surface) px-3 text-(--ink-3)"
 							/>

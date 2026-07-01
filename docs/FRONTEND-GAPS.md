@@ -13,7 +13,7 @@ For backend readiness, see `docs/backend-contract-matrix.md`.
 
 ## Summary
 
-The backend already exposes: plans, subscriptions (including public checkout init), portal, invoices, customers, fees, events, and webhooks. The remaining auth work is to move merchant web auth to the backend-owned cookie model described in `docs/backend-auth-architecture-request.md`.
+The backend already exposes: plans, subscriptions (including public checkout init), portal, invoices, customers, fees, events, and webhooks. Merchant web auth is now wired to the backend-owned cookie model described in `docs/backend-auth-architecture-request.md`.
 
 The frontend is still a starter app, so the primary gap is “wire the UI to real API modules with correct auth and money handling”.
 
@@ -23,7 +23,9 @@ The frontend is still a starter app, so the primary gap is “wire the UI to rea
 
 **Blocked on:** not blocked
 
-**What must be built:**
+**Status:** done
+
+**What now exists:**
 
 - TanStack Start forwards browser cookies to the backend for merchant-protected calls
 - Backend `Set-Cookie` headers are passed back to the browser on login/signup/refresh/logout
