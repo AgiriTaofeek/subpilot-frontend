@@ -49,7 +49,7 @@ Standards for all contributors — human and AI. Writing this for an AI collabor
 
 ## Form rules
 
-- All forms use React Hook Form + Zod.
+- All forms use TanStack Form (`@tanstack/react-form`) + Zod for schema validation.
 - Zod schemas live alongside the form component, not in `src/types/`.
 - Submit handlers must convert NGN to kobo before calling the API module.
 - Surface backend validation errors using the `message` field from error responses. Do not show raw status codes to users.
@@ -58,7 +58,7 @@ Standards for all contributors — human and AI. Writing this for an AI collabor
 
 ## Authentication rules
 
-- Never read `localStorage` directly in components. Read auth state from the Zustand store (`useAuthStore`).
+- No client-side auth store exists yet. Do not read `localStorage` directly for auth state once a real mechanism is built — this section will be updated when auth is wired to a real backend.
 - The route guard lives in `src/routes/(dashboard)/_layout.tsx` `beforeLoad`. Do not add auth checks elsewhere.
 - Portal routes (`src/routes/portal/`) have no auth guard. The subscription token comes from the route param.
 - Never import dashboard API modules (`plans.ts`, `subscriptions.ts`, etc.) in portal route files. Portal routes use `portal.ts` only.

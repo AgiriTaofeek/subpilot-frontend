@@ -2,6 +2,7 @@
   "name": "subpilot-web",
   "private": true,
   "type": "module",
+  "packageManager": "pnpm@10.19.0",
   "imports": {
     "#/*": "./src/*"
   },
@@ -9,6 +10,8 @@
     "dev": "vite dev --port 3000",
     "generate-routes": "tsr generate",
     "build": "vite build",
+    "deploy": "pnpm build && wrangler deploy",
+    "cf-typegen": "wrangler types",
     "preview": "vite preview",
     "test": "vitest run",
     "format": "biome format",
@@ -50,6 +53,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.4.5",
+    "@cloudflare/vite-plugin": "^1.42.4",
     "@inlang/paraglide-js": "^2.13.1",
     "@rolldown/plugin-babel": "^0.2.3",
     "@tailwindcss/typography": "^0.5.16",
@@ -66,12 +70,14 @@
     "jsdom": "^28.1.0",
     "typescript": "^6.0.2",
     "vite": "^8.0.0",
-    "vitest": "^4.1.5"
+    "vitest": "^4.1.5",
+    "wrangler": "^4.106.0"
   },
   "pnpm": {
     "onlyBuiltDependencies": [
       "esbuild",
-      "lightningcss"
+      "lightningcss",
+      "workerd"
     ]
   }
 }
