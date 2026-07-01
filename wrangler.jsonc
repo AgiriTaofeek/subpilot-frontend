@@ -3,5 +3,8 @@
   "name": "subpilot-web",
   "compatibility_date": "2026-06-30",
   "compatibility_flags": ["nodejs_compat"],
-  "main": "@tanstack/react-start/server-entry"
+  "main": "@tanstack/react-start/server-entry",
+  "vars": {
+    "VITE_API_BASE_URL": "https://nomba-subpilot.duckdns.org/api"
+  }
 }
