@@ -1,14 +1,19 @@
 import {
 	ArrowRightIcon,
+	ArrowsClockwiseIcon,
 	ChartLineUpIcon,
 	CheckCircleIcon,
+	ClipboardTextIcon,
 	CreditCardIcon,
 	FrameCornersIcon,
 	PlugsConnectedIcon,
+	ReceiptIcon,
 	ShieldCheckIcon,
+	SquaresFourIcon,
 	TreeStructureIcon,
 } from "@phosphor-icons/react";
 import { Link } from "@tanstack/react-router";
+import { useState } from "react";
 
 import { Badge } from "#/components/ui/badge.tsx";
 import { Button } from "#/components/ui/button.tsx";
@@ -63,9 +68,251 @@ const proofPoints = [
 	"Merchant dashboard and customer portal designed as one coherent product.",
 ] as const;
 
-// ─── Hero mockup (always dark-styled) ────────────────────────────────────────
+// ─── Hero mockup (always dark-styled, interactive) ────────────────────────────
+
+const heroTabs = [
+	{ id: "overview" as const, label: "Overview", icon: SquaresFourIcon },
+	{ id: "plans" as const, label: "Plans", icon: ClipboardTextIcon },
+	{ id: "revenue" as const, label: "Revenue", icon: ChartLineUpIcon },
+];
+
+const heroDecorativeIcons = [
+	{ id: "subscriptions", icon: ArrowsClockwiseIcon },
+	{ id: "invoices", icon: ReceiptIcon },
+];
+
+type HeroTabId = (typeof heroTabs)[number]["id"];
+
+function HeroSidebarIcon({
+	icon: Icon,
+	label,
+	active,
+	onClick,
+}: {
+	icon: typeof SquaresFourIcon;
+	label: string;
+	active: boolean;
+	onClick: () => void;
+}) {
+	return (
+		<button
+			type="button"
+			onClick={onClick}
+			aria-label={label}
+			aria-pressed={active}
+			className={[
+				"flex size-8 items-center justify-center rounded-lg transition-[background-color,color,transform] duration-150 ease-out active:scale-[0.94]",
+				active
+					? "bg-(--brand)/15 text-(--brand)"
+					: "text-(--pitch-fg-3) hover:bg-(--pitch-3) hover:text-(--pitch-fg-2)",
+			].join(" ")}
+		>
+			<Icon className="size-4" weight={active ? "fill" : "regular"} />
+		</button>
+	);
+}
+
+function HeroOverviewPanel() {
+	return (
+		<>
+			<div className="rounded-xl border border-(--pitch-line) bg-(--pitch-2) px-4 py-4">
+				<span className="island-kicker text-[0.60rem]">
+					Subscription health
+				</span>
+				<div className="mt-1.5 flex items-baseline gap-2">
+					<span className="text-2xl font-bold text-(--pitch-fg)">1,284</span>
+					<span className="text-sm text-(--pitch-fg-2)">active</span>
+					<span className="ml-auto font-heading text-xs text-amber-400">
+						2 past due
+					</span>
+				</div>
+				<div className="mt-3 grid grid-cols-3 gap-2">
+					{[
+						{ label: "Net / 30d", value: "₦12.4M" },
+						{ label: "Retrying", value: "8 subs" },
+						{ label: "Webhooks", value: "99.98%" },
+					].map(({ label, value }) => (
+						<div
+							key={label}
+							className="rounded-lg border border-(--pitch-line-subtle) bg-(--pitch) px-2 py-2"
+						>
+							<p className="font-heading text-[0.55rem] uppercase text-(--pitch-fg-3)">
+								{label}
+							</p>
+							<p className="mt-0.5 text-sm font-semibold text-(--pitch-fg)">
+								{value}
+							</p>
+						</div>
+					))}
+				</div>
+			</div>
+
+			<div className="rounded-xl border border-(--pitch-line) bg-(--pitch-2) px-4 py-3">
+				<div className="flex items-center justify-between">
+					<span className="font-heading text-[0.60rem] uppercase tracking-wider text-(--pitch-fg-3)">
+						Webhook deliveries
+					</span>
+					<span className="font-heading text-[0.55rem] text-(--pitch-fg-3)">
+						3 endpoints
+					</span>
+				</div>
+				<div className="mt-2 flex flex-col gap-1.5">
+					{[
+						{ event: "subscription.activated", status: "200", ok: true },
+						{ event: "invoice.paid", status: "200", ok: true },
+						{ event: "subscription.past_due", status: "retry", ok: false },
+					].map(({ event, status, ok }) => (
+						<div key={event} className="flex items-center gap-2">
+							<span
+								className={[
+									"size-1.5 shrink-0 rounded-full",
+									ok ? "bg-green-400" : "bg-amber-400",
+								].join(" ")}
+							/>
+							<span className="flex-1 truncate font-heading text-[0.60rem] text-(--pitch-fg-2)">
+								{event}
+							</span>
+							<span
+								className={[
+									"font-heading text-[0.58rem]",
+									ok ? "text-green-400" : "text-amber-400",
+								].join(" ")}
+							>
+								{status}
+							</span>
+						</div>
+					))}
+				</div>
+			</div>
+		</>
+	);
+}
+
+function HeroPlansPanel() {
+	const plans = [
+		{ name: "Growth Plan", price: "₦5,000 / mo", status: "Published" },
+		{ name: "Starter", price: "₦1,500 / mo", status: "Published" },
+		{ name: "Enterprise (annual)", price: "₦50,000 / yr", status: "Draft" },
+	];
+
+	return (
+		<div className="rounded-xl border border-(--pitch-line) bg-(--pitch-2) px-4 py-3">
+			<div className="flex items-center justify-between">
+				<span className="font-heading text-[0.60rem] uppercase tracking-wider text-(--pitch-fg-3)">
+					Plans
+				</span>
+				<span className="font-heading text-[0.55rem] text-(--pitch-fg-3)">
+					3 total
+				</span>
+			</div>
+			<div className="mt-2 flex flex-col gap-1.5">
+				{plans.map((plan) => (
+					<div
+						key={plan.name}
+						className="flex items-center gap-3 rounded-lg border border-(--pitch-line-subtle) bg-(--pitch) px-3 py-2.5"
+					>
+						<div className="min-w-0 flex-1">
+							<p className="m-0 truncate text-xs font-medium text-(--pitch-fg)">
+								{plan.name}
+							</p>
+							<p className="m-0 text-[0.65rem] text-(--pitch-fg-3)">
+								{plan.price}
+							</p>
+						</div>
+						<span
+							className={[
+								"shrink-0 rounded-full border px-2 py-0.5 text-[0.6rem] font-medium",
+								plan.status === "Published"
+									? "border-(--brand)/25 bg-(--brand)/10 text-(--brand)"
+									: "border-(--pitch-line) bg-(--pitch-2) text-(--pitch-fg-3)",
+							].join(" ")}
+						>
+							{plan.status}
+						</span>
+					</div>
+				))}
+			</div>
+			<div className="mt-2.5 flex items-center gap-2 rounded-lg border border-dashed border-(--pitch-line) px-3 py-2 text-[0.65rem] text-(--pitch-fg-3)">
+				<span className="flex-1 truncate font-heading">
+					/pay/acme-corp/growth-plan
+				</span>
+				<span className="rounded-full border border-(--pitch-line) px-2 py-0.5 font-medium text-(--pitch-fg-2)">
+					Copy link
+				</span>
+			</div>
+		</div>
+	);
+}
+
+function HeroRevenuePanel() {
+	const bars = [
+		{ day: "Jun 21", height: 40 },
+		{ day: "Jun 22", height: 55 },
+		{ day: "Jun 23", height: 48 },
+		{ day: "Jun 24", height: 70 },
+		{ day: "Jun 25", height: 62 },
+		{ day: "Jun 26", height: 80 },
+		{ day: "Jun 27", height: 74 },
+		{ day: "Jun 28", height: 92 },
+		{ day: "Jun 29", height: 85 },
+		{ day: "Jun 30", height: 96 },
+	];
+
+	return (
+		<>
+			<div className="rounded-xl border border-(--pitch-line) bg-(--pitch-2) px-4 py-4">
+				<span className="island-kicker text-[0.60rem]">
+					Net revenue · last 30 days
+				</span>
+				<div className="mt-1.5 flex items-baseline gap-2">
+					<span className="text-2xl font-bold text-(--pitch-fg)">₦12.4M</span>
+					<span className="ml-auto font-heading text-xs text-green-400">
+						▲ 8%
+					</span>
+				</div>
+				<div className="mt-3 flex h-12 items-end gap-1">
+					{bars.map((bar, i) => (
+						<div
+							key={bar.day}
+							title={bar.day}
+							className={
+								i === bars.length - 1
+									? "flex-1 rounded-t-sm bg-(--brand)"
+									: "flex-1 rounded-t-sm bg-(--brand)/70"
+							}
+							style={{ height: `${bar.height}%` }}
+						/>
+					))}
+				</div>
+			</div>
+
+			<div className="grid grid-cols-3 gap-2">
+				{[
+					{ label: "Gross", value: "₦14.6M" },
+					{ label: "Fee (1.5%)", value: "₦219K" },
+					{ label: "Net", value: "₦12.4M" },
+				].map(({ label, value }) => (
+					<div
+						key={label}
+						className="rounded-lg border border-(--pitch-line) bg-(--pitch-2) px-2.5 py-2.5"
+					>
+						<p className="font-heading text-[0.55rem] uppercase text-(--pitch-fg-3)">
+							{label}
+						</p>
+						<p className="mt-0.5 text-sm font-semibold text-(--pitch-fg)">
+							{value}
+						</p>
+					</div>
+				))}
+			</div>
+		</>
+	);
+}
 
 function HeroMockup() {
+	const [activeTab, setActiveTab] = useState<HeroTabId>("overview");
+	const activeLabel = heroTabs.find((t) => t.id === activeTab)?.label;
+
 	return (
 		<div className="relative">
 			{/* Radial glow behind the mockup */}
@@ -81,104 +328,43 @@ function HeroMockup() {
 					</div>
 					<div className="flex flex-1 justify-center">
 						<span className="rounded px-3 py-0.5 font-heading text-[0.60rem] text-(--pitch-fg-3)">
-							SubPilot — Overview
+							SubPilot — {activeLabel}
 						</span>
 					</div>
 				</div>
 
 				{/* Layout: icon rail + main content */}
 				<div className="flex">
-					{/* Mini sidebar rail */}
-					<div className="flex shrink-0 flex-col items-center gap-3 border-r border-(--pitch-line) bg-(--pitch-2) py-4 px-3">
-						<span className="size-5 rounded-md bg-(--brand)/80" />
-						{[1, 2, 3, 4].map((i) => (
-							<span key={i} className="size-5 rounded-md bg-(--pitch-3)" />
+					{/* Mini sidebar rail — the 3 top icons are real navigation */}
+					<div className="flex shrink-0 flex-col items-center gap-2 border-r border-(--pitch-line) bg-(--pitch-2) px-3 py-4">
+						{heroTabs.map((tab) => (
+							<HeroSidebarIcon
+								key={tab.id}
+								icon={tab.icon}
+								label={tab.label}
+								active={activeTab === tab.id}
+								onClick={() => setActiveTab(tab.id)}
+							/>
+						))}
+						<div className="my-1 h-px w-5 bg-(--pitch-line)" />
+						{heroDecorativeIcons.map(({ id, icon: Icon }) => (
+							<span
+								key={id}
+								className="flex size-8 items-center justify-center rounded-lg text-(--pitch-fg-3) opacity-40"
+							>
+								<Icon className="size-4" />
+							</span>
 						))}
 					</div>
 
-					{/* Content area */}
-					<div className="min-w-0 flex-1 flex flex-col gap-3 p-4">
-						{/* Health card */}
-						<div className="rounded-xl border border-(--pitch-line) bg-(--pitch-2) px-4 py-4">
-							<span className="island-kicker text-[0.60rem]">
-								Subscription health
-							</span>
-							<div className="mt-1.5 flex items-baseline gap-2">
-								<span className="text-2xl font-bold text-(--pitch-fg)">
-									1,284
-								</span>
-								<span className="text-sm text-(--pitch-fg-2)">active</span>
-								<span className="ml-auto font-heading text-xs text-amber-400">
-									2 past due
-								</span>
-							</div>
-							<div className="mt-3 grid grid-cols-3 gap-2">
-								{[
-									{ label: "Net / 30d", value: "₦12.4M" },
-									{ label: "Retrying", value: "8 subs" },
-									{ label: "Webhooks", value: "99.98%" },
-								].map(({ label, value }) => (
-									<div
-										key={label}
-										className="rounded-lg border border-(--pitch-line-subtle) bg-(--pitch) px-2 py-2"
-									>
-										<p className="font-heading text-[0.55rem] uppercase text-(--pitch-fg-3)">
-											{label}
-										</p>
-										<p className="mt-0.5 text-sm font-semibold text-(--pitch-fg)">
-											{value}
-										</p>
-									</div>
-								))}
-							</div>
-						</div>
-
-						{/* Webhook deliveries */}
-						<div className="rounded-xl border border-(--pitch-line) bg-(--pitch-2) px-4 py-3">
-							<div className="flex items-center justify-between">
-								<span className="font-heading text-[0.60rem] uppercase tracking-wider text-(--pitch-fg-3)">
-									Webhook deliveries
-								</span>
-								<span className="font-heading text-[0.55rem] text-(--pitch-fg-3)">
-									3 endpoints
-								</span>
-							</div>
-							<div className="mt-2 flex flex-col gap-1.5">
-								{[
-									{
-										event: "subscription.activated",
-										status: "200",
-										ok: true,
-									},
-									{ event: "invoice.paid", status: "200", ok: true },
-									{
-										event: "subscription.past_due",
-										status: "retry",
-										ok: false,
-									},
-								].map(({ event, status, ok }) => (
-									<div key={event} className="flex items-center gap-2">
-										<span
-											className={[
-												"size-1.5 shrink-0 rounded-full",
-												ok ? "bg-green-400" : "bg-amber-400",
-											].join(" ")}
-										/>
-										<span className="flex-1 truncate font-heading text-[0.60rem] text-(--pitch-fg-2)">
-											{event}
-										</span>
-										<span
-											className={[
-												"font-heading text-[0.58rem]",
-												ok ? "text-green-400" : "text-amber-400",
-											].join(" ")}
-										>
-											{status}
-										</span>
-									</div>
-								))}
-							</div>
-						</div>
+					{/* Content area — remounts on tab change to replay the entrance transition */}
+					<div
+						key={activeTab}
+						className="hero-mockup-panel min-w-0 flex-1 flex flex-col gap-3 p-4"
+					>
+						{activeTab === "overview" && <HeroOverviewPanel />}
+						{activeTab === "plans" && <HeroPlansPanel />}
+						{activeTab === "revenue" && <HeroRevenuePanel />}
 					</div>
 				</div>
 			</div>
