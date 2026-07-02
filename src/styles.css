@@ -130,6 +130,12 @@
     }
 }
 
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
 /* ─── Marketing design tokens ────────────────────────────────────────────── */
 :root {
   /* Brand accent — fintech emerald green */

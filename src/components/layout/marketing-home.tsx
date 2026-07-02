@@ -681,7 +681,10 @@ function Section({
 	children: React.ReactNode;
 }) {
 	return (
-		<section id={id} className="rise-in flex flex-col gap-6 py-10 sm:py-14">
+		<section
+			id={id}
+			className="rise-in flex scroll-mt-24 flex-col gap-6 py-10 sm:py-14"
+		>
 			<div className="max-w-2xl flex flex-col gap-3">
 				<p className="island-kicker m-0">{eyebrow}</p>
 				<h2 className="text-3xl font-semibold tracking-tight text-(--ink) sm:text-4xl">
