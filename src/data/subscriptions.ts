@@ -1,6 +1,9 @@
 import { queryOptions } from "@tanstack/react-query";
-import { plans } from "#/data/plans.ts";
-import { listSubscriptionSummaries } from "#/lib/api/subscriptions.ts";
+import { mapPlanResponse, plans } from "#/data/plans.ts";
+import {
+	getSubscriptionDetail,
+	listSubscriptionSummaries,
+} from "#/lib/api/subscriptions.ts";
 
 export type SubscriptionStatus =
 	| "trialing"
@@ -84,6 +87,19 @@ export const subscriptionsListQueryOptions = () =>
 	queryOptions({
 		queryKey: ["subscriptions"],
 		queryFn: () => listSubscriptionSummaries(),
+	});
+
+export const subscriptionDetailQueryOptions = (subscriptionId: string) =>
+	queryOptions({
+		queryKey: ["subscriptions", subscriptionId],
+		queryFn: async () => {
+			const detail = await getSubscriptionDetail({ data: { subscriptionId } });
+			return {
+				subscription: detail.subscription,
+				customer: detail.customer,
+				plan: mapPlanResponse(detail.plan),
+			};
+		},
 	});
 
 export const subscriptions: Subscription[] = [

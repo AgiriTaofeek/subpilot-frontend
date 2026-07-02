@@ -21,7 +21,6 @@
     "check": "biome check"
   },
   "dependencies": {
-    "@faker-js/faker": "^10.3.0",
     "@fontsource-variable/geist-mono": "^5.2.8",
     "@fontsource-variable/oxanium": "^5.2.8",
     "@phosphor-icons/react": "^2.1.10",

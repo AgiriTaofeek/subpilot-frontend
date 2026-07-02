@@ -1,4 +1,3 @@
-import { setResponseHeader } from "@tanstack/react-start/server";
 import { HttpResponse, http } from "msw";
 import { describe, expect, test, vi } from "vitest";
 
@@ -6,10 +5,10 @@ import {
 	getOptionalMerchantSessionRequest,
 	signupMerchantRequest,
 } from "#/lib/api/auth.ts";
-import { server } from "#/test/setup.ts";
+import { mockResponseHeaders, server } from "#/test/setup.ts";
 
 describe("signupMerchantRequest", () => {
-	test("returns the backend session payload and forwards the session cookie", async () => {
+	test("returns the backend session payload and forwards every Set-Cookie header", async () => {
 		vi.stubEnv("VITE_API_BASE_URL", "https://api.test");
 
 		server.use(
@@ -20,19 +19,31 @@ describe("signupMerchantRequest", () => {
 					password: "Password123!",
 				});
 
-				return HttpResponse.json(
-					{
+				// A real signup response sets session + refresh + csrf
+				// cookies together — regression coverage for a bug where
+				// only the last Set-Cookie header of several survived.
+				const backendCookies = new Headers();
+				backendCookies.append(
+					"set-cookie",
+					"_subpilot_session=session_123; Path=/; HttpOnly; SameSite=Lax",
+				);
+				backendCookies.append(
+					"set-cookie",
+					"_subpilot_refresh=refresh_123; Path=/; HttpOnly; SameSite=Lax",
+				);
+				backendCookies.append(
+					"set-cookie",
+					"_subpilot_csrf=csrf_123; Path=/; SameSite=Lax",
+				);
+
+				return new HttpResponse(
+					JSON.stringify({
 						merchantId: "merch_123",
 						userId: "user_123",
 						email: "hello@acme.test",
 						businessName: "Acme Corp",
-					},
-					{
-						headers: {
-							"set-cookie":
-								"_subpilot_session=session_123; Path=/; HttpOnly; SameSite=Lax",
-						},
-					},
+					}),
+					{ headers: backendCookies },
 				);
 			}),
 		);
@@ -50,10 +61,15 @@ describe("signupMerchantRequest", () => {
 			businessName: "Acme Corp",
 		});
 
-		expect(setResponseHeader).toHaveBeenCalledWith(
-			"set-cookie",
-			"_subpilot_session=session_123; Path=/; HttpOnly; SameSite=Lax",
+		const forwarded = mockResponseHeaders.getSetCookie();
+		expect(forwarded).toHaveLength(3);
+		expect(forwarded.some((c) => c.startsWith("_subpilot_session="))).toBe(
+			true,
 		);
+		expect(forwarded.some((c) => c.startsWith("_subpilot_refresh="))).toBe(
+			true,
+		);
+		expect(forwarded.some((c) => c.startsWith("_subpilot_csrf="))).toBe(true);
 	});
 
 	test("surfaces the backend validation message", async () => {

@@ -148,7 +148,7 @@
   /* Text hierarchy — theme-adaptive (light: dark slate, not harsh black) */
   --ink:           oklch(0.165 0.012 264);
   --ink-2:         oklch(0.420 0.015 264);
-  --ink-3:         oklch(0.600 0.012 264);
+  --ink-3:         oklch(0.500 0.012 264);
 
   /* Status text — theme-adaptive, replaces ad-hoc dark: color overrides */
   --success:       oklch(0.596 0.145 163.225);
@@ -188,7 +188,7 @@
 
   --ink:           oklch(0.970 0.003 264);
   --ink-2:         oklch(0.720 0.010 264);
-  --ink-3:         oklch(0.510 0.012 264);
+  --ink-3:         oklch(0.600 0.012 264);
 
   --success:       oklch(0.765 0.177 163.223);
   --warning:       oklch(0.828 0.189 84.429);

@@ -3,6 +3,8 @@ import { Link, useRouterState } from "@tanstack/react-router";
 const settingsTabs = [
 	{ label: "Account", href: "/settings/account" },
 	{ label: "API keys", href: "/settings/api-keys" },
+	{ label: "Dunning", href: "/settings/dunning" },
+	{ label: "Audit log", href: "/settings/audit-log" },
 ] as const;
 
 export function SettingsTabs() {

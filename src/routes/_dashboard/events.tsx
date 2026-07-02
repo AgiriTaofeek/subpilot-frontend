@@ -1,4 +1,5 @@
 import { CopyIcon } from "@phosphor-icons/react";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import {
 	createFileRoute,
 	stripSearchParams,
@@ -16,6 +17,7 @@ import {
 	EmptyTitle,
 } from "#/components/ui/empty.tsx";
 import { Input } from "#/components/ui/input.tsx";
+import { ListPageSkeleton } from "#/components/ui/page-skeleton.tsx";
 import {
 	Select,
 	SelectContent,
@@ -46,12 +48,13 @@ import {
 	TooltipTrigger,
 } from "#/components/ui/tooltip.tsx";
 import {
-	type AuditResourceType,
-	auditEvents,
 	auditEventTypeGroups,
-	formatRelativeTime,
+	eventsListQueryOptions,
+	parsePayload,
 	payloadPreview,
+	resourceTypeLabel,
 } from "#/data/events.ts";
+import { formatRelativeTime } from "#/lib/date.ts";
 
 const defaultEventsSearch = { q: "" };
 
@@ -65,21 +68,21 @@ export const Route = createFileRoute("/_dashboard/events")({
 	search: {
 		middlewares: [stripSearchParams(defaultEventsSearch)],
 	},
+	loader: async ({ context }) => {
+		await context.queryClient.ensureQueryData(eventsListQueryOptions());
+	},
 	component: EventsPage,
+	pendingComponent: () => <ListPageSkeleton columns={5} />,
 	head: () => ({ meta: [{ title: "Events | SubPilot" }] }),
 });
 
-const resourceLabel: Record<AuditResourceType, string> = {
-	subscription: "Subscription",
-	customer: "Customer",
-	invoice: "Invoice",
-	plan: "Plan",
-	webhook: "Webhook",
-};
-
 async function copyText(text: string, label: string) {
-	await navigator.clipboard.writeText(text);
-	toast.success(`${label} copied`, { duration: 2000 });
+	try {
+		await navigator.clipboard.writeText(text);
+		toast.success(`${label} copied`, { duration: 2000 });
+	} catch {
+		toast.error("Couldn't copy to clipboard.");
+	}
 }
 
 function ResourceIdCell({ id }: { id: string }) {
@@ -118,6 +121,7 @@ function EventsPage() {
 	const { eventType, q } = Route.useSearch();
 	const navigate = useNavigate({ from: Route.fullPath });
 	const [selectedId, setSelectedId] = useState<string | null>(null);
+	const { data: auditEvents } = useSuspenseQuery(eventsListQueryOptions());
 
 	function handleEventTypeChange(value: string) {
 		navigate({
@@ -143,9 +147,8 @@ function EventsPage() {
 			const query = q.trim().toLowerCase();
 			if (!query) return true;
 			return (
-				(e.relatedSubscriptionId ?? "").toLowerCase().includes(query) ||
-				(e.resourceType === "subscription" &&
-					e.resourceId.toLowerCase().includes(query))
+				(e.subscriptionId ?? "").toLowerCase().includes(query) ||
+				e.resourceId.toLowerCase().includes(query)
 			);
 		})
 		.sort(
@@ -243,7 +246,7 @@ function EventsPage() {
 											{event.type}
 										</TableCell>
 										<TableCell className="text-(--ink-2)">
-											{resourceLabel[event.resourceType]}
+											{resourceTypeLabel(event.resourceType)}
 										</TableCell>
 										<TableCell onClick={(e) => e.stopPropagation()}>
 											<ResourceIdCell id={event.resourceId} />
@@ -286,7 +289,7 @@ function EventsPage() {
 									<TimestampCell iso={event.createdAt} />
 								</div>
 								<div className="text-sm text-(--ink-2)">
-									{resourceLabel[event.resourceType]} · {event.resourceId}
+									{resourceTypeLabel(event.resourceType)} · {event.resourceId}
 								</div>
 							</button>
 						))}
@@ -309,7 +312,7 @@ function EventsPage() {
 									{selectedEvent.type}
 								</SheetTitle>
 								<SheetDescription className="text-(--ink-2)">
-									{resourceLabel[selectedEvent.resourceType]} ·{" "}
+									{resourceTypeLabel(selectedEvent.resourceType)} ·{" "}
 									{selectedEvent.resourceId}
 								</SheetDescription>
 							</SheetHeader>
@@ -330,7 +333,11 @@ function EventsPage() {
 											size="icon-sm"
 											onClick={() =>
 												copyText(
-													JSON.stringify(selectedEvent.payload, null, 2),
+													JSON.stringify(
+														parsePayload(selectedEvent.payload),
+														null,
+														2,
+													),
 													"Payload",
 												)
 											}
@@ -340,7 +347,11 @@ function EventsPage() {
 										</Button>
 									</div>
 									<pre className="mt-1.5 max-h-96 overflow-auto rounded-md bg-(--surface-2) p-3 font-heading text-xs text-(--ink-2)">
-										{JSON.stringify(selectedEvent.payload, null, 2)}
+										{JSON.stringify(
+											parsePayload(selectedEvent.payload),
+											null,
+											2,
+										)}
 									</pre>
 								</div>
 							</div>

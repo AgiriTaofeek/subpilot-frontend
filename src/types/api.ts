@@ -142,3 +142,244 @@ export interface CustomerEntityDto {
 	createdAt: string;
 	updatedAt: string;
 }
+
+export interface CancelSubscriptionRequestDto {
+	reason?: string;
+	immediate: boolean;
+}
+
+export interface ChangePlanRequestDto {
+	newPlanId: string;
+}
+
+export interface ChangePlanResponseDto {
+	subscriptionId: string;
+	previousPlanId: string;
+	newPlanId: string;
+	cycleDays: number;
+	unusedDays: number;
+	creditAmount: number;
+	newPlanProrated: number;
+	netChargeToday: number;
+	netCreditForward: number;
+	chargedImmediately: boolean;
+	takesEffectNextCycle: boolean;
+	paymentStatus: string | null;
+}
+
+export type InvoiceStatusDto =
+	| "pending"
+	| "paid"
+	| "failed"
+	| "void"
+	| "refunded";
+
+export interface InvoiceEntityDto {
+	id: string;
+	merchantId: string;
+	subscriptionId: string;
+	customerId: string;
+	invoiceNumber: string;
+	amount: number;
+	currency: string;
+	status: InvoiceStatusDto;
+	dueDate: string;
+	paidAt: string | null;
+	periodStart: string;
+	periodEnd: string;
+	prorationNote: string | null;
+	platformFeeAmount: number;
+	netAmount: number;
+	feeBpsApplied: number | null;
+	feeFixedApplied: number | null;
+	nombaReference: string | null;
+	createdAt: string;
+	updatedAt: string;
+}
+
+export type AuditEventTypeDto =
+	| "MERCHANT_CREATED"
+	| "PLAN_CREATED"
+	| "PLAN_UPDATED"
+	| "PLAN_PUBLISHED"
+	| "PLAN_ARCHIVED"
+	| "SUBSCRIPTION_CREATED"
+	| "SUBSCRIPTION_ACTIVATED"
+	| "SUBSCRIPTION_RENEWED"
+	| "SUBSCRIPTION_PAUSED"
+	| "SUBSCRIPTION_RESUMED"
+	| "SUBSCRIPTION_CANCELLED"
+	| "SUBSCRIPTION_EXPIRED"
+	| "SUBSCRIPTION_PAST_DUE"
+	| "SUBSCRIPTION_SUSPENDED"
+	| "PAYMENT_INITIATED"
+	| "PAYMENT_SUCCEEDED"
+	| "PAYMENT_FAILED"
+	| "INVOICE_CREATED"
+	| "INVOICE_PAID"
+	| "INVOICE_VOIDED"
+	| "DUNNING_STARTED"
+	| "DUNNING_STEP_EXECUTED"
+	| "DUNNING_RESOLVED"
+	| "DUNNING_EXHAUSTED"
+	| "DUNNING_RECOVERED"
+	| "PRORATION_APPLIED"
+	| "WEBHOOK_DELIVERED"
+	| "WEBHOOK_FAILED"
+	| "REFUND_CREATED"
+	| "REFUND_SUCCEEDED"
+	| "REFUND_FAILED";
+
+export interface AuditEventDto {
+	id: string;
+	merchantId: string;
+	type: AuditEventTypeDto;
+	resourceType: string;
+	resourceId: string;
+	subscriptionId: string | null;
+	payload: string;
+	createdAt: string;
+}
+
+export interface FeeSummaryDto {
+	totalGrossAmount: number;
+	totalFeeAmount: number;
+	totalNetAmount: number;
+	currency: string;
+	periodStart: string;
+	periodEnd: string;
+}
+
+export interface MerchantFeeRateDto {
+	feeBps: number;
+	feeFixedMinor: number;
+	isOverride: boolean;
+}
+
+export interface ApiKeyResponseDto {
+	id: string;
+	label: string;
+	prefix: string;
+	rawKey?: string;
+	createdAt: string;
+	lastUsedAt: string | null;
+	active: boolean;
+}
+
+export interface WebhookEndpointDto {
+	id: string;
+	merchantId: string;
+	url: string;
+	description: string | null;
+	subscribedEvents: string[];
+	active: boolean;
+	signingSecretHash: string;
+	createdAt: string;
+	updatedAt: string;
+}
+
+export interface RegisterEndpointRequestDto {
+	url: string;
+	description?: string;
+	events: string[];
+}
+
+export type WebhookDeliveryStatusDto = "pending" | "succeeded" | "failed";
+
+export interface WebhookDeliveryDto {
+	id: string;
+	merchantId: string;
+	endpointId: string;
+	eventId: string;
+	status: WebhookDeliveryStatusDto;
+	attemptCount: number;
+	lastAttemptedAt: string | null;
+	nextRetryAt: string | null;
+	responseStatus: number | null;
+	responseBody: string | null;
+	createdAt: string;
+}
+
+export interface AnalyticsSummaryDto {
+	mrr: number;
+	activeSubscribers: number;
+	churnRatePercent: number;
+	paymentSuccessRatePercent: number;
+	failedPaymentsCount: number;
+	failedPaymentsValue: number;
+	newSubscribersInRange: number;
+	periodStart: string;
+	periodEnd: string;
+}
+
+export interface ChartPointDto {
+	bucket: string;
+	value: number;
+}
+
+export interface TimeSeriesChartDto {
+	points: ChartPointDto[];
+	granularity: string;
+}
+
+export type DunningStepActionDto = "retry_charge" | "send_email" | "both";
+
+export type DunningEmailTemplateDto =
+	| "payment_failed"
+	| "final_warning"
+	| "service_suspended";
+
+export interface DunningStepDto {
+	id: string;
+	stepNumber: number;
+	dayOffset: number;
+	action: DunningStepActionDto;
+	emailTemplate: DunningEmailTemplateDto | null;
+	createdAt: string;
+}
+
+export interface DunningCampaignDto {
+	id: string;
+	name: string;
+	gracePeriodDays: number;
+	maxAttempts: number;
+	isDefault: boolean;
+	cancelAfterExhaustion: boolean;
+	steps: DunningStepDto[];
+	createdAt: string;
+	updatedAt: string;
+}
+
+export interface UpdateDunningCampaignRequestDto {
+	name?: string;
+	gracePeriodDays?: number;
+	maxAttempts?: number;
+	cancelAfterExhaustion?: boolean;
+}
+
+export interface CreateDunningStepRequestDto {
+	dayOffset: number;
+	action: DunningStepActionDto;
+	emailTemplate?: DunningEmailTemplateDto | null;
+}
+
+export interface UpdateDunningStepRequestDto {
+	dayOffset?: number;
+	action?: DunningStepActionDto;
+	emailTemplate?: DunningEmailTemplateDto | null;
+}
+
+export type AuditActorTypeDto = "user" | "api_key";
+
+export interface AuditLogDto {
+	id: string;
+	merchantId: string;
+	actorId: string;
+	actorType: AuditActorTypeDto;
+	action: string;
+	resourceType: string;
+	resourceId: string;
+	beforeSnapshot: string | null;
+	afterSnapshot: string | null;
+	createdAt: string;
+}

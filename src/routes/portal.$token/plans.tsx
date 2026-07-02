@@ -8,20 +8,13 @@ import { Empty, EmptyHeader, EmptyTitle } from "#/components/ui/empty.tsx";
 import { formatInterval, plans } from "#/data/plans.ts";
 import { resolvePortalToken } from "#/data/portal.ts";
 import { formatNGN } from "#/lib/currency.ts";
+import { formatDateLong as formatDate } from "#/lib/date.ts";
 import { calculateProration } from "#/lib/proration.ts";
 
 export const Route = createFileRoute("/portal/$token/plans")({
 	component: PortalPlansPage,
 	head: () => ({ meta: [{ title: "Change plan | SubPilot" }] }),
 });
-
-function formatDate(iso: string): string {
-	return new Date(iso).toLocaleDateString("en-US", {
-		month: "long",
-		day: "numeric",
-		year: "numeric",
-	});
-}
 
 function PortalPlansPage() {
 	const { token } = Route.useParams();

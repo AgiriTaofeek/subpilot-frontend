@@ -1,3 +1,8 @@
+import { queryOptions } from "@tanstack/react-query";
+
+import type { InvoiceSummary } from "#/data/invoices.ts";
+import { getFeeRate, getFeeSummary } from "#/lib/api/revenue.ts";
+
 export type RevenueWindow = "7d" | "30d" | "90d";
 
 export interface DailyRevenue {
@@ -6,53 +11,77 @@ export interface DailyRevenue {
 	netKobo: number;
 }
 
-const HISTORY_DAYS = 180;
-const TODAY = new Date("2026-07-01T00:00:00.000Z");
-
-function generateDailyRevenue(): DailyRevenue[] {
-	const days: DailyRevenue[] = [];
-	for (let i = HISTORY_DAYS - 1; i >= 0; i--) {
-		const date = new Date(TODAY);
-		date.setUTCDate(date.getUTCDate() - i);
-		const dayOfWeek = date.getUTCDay();
-		const weekdayMultiplier = dayOfWeek === 0 || dayOfWeek === 6 ? 0.55 : 1;
-		const trend = 1 + (HISTORY_DAYS - i) * 0.0025;
-		const wave = 1 + 0.12 * Math.sin(i / 6);
-		const grossKobo =
-			Math.round((1_800_000 * weekdayMultiplier * trend * wave) / 1000) * 1000;
-		const feeKobo = Math.round(grossKobo * 0.015) + 10_000;
-		days.push({
-			date: date.toISOString().slice(0, 10),
-			grossKobo,
-			netKobo: grossKobo - feeKobo,
-		});
-	}
-	return days;
-}
-
-export const dailyRevenue: DailyRevenue[] = generateDailyRevenue();
-
 function windowDays(window: RevenueWindow): number {
 	return window === "7d" ? 7 : window === "30d" ? 30 : 90;
 }
 
-export function revenueForWindow(window: RevenueWindow): DailyRevenue[] {
-	return dailyRevenue.slice(-windowDays(window));
+function windowStartDate(window: RevenueWindow): Date {
+	const days = windowDays(window);
+	const start = new Date();
+	start.setUTCHours(0, 0, 0, 0);
+	start.setUTCDate(start.getUTCDate() - (days - 1));
+	return start;
 }
 
-export function priorRevenueForWindow(window: RevenueWindow): DailyRevenue[] {
-	const n = windowDays(window);
-	return dailyRevenue.slice(-(n * 2), -n);
+export const revenueSummaryQueryOptions = (window: RevenueWindow) =>
+	queryOptions({
+		queryKey: ["revenue", "summary", window],
+		queryFn: async () => {
+			const days = windowDays(window);
+			const [current, combined, rate] = await Promise.all([
+				getFeeSummary({ data: { days } }),
+				getFeeSummary({ data: { days: days * 2 } }),
+				getFeeRate(),
+			]);
+
+			return {
+				current,
+				prior: {
+					totalGrossAmount:
+						combined.totalGrossAmount - current.totalGrossAmount,
+					totalFeeAmount: combined.totalFeeAmount - current.totalFeeAmount,
+					totalNetAmount: combined.totalNetAmount - current.totalNetAmount,
+				},
+				rate,
+			};
+		},
+	});
+
+export function ledgerInvoicesForWindow(
+	allInvoices: InvoiceSummary[],
+	window: RevenueWindow,
+): InvoiceSummary[] {
+	const start = windowStartDate(window).toISOString().slice(0, 10);
+	return allInvoices
+		.filter((invoice) => invoice.createdAt.slice(0, 10) >= start)
+		.sort(
+			(a, b) =>
+				new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+		);
 }
 
-export function sumGross(days: DailyRevenue[]): number {
-	return days.reduce((sum, d) => sum + d.grossKobo, 0);
-}
+export function dailyChartForWindow(
+	allInvoices: InvoiceSummary[],
+	window: RevenueWindow,
+): DailyRevenue[] {
+	const days = windowDays(window);
+	const start = windowStartDate(window);
 
-export function sumNet(days: DailyRevenue[]): number {
-	return days.reduce((sum, d) => sum + d.netKobo, 0);
-}
+	const byDay = new Map<string, DailyRevenue>();
+	for (let i = 0; i < days; i++) {
+		const date = new Date(start);
+		date.setUTCDate(date.getUTCDate() + i);
+		const key = date.toISOString().slice(0, 10);
+		byDay.set(key, { date: key, grossKobo: 0, netKobo: 0 });
+	}
 
-export function sumFee(days: DailyRevenue[]): number {
-	return sumGross(days) - sumNet(days);
+	for (const invoice of allInvoices) {
+		const key = invoice.createdAt.slice(0, 10);
+		const bucket = byDay.get(key);
+		if (!bucket) continue;
+		bucket.grossKobo += invoice.grossKobo;
+		if (invoice.status === "paid") bucket.netKobo += invoice.netKobo;
+	}
+
+	return Array.from(byDay.values());
 }

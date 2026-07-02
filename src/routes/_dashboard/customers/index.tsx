@@ -1,4 +1,5 @@
 import { MagnifyingGlassIcon } from "@phosphor-icons/react";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import {
 	createFileRoute,
 	stripSearchParams,
@@ -11,6 +12,7 @@ import {
 	getPaginationRowModel,
 	useReactTable,
 } from "@tanstack/react-table";
+import { useMemo } from "react";
 import { z } from "zod";
 
 import { Button } from "#/components/ui/button.tsx";
@@ -21,6 +23,7 @@ import {
 	EmptyTitle,
 } from "#/components/ui/empty.tsx";
 import { Input } from "#/components/ui/input.tsx";
+import { ListPageSkeleton } from "#/components/ui/page-skeleton.tsx";
 import {
 	Pagination,
 	PaginationContent,
@@ -39,15 +42,14 @@ import {
 	TableRow,
 } from "#/components/ui/table.tsx";
 import {
-	customers as allCustomers,
-	type Customer,
-	mostRecentSubscriptionUpdate,
-	subscriptionSummaryForCustomer,
+	type CustomerSummary,
+	customersListQueryOptions,
 } from "#/data/customers.ts";
 import {
 	subscriptionStatusLabel,
 	subscriptionStatusTone,
 } from "#/data/subscriptions.ts";
+import { formatDate } from "#/lib/date.ts";
 
 const defaultCustomersSearch = { page: 1, q: "" };
 
@@ -61,31 +63,30 @@ export const Route = createFileRoute("/_dashboard/customers/")({
 	search: {
 		middlewares: [stripSearchParams(defaultCustomersSearch)],
 	},
+	loader: async ({ context }) => {
+		await context.queryClient.ensureQueryData(customersListQueryOptions());
+	},
 	component: CustomersListPage,
+	pendingComponent: () => <ListPageSkeleton columns={4} />,
 	head: () => ({ meta: [{ title: "Customers | SubPilot" }] }),
 });
 
 const PAGE_SIZE = 10;
 
-function formatDate(iso: string): string {
-	return new Date(iso).toLocaleDateString("en-US", {
-		month: "short",
-		day: "numeric",
-		year: "numeric",
-	});
-}
-
-function compareCustomers(a: Customer, b: Customer): number {
-	const aUpdated = mostRecentSubscriptionUpdate(a.email);
-	const bUpdated = mostRecentSubscriptionUpdate(b.email);
+function compareCustomers(a: CustomerSummary, b: CustomerSummary): number {
+	const aUpdated = a.mostRecentSubscriptionUpdate;
+	const bUpdated = b.mostRecentSubscriptionUpdate;
 	if (!aUpdated && !bUpdated) return 0;
 	if (!aUpdated) return 1;
 	if (!bUpdated) return -1;
 	return new Date(bUpdated).getTime() - new Date(aUpdated).getTime();
 }
 
-function SubscriptionSummary({ email }: { email: string }) {
-	const summary = subscriptionSummaryForCustomer(email);
+function SubscriptionSummary({
+	summary,
+}: {
+	summary: CustomerSummary["subscriptionSummary"];
+}) {
 	if (summary.length === 0) {
 		return <span className="text-sm text-(--ink-3)">No subscriptions</span>;
 	}
@@ -103,6 +104,7 @@ function SubscriptionSummary({ email }: { email: string }) {
 function CustomersListPage() {
 	const { page, q } = Route.useSearch();
 	const navigate = useNavigate({ from: Route.fullPath });
+	const { data: allCustomers } = useSuspenseQuery(customersListQueryOptions());
 
 	function handleSearchChange(value: string) {
 		navigate({
@@ -116,77 +118,89 @@ function CustomersListPage() {
 		navigate({ to: "/customers/$customerId", params: { customerId } });
 	}
 
-	const filtered = allCustomers
-		.filter((c) => {
-			const query = q.trim().toLowerCase();
-			if (!query) return true;
-			return (
-				c.name.toLowerCase().includes(query) ||
-				c.email.toLowerCase().includes(query) ||
-				c.phone.toLowerCase().includes(query)
-			);
-		})
-		.sort(compareCustomers);
+	const filtered = useMemo(
+		() =>
+			allCustomers
+				.filter((c) => {
+					const query = q.trim().toLowerCase();
+					if (!query) return true;
+					return (
+						c.name.toLowerCase().includes(query) ||
+						c.email.toLowerCase().includes(query) ||
+						c.phone.toLowerCase().includes(query)
+					);
+				})
+				.sort(compareCustomers),
+		[allCustomers, q],
+	);
 
-	const columns: ColumnDef<Customer>[] = [
-		{
-			id: "name",
-			header: "Name",
-			cell: ({ row }) => (
-				<div>
-					<p className="m-0 font-medium text-(--ink)">{row.original.name}</p>
-					<p className="m-0 text-xs text-(--ink-3)">{row.original.email}</p>
-				</div>
-			),
-		},
-		{
-			id: "phone",
-			header: "Phone",
-			cell: ({ row }) => (
-				<span className="text-(--ink-2)">{row.original.phone}</span>
-			),
-		},
-		{
-			id: "card",
-			header: "Card",
-			cell: ({ row }) => (
-				<span className="text-(--ink-2)">
-					{row.original.cardBrand} •••• {row.original.cardLast4}
-				</span>
-			),
-		},
-		{
-			id: "subscriptions",
-			header: "Subscriptions",
-			cell: ({ row }) => <SubscriptionSummary email={row.original.email} />,
-		},
-		{
-			id: "createdAt",
-			header: "Created",
-			cell: ({ row }) => (
-				<span className="text-(--ink-3)">
-					{formatDate(row.original.createdAt)}
-				</span>
-			),
-		},
-		{
-			id: "actions",
-			header: "",
-			cell: ({ row }) => (
-				<Button
-					variant="ghost"
-					size="sm"
-					onClick={(e) => {
-						e.stopPropagation();
-						goToCustomer(row.original.id);
-					}}
-					className="text-(--ink-3) hover:text-(--ink)"
-				>
-					View
-				</Button>
-			),
-		},
-	];
+	const columns = useMemo<ColumnDef<CustomerSummary>[]>(
+		() => [
+			{
+				id: "name",
+				header: "Name",
+				cell: ({ row }) => (
+					<div>
+						<p className="m-0 font-medium text-(--ink)">{row.original.name}</p>
+						<p className="m-0 text-xs text-(--ink-3)">{row.original.email}</p>
+					</div>
+				),
+			},
+			{
+				id: "phone",
+				header: "Phone",
+				cell: ({ row }) => (
+					<span className="text-(--ink-2)">{row.original.phone}</span>
+				),
+			},
+			{
+				id: "card",
+				header: "Card",
+				cell: ({ row }) => (
+					<span className="text-(--ink-2)">
+						{row.original.cardBrand} •••• {row.original.cardLast4}
+					</span>
+				),
+			},
+			{
+				id: "subscriptions",
+				header: "Subscriptions",
+				cell: ({ row }) => (
+					<SubscriptionSummary summary={row.original.subscriptionSummary} />
+				),
+			},
+			{
+				id: "createdAt",
+				header: "Created",
+				cell: ({ row }) => (
+					<span className="text-(--ink-3)">
+						{formatDate(row.original.createdAt)}
+					</span>
+				),
+			},
+			{
+				id: "actions",
+				header: "",
+				cell: ({ row }) => (
+					<Button
+						variant="ghost"
+						size="sm"
+						onClick={(e) => {
+							e.stopPropagation();
+							navigate({
+								to: "/customers/$customerId",
+								params: { customerId: row.original.id },
+							});
+						}}
+						className="text-(--ink-3) hover:text-(--ink)"
+					>
+						View
+					</Button>
+				),
+			},
+		],
+		[navigate],
+	);
 
 	const table = useReactTable({
 		data: filtered,
@@ -319,7 +333,7 @@ function CustomersListPage() {
 									{customer.cardBrand} •••• {customer.cardLast4}
 								</div>
 								<div className="relative z-10">
-									<SubscriptionSummary email={customer.email} />
+									<SubscriptionSummary summary={customer.subscriptionSummary} />
 								</div>
 							</div>
 						))}

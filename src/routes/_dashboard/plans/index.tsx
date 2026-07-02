@@ -25,6 +25,7 @@ import {
 	getPaginationRowModel,
 	useReactTable,
 } from "@tanstack/react-table";
+import { useCallback, useMemo } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 
@@ -73,6 +74,7 @@ import {
 	publishPlan,
 	statusTone,
 } from "#/data/plans.ts";
+import { useHandleMutationError } from "#/hooks/use-handle-mutation-error.ts";
 import { formatNGN } from "#/lib/currency.ts";
 
 const sortKeys = ["name", "amountKobo", "trialDays", "status"] as const;
@@ -154,6 +156,7 @@ function PlansListPage() {
 	const navigate = useNavigate({ from: Route.fullPath });
 	const queryClient = useQueryClient();
 	const { data: allPlans } = useSuspenseQuery(plansQueryOptions());
+	const handleMutationError = useHandleMutationError();
 
 	const publishMutation = useMutation({
 		mutationFn: (planId: string) => publishPlan(planId),
@@ -165,11 +168,10 @@ function PlansListPage() {
 			);
 			toast.success("Plan published");
 		},
-		onError: (error) => {
-			toast.error(
-				error instanceof Error ? error.message : "Couldn't publish the plan.",
-			);
-		},
+		onError: (error) =>
+			handleMutationError(error, {
+				fallbackMessage: "Couldn't publish the plan.",
+			}),
 	});
 
 	const archiveMutation = useMutation({
@@ -182,11 +184,10 @@ function PlansListPage() {
 			);
 			toast.success("Plan archived");
 		},
-		onError: (error) => {
-			toast.error(
-				error instanceof Error ? error.message : "Couldn't archive the plan.",
-			);
-		},
+		onError: (error) =>
+			handleMutationError(error, {
+				fallbackMessage: "Couldn't archive the plan.",
+			}),
 	});
 
 	function handleStatusFilterChange(value: string) {
@@ -208,166 +209,198 @@ function PlansListPage() {
 		});
 	}
 
-	function handleSortToggle(key: SortKey) {
-		navigate({
-			search: (prev) => ({
-				...prev,
-				sort: key,
-				order: prev.sort === key && prev.order === "asc" ? "desc" : "asc",
-				page: 1,
-			}),
-			resetScroll: false,
-		});
-	}
+	const handleSortToggle = useCallback(
+		(key: SortKey) => {
+			navigate({
+				search: (prev) => ({
+					...prev,
+					sort: key,
+					order: prev.sort === key && prev.order === "asc" ? "desc" : "asc",
+					page: 1,
+				}),
+				resetScroll: false,
+			});
+		},
+		[navigate],
+	);
 
-	async function handleCopy(plan: Plan) {
+	const handleCopy = useCallback(async (plan: Plan) => {
 		const url = `${window.location.origin}${checkoutUrl(plan)}`;
-		await navigator.clipboard.writeText(url);
-		toast.success("Checkout link copied", { duration: 2000 });
-	}
+		try {
+			await navigator.clipboard.writeText(url);
+			toast.success("Checkout link copied", { duration: 2000 });
+		} catch {
+			toast.error("Couldn't copy to clipboard.");
+		}
+	}, []);
 
-	function goToPlan(planId: string) {
-		navigate({ to: "/plans/$planId", params: { planId } });
-	}
+	const goToPlan = useCallback(
+		(planId: string) => {
+			navigate({ to: "/plans/$planId", params: { planId } });
+		},
+		[navigate],
+	);
 
-	function sortableHeader(label: string, key: SortKey) {
-		const isActive = sort === key;
-		return (
-			<button
-				type="button"
-				onClick={() => handleSortToggle(key)}
-				className="flex items-center gap-1 text-(--ink-3) hover:text-(--ink)"
-			>
-				{label}
-				{isActive ? (
-					order === "asc" ? (
-						<CaretUpIcon className="size-3" />
+	const { mutate: publishPlanMutate, isPending: isPublishPending } =
+		publishMutation;
+	const { mutate: archivePlanMutate, isPending: isArchivePending } =
+		archiveMutation;
+
+	const columns = useMemo<ColumnDef<Plan>[]>(() => {
+		function sortableHeader(label: string, key: SortKey) {
+			const isActive = sort === key;
+			return (
+				<button
+					type="button"
+					onClick={() => handleSortToggle(key)}
+					className="flex items-center gap-1 text-(--ink-3) hover:text-(--ink)"
+				>
+					{label}
+					{isActive ? (
+						order === "asc" ? (
+							<CaretUpIcon className="size-3" />
+						) : (
+							<CaretDownIcon className="size-3" />
+						)
 					) : (
-						<CaretDownIcon className="size-3" />
-					)
-				) : (
-					<CaretUpDownIcon className="size-3 opacity-40" />
-				)}
-			</button>
-		);
-	}
+						<CaretUpDownIcon className="size-3 opacity-40" />
+					)}
+				</button>
+			);
+		}
 
-	const columns: ColumnDef<Plan>[] = [
-		{
-			accessorKey: "name",
-			header: () => sortableHeader("Name", "name"),
-			cell: ({ row }) => (
-				<span className="font-medium text-(--ink)">{row.original.name}</span>
-			),
-		},
-		{
-			accessorKey: "amountKobo",
-			header: () => sortableHeader("Price", "amountKobo"),
-			cell: ({ row }) => (
-				<span className="text-(--ink-2)">
-					{formatNGN(row.original.amountKobo)}
-				</span>
-			),
-		},
-		{
-			id: "interval",
-			header: "Interval",
-			cell: ({ row }) => (
-				<span className="text-(--ink-2)">
-					{formatInterval(row.original.interval)}
-				</span>
-			),
-		},
-		{
-			accessorKey: "trialDays",
-			header: () => sortableHeader("Trial", "trialDays"),
-			cell: ({ row }) => (
-				<span className="text-(--ink-2)">
-					{row.original.trialDays > 0 ? `${row.original.trialDays}d` : "—"}
-				</span>
-			),
-		},
-		{
-			accessorKey: "status",
-			header: () => sortableHeader("Status", "status"),
-			cell: ({ row }) => (
-				<StatusBadge tone={statusTone[row.original.status]}>
-					{row.original.status}
-				</StatusBadge>
-			),
-		},
-		{
-			id: "hostedUrl",
-			header: "Hosted URL",
-			cell: ({ row }) => {
-				const plan = row.original;
-				if (plan.status !== "published")
-					return <span className="text-(--ink-3)">—</span>;
-				return (
-					<button
-						type="button"
-						onClick={(e) => {
-							e.stopPropagation();
-							handleCopy(plan);
-						}}
-						className="flex items-center gap-1.5 rounded-full border border-(--line) bg-(--surface-2) px-2.5 py-1 text-xs text-(--ink-2) hover:bg-(--surface-3)"
-					>
-						<CopyIcon className="size-3.5" />
-						Copy link
-					</button>
-				);
+		return [
+			{
+				accessorKey: "name",
+				header: () => sortableHeader("Name", "name"),
+				cell: ({ row }) => (
+					<span className="font-medium text-(--ink)">{row.original.name}</span>
+				),
 			},
-		},
-		{
-			id: "actions",
-			header: "",
-			cell: ({ row }) => {
-				const plan = row.original;
-				return (
-					<DropdownMenu>
-						<DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
-							<Button
-								variant="ghost"
-								size="icon-sm"
-								className="text-(--ink-3) hover:text-(--ink)"
-							>
-								<DotsThreeIcon className="size-5" weight="bold" />
-							</Button>
-						</DropdownMenuTrigger>
-						<DropdownMenuContent align="end">
-							<DropdownMenuItem onClick={() => goToPlan(plan.id)}>
-								View
-							</DropdownMenuItem>
-							{plan.status === "draft" && (
-								<DropdownMenuItem
-									disabled={publishMutation.isPending}
-									onClick={() => publishMutation.mutate(plan.id)}
-								>
-									Publish
-								</DropdownMenuItem>
-							)}
-							{plan.status !== "archived" && (
-								<DropdownMenuItem
-									variant="destructive"
-									disabled={archiveMutation.isPending}
-									onClick={() => archiveMutation.mutate(plan.id)}
-								>
-									Archive
-								</DropdownMenuItem>
-							)}
-						</DropdownMenuContent>
-					</DropdownMenu>
-				);
+			{
+				accessorKey: "amountKobo",
+				header: () => sortableHeader("Price", "amountKobo"),
+				cell: ({ row }) => (
+					<span className="text-(--ink-2)">
+						{formatNGN(row.original.amountKobo)}
+					</span>
+				),
 			},
-		},
-	];
-
-	const filtered = sortPlans(
-		allPlans
-			.filter((p) => !status || p.status === status)
-			.filter((p) => p.name.toLowerCase().includes(q.trim().toLowerCase())),
+			{
+				id: "interval",
+				header: "Interval",
+				cell: ({ row }) => (
+					<span className="text-(--ink-2)">
+						{formatInterval(row.original.interval)}
+					</span>
+				),
+			},
+			{
+				accessorKey: "trialDays",
+				header: () => sortableHeader("Trial", "trialDays"),
+				cell: ({ row }) => (
+					<span className="text-(--ink-2)">
+						{row.original.trialDays > 0 ? `${row.original.trialDays}d` : "—"}
+					</span>
+				),
+			},
+			{
+				accessorKey: "status",
+				header: () => sortableHeader("Status", "status"),
+				cell: ({ row }) => (
+					<StatusBadge tone={statusTone[row.original.status]}>
+						{row.original.status}
+					</StatusBadge>
+				),
+			},
+			{
+				id: "hostedUrl",
+				header: "Hosted URL",
+				cell: ({ row }) => {
+					const plan = row.original;
+					if (plan.status !== "published")
+						return <span className="text-(--ink-3)">—</span>;
+					return (
+						<button
+							type="button"
+							onClick={(e) => {
+								e.stopPropagation();
+								handleCopy(plan);
+							}}
+							className="flex items-center gap-1.5 rounded-full border border-(--line) bg-(--surface-2) px-2.5 py-1 text-xs text-(--ink-2) hover:bg-(--surface-3)"
+						>
+							<CopyIcon className="size-3.5" />
+							Copy link
+						</button>
+					);
+				},
+			},
+			{
+				id: "actions",
+				header: "",
+				cell: ({ row }) => {
+					const plan = row.original;
+					return (
+						<DropdownMenu>
+							<DropdownMenuTrigger asChild onClick={(e) => e.stopPropagation()}>
+								<Button
+									variant="ghost"
+									size="icon-sm"
+									aria-label="Plan actions"
+									className="text-(--ink-3) hover:text-(--ink)"
+								>
+									<DotsThreeIcon className="size-5" weight="bold" />
+								</Button>
+							</DropdownMenuTrigger>
+							<DropdownMenuContent align="end">
+								<DropdownMenuItem onClick={() => goToPlan(plan.id)}>
+									View
+								</DropdownMenuItem>
+								{plan.status === "draft" && (
+									<DropdownMenuItem
+										disabled={isPublishPending}
+										onClick={() => publishPlanMutate(plan.id)}
+									>
+										Publish
+									</DropdownMenuItem>
+								)}
+								{plan.status !== "archived" && (
+									<DropdownMenuItem
+										variant="destructive"
+										disabled={isArchivePending}
+										onClick={() => archivePlanMutate(plan.id)}
+									>
+										Archive
+									</DropdownMenuItem>
+								)}
+							</DropdownMenuContent>
+						</DropdownMenu>
+					);
+				},
+			},
+		];
+	}, [
 		sort,
 		order,
+		handleSortToggle,
+		handleCopy,
+		goToPlan,
+		isPublishPending,
+		publishPlanMutate,
+		isArchivePending,
+		archivePlanMutate,
+	]);
+
+	const filtered = useMemo(
+		() =>
+			sortPlans(
+				allPlans
+					.filter((p) => !status || p.status === status)
+					.filter((p) => p.name.toLowerCase().includes(q.trim().toLowerCase())),
+				sort,
+				order,
+			),
+		[allPlans, status, q, sort, order],
 	);
 
 	const table = useReactTable({

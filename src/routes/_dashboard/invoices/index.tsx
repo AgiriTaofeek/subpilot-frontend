@@ -1,4 +1,5 @@
 import { FunnelIcon, MagnifyingGlassIcon } from "@phosphor-icons/react";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import {
 	createFileRoute,
 	stripSearchParams,
@@ -11,6 +12,7 @@ import {
 	getPaginationRowModel,
 	useReactTable,
 } from "@tanstack/react-table";
+import { useMemo } from "react";
 import { z } from "zod";
 
 import { Button } from "#/components/ui/button.tsx";
@@ -21,6 +23,7 @@ import {
 	EmptyTitle,
 } from "#/components/ui/empty.tsx";
 import { Input } from "#/components/ui/input.tsx";
+import { ListPageSkeleton } from "#/components/ui/page-skeleton.tsx";
 import {
 	Pagination,
 	PaginationContent,
@@ -47,16 +50,16 @@ import {
 } from "#/components/ui/table.tsx";
 import { ToggleGroup, ToggleGroupItem } from "#/components/ui/toggle-group.tsx";
 import {
-	invoices as allInvoices,
-	type Invoice,
-	type InvoiceStatus,
+	type InvoiceSummary,
 	invoiceStatusLabel,
 	invoiceStatusTone,
+	invoicesListQueryOptions,
 } from "#/data/invoices.ts";
-import { planNameFor, subscriptions } from "#/data/subscriptions.ts";
 import { formatNGN } from "#/lib/currency.ts";
+import { formatDate } from "#/lib/date.ts";
+import type { InvoiceStatusDto } from "#/types/api.ts";
 
-const statusValues = ["paid", "open", "void", "failed"] as const;
+const statusValues = ["pending", "paid", "failed", "void", "refunded"] as const;
 
 const defaultInvoicesSearch = { page: 1, q: "" };
 
@@ -71,37 +74,28 @@ export const Route = createFileRoute("/_dashboard/invoices/")({
 	search: {
 		middlewares: [stripSearchParams(defaultInvoicesSearch)],
 	},
+	loader: async ({ context }) => {
+		await context.queryClient.ensureQueryData(invoicesListQueryOptions());
+	},
 	component: InvoicesListPage,
+	pendingComponent: () => <ListPageSkeleton columns={5} />,
 	head: () => ({ meta: [{ title: "Invoices | SubPilot" }] }),
 });
 
 const PAGE_SIZE = 10;
 
-const statusFilters: Array<{ value: InvoiceStatus; label: string }> =
+const statusFilters: Array<{ value: InvoiceStatusDto; label: string }> =
 	statusValues.map((value) => ({ value, label: invoiceStatusLabel[value] }));
 
-function formatDate(iso: string): string {
-	return new Date(iso).toLocaleDateString("en-US", {
-		month: "short",
-		day: "numeric",
-		year: "numeric",
-	});
-}
-
-function isOverdue(invoice: Invoice): boolean {
-	if (invoice.status !== "open") return false;
+function isOverdue(invoice: InvoiceSummary): boolean {
+	if (invoice.status !== "pending") return false;
 	const ageDays =
 		(Date.now() - new Date(invoice.createdAt).getTime()) /
 		(1000 * 60 * 60 * 24);
 	return ageDays > 7;
 }
 
-function planNameForInvoice(invoice: Invoice): string {
-	const sub = subscriptions.find((s) => s.id === invoice.subscriptionId);
-	return sub ? planNameFor(sub.planId) : "—";
-}
-
-function rowTone(invoice: Invoice): "failed" | "void" | "default" {
+function rowTone(invoice: InvoiceSummary): "failed" | "void" | "default" {
 	if (invoice.status === "failed") return "failed";
 	if (invoice.status === "void") return "void";
 	return "default";
@@ -110,12 +104,13 @@ function rowTone(invoice: Invoice): "failed" | "void" | "default" {
 function InvoicesListPage() {
 	const { page, status, q } = Route.useSearch();
 	const navigate = useNavigate({ from: Route.fullPath });
+	const { data: allInvoices } = useSuspenseQuery(invoicesListQueryOptions());
 
 	function handleStatusFilterChange(value: string) {
 		navigate({
 			search: (prev) => ({
 				...prev,
-				status: (value || undefined) as InvoiceStatus | undefined,
+				status: (value || undefined) as InvoiceStatusDto | undefined,
 				page: 1,
 			}),
 			resetScroll: false,
@@ -134,150 +129,160 @@ function InvoicesListPage() {
 		navigate({ to: "/invoices/$invoiceId", params: { invoiceId } });
 	}
 
-	const filtered = allInvoices
-		.filter((i) => !status || i.status === status)
-		.filter((i) => {
-			const query = q.trim().toLowerCase();
-			if (!query) return true;
-			return (
-				i.number.toLowerCase().includes(query) ||
-				i.customerEmail.toLowerCase().includes(query)
-			);
-		})
-		.sort(
-			(a, b) =>
-				new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-		);
+	const filtered = useMemo(
+		() =>
+			allInvoices
+				.filter((i) => !status || i.status === status)
+				.filter((i) => {
+					const query = q.trim().toLowerCase();
+					if (!query) return true;
+					return (
+						i.number.toLowerCase().includes(query) ||
+						i.customerEmail.toLowerCase().includes(query)
+					);
+				})
+				.sort(
+					(a, b) =>
+						new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+				),
+		[allInvoices, status, q],
+	);
 
 	const summaryGross = filtered.reduce((sum, i) => sum + i.grossKobo, 0);
 
-	const columns: ColumnDef<Invoice>[] = [
-		{
-			id: "number",
-			header: "Invoice",
-			cell: ({ row }) => {
-				const dim = rowTone(row.original) === "void";
-				return (
-					<span
-						className={`font-heading text-xs ${dim ? "text-(--ink-3)" : "text-(--ink)"}`}
-					>
-						{row.original.number}
-					</span>
-				);
-			},
-		},
-		{
-			id: "customer",
-			header: "Customer",
-			cell: ({ row }) => {
-				const dim = rowTone(row.original) === "void";
-				return (
-					<div>
-						<p
-							className={`m-0 ${dim ? "text-(--ink-3)" : "font-medium text-(--ink)"}`}
+	const columns = useMemo<ColumnDef<InvoiceSummary>[]>(
+		() => [
+			{
+				id: "number",
+				header: "Invoice",
+				cell: ({ row }) => {
+					const dim = rowTone(row.original) === "void";
+					return (
+						<span
+							className={`font-heading text-xs ${dim ? "text-(--ink-3)" : "text-(--ink)"}`}
 						>
-							{row.original.customerName}
-						</p>
-						<p className="m-0 text-xs text-(--ink-3)">
-							{row.original.customerEmail}
-						</p>
+							{row.original.number}
+						</span>
+					);
+				},
+			},
+			{
+				id: "customer",
+				header: "Customer",
+				cell: ({ row }) => {
+					const dim = rowTone(row.original) === "void";
+					return (
+						<div>
+							<p
+								className={`m-0 ${dim ? "text-(--ink-3)" : "font-medium text-(--ink)"}`}
+							>
+								{row.original.customerName}
+							</p>
+							<p className="m-0 text-xs text-(--ink-3)">
+								{row.original.customerEmail}
+							</p>
+						</div>
+					);
+				},
+			},
+			{
+				id: "subscription",
+				header: "Subscription",
+				cell: ({ row }) => {
+					const dim = rowTone(row.original) === "void";
+					return (
+						<span className={dim ? "text-(--ink-3)" : "text-(--ink-2)"}>
+							{row.original.planName}
+						</span>
+					);
+				},
+			},
+			{
+				id: "status",
+				header: "Status",
+				cell: ({ row }) => (
+					<div className="flex items-center gap-2">
+						<StatusBadge tone={invoiceStatusTone[row.original.status]}>
+							{invoiceStatusLabel[row.original.status]}
+						</StatusBadge>
+						{isOverdue(row.original) && (
+							<span className="text-xs text-(--ink-3)">overdue</span>
+						)}
 					</div>
-				);
+				),
 			},
-		},
-		{
-			id: "subscription",
-			header: "Subscription",
-			cell: ({ row }) => {
-				const dim = rowTone(row.original) === "void";
-				return (
-					<span className={dim ? "text-(--ink-3)" : "text-(--ink-2)"}>
-						{planNameForInvoice(row.original)}
+			{
+				id: "gross",
+				header: "Gross",
+				cell: ({ row }) => {
+					const dim = rowTone(row.original) === "void";
+					return (
+						<span className={dim ? "text-(--ink-3)" : "text-(--ink-2)"}>
+							{formatNGN(row.original.grossKobo)}
+						</span>
+					);
+				},
+			},
+			{
+				id: "fee",
+				header: "Fee",
+				cell: ({ row }) => {
+					const dim = rowTone(row.original) === "void";
+					return (
+						<span className={dim ? "text-(--ink-3)" : "text-(--ink-2)"}>
+							{row.original.status === "paid"
+								? formatNGN(row.original.feeKobo)
+								: "—"}
+						</span>
+					);
+				},
+			},
+			{
+				id: "net",
+				header: "Net",
+				cell: ({ row }) => {
+					const dim = rowTone(row.original) === "void";
+					return (
+						<span className={dim ? "text-(--ink-3)" : "text-(--ink)"}>
+							{row.original.status === "paid"
+								? formatNGN(row.original.netKobo)
+								: "—"}
+						</span>
+					);
+				},
+			},
+			{
+				id: "createdAt",
+				header: "Created",
+				cell: ({ row }) => (
+					<span className="text-(--ink-3)">
+						{formatDate(row.original.createdAt)}
 					</span>
-				);
+				),
 			},
-		},
-		{
-			id: "status",
-			header: "Status",
-			cell: ({ row }) => (
-				<div className="flex items-center gap-2">
-					<StatusBadge tone={invoiceStatusTone[row.original.status]}>
-						{invoiceStatusLabel[row.original.status]}
-					</StatusBadge>
-					{isOverdue(row.original) && (
-						<span className="text-xs text-(--ink-3)">overdue</span>
-					)}
-				</div>
-			),
-		},
-		{
-			id: "gross",
-			header: "Gross",
-			cell: ({ row }) => {
-				const dim = rowTone(row.original) === "void";
-				return (
-					<span className={dim ? "text-(--ink-3)" : "text-(--ink-2)"}>
-						{formatNGN(row.original.grossKobo)}
-					</span>
-				);
+			{
+				id: "actions",
+				header: "",
+				cell: ({ row }) => (
+					<Button
+						variant="ghost"
+						size="sm"
+						onClick={(e) => {
+							e.stopPropagation();
+							navigate({
+								to: "/invoices/$invoiceId",
+								params: { invoiceId: row.original.id },
+							});
+						}}
+						className="text-(--ink-3) hover:text-(--ink)"
+					>
+						View
+					</Button>
+				),
 			},
-		},
-		{
-			id: "fee",
-			header: "Fee",
-			cell: ({ row }) => {
-				const dim = rowTone(row.original) === "void";
-				return (
-					<span className={dim ? "text-(--ink-3)" : "text-(--ink-2)"}>
-						{row.original.status === "paid"
-							? formatNGN(row.original.feeKobo)
-							: "—"}
-					</span>
-				);
-			},
-		},
-		{
-			id: "net",
-			header: "Net",
-			cell: ({ row }) => {
-				const dim = rowTone(row.original) === "void";
-				return (
-					<span className={dim ? "text-(--ink-3)" : "text-(--ink)"}>
-						{row.original.status === "paid"
-							? formatNGN(row.original.netKobo)
-							: "—"}
-					</span>
-				);
-			},
-		},
-		{
-			id: "createdAt",
-			header: "Created",
-			cell: ({ row }) => (
-				<span className="text-(--ink-3)">
-					{formatDate(row.original.createdAt)}
-				</span>
-			),
-		},
-		{
-			id: "actions",
-			header: "",
-			cell: ({ row }) => (
-				<Button
-					variant="ghost"
-					size="sm"
-					onClick={(e) => {
-						e.stopPropagation();
-						goToInvoice(row.original.id);
-					}}
-					className="text-(--ink-3) hover:text-(--ink)"
-				>
-					View
-				</Button>
-			),
-		},
-	];
+		],
+		[navigate],
+	);
 
 	const table = useReactTable({
 		data: filtered,

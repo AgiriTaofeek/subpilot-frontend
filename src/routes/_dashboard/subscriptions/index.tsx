@@ -3,7 +3,7 @@ import {
 	MagnifyingGlassIcon,
 	WarningCircleIcon,
 } from "@phosphor-icons/react";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import {
 	createFileRoute,
 	stripSearchParams,
@@ -16,6 +16,7 @@ import {
 	getPaginationRowModel,
 	useReactTable,
 } from "@tanstack/react-table";
+import { useMemo } from "react";
 import { z } from "zod";
 
 import {
@@ -27,11 +28,13 @@ import {
 import { Button } from "#/components/ui/button.tsx";
 import {
 	Empty,
+	EmptyContent,
 	EmptyDescription,
 	EmptyHeader,
 	EmptyTitle,
 } from "#/components/ui/empty.tsx";
 import { Input } from "#/components/ui/input.tsx";
+import { ListPageSkeleton } from "#/components/ui/page-skeleton.tsx";
 import {
 	Pagination,
 	PaginationContent,
@@ -74,6 +77,7 @@ import {
 	subscriptionsListQueryOptions,
 } from "#/data/subscriptions.ts";
 import { formatNGN } from "#/lib/currency.ts";
+import { formatDate } from "#/lib/date.ts";
 
 const statusValues = [
 	"trialing",
@@ -106,6 +110,7 @@ export const Route = createFileRoute("/_dashboard/subscriptions/")({
 		]);
 	},
 	component: SubscriptionsListPage,
+	pendingComponent: () => <ListPageSkeleton columns={5} />,
 	head: () => ({ meta: [{ title: "Subscriptions | SubPilot" }] }),
 });
 
@@ -116,14 +121,6 @@ const statusFilters: Array<{ value: SubscriptionStatus; label: string }> =
 		value,
 		label: subscriptionStatusLabel[value],
 	}));
-
-function formatDate(iso: string): string {
-	return new Date(iso).toLocaleDateString("en-US", {
-		month: "short",
-		day: "numeric",
-		year: "numeric",
-	});
-}
 
 function statusRank(status: SubscriptionStatus): number {
 	if (status === "past_due") return 0;
@@ -152,10 +149,15 @@ function compareSubscriptions(
 function SubscriptionsListPage() {
 	const { page, status, planId, q } = Route.useSearch();
 	const navigate = useNavigate({ from: Route.fullPath });
+	const queryClient = useQueryClient();
 	const { data: allSubscriptions } = useSuspenseQuery(
 		subscriptionsListQueryOptions(),
 	);
 	const { data: plans } = useSuspenseQuery(plansQueryOptions());
+
+	function refreshSubscriptions() {
+		queryClient.invalidateQueries({ queryKey: ["subscriptions"] });
+	}
 
 	function handleStatusFilterChange(value: string) {
 		const nextStatus: (typeof statusValues)[number] | undefined = value
@@ -202,87 +204,102 @@ function SubscriptionsListPage() {
 		(s) => s.status === "past_due",
 	).length;
 
-	const filtered = allSubscriptions
-		.filter((s) => !status || s.status === status)
-		.filter((s) => !planId || s.planId === planId)
-		.filter((s) => {
-			const query = q.trim().toLowerCase();
-			if (!query) return true;
-			return (
-				s.customerName.toLowerCase().includes(query) ||
-				s.customerEmail.toLowerCase().includes(query)
-			);
-		})
-		.sort(compareSubscriptions);
+	const filtered = useMemo(
+		() =>
+			allSubscriptions
+				.filter((s) => !status || s.status === status)
+				.filter((s) => !planId || s.planId === planId)
+				.filter((s) => {
+					const query = q.trim().toLowerCase();
+					if (!query) return true;
+					return (
+						s.customerName.toLowerCase().includes(query) ||
+						s.customerEmail.toLowerCase().includes(query)
+					);
+				})
+				.sort(compareSubscriptions),
+		[allSubscriptions, status, planId, q],
+	);
 
-	const columns: ColumnDef<SubscriptionSummary>[] = [
-		{
-			id: "customer",
-			header: "Customer",
-			cell: ({ row }) => (
-				<div>
-					<p className="m-0 font-medium text-(--ink)">
-						{row.original.customerName}
-					</p>
-					<p className="m-0 text-xs text-(--ink-3)">
-						{row.original.customerEmail}
-					</p>
-				</div>
-			),
-		},
-		{
-			id: "plan",
-			header: "Plan",
-			cell: ({ row }) => (
-				<span className="text-(--ink-2)">{row.original.planName}</span>
-			),
-		},
-		{
-			id: "status",
-			header: "Status",
-			cell: ({ row }) => (
-				<StatusBadge tone={subscriptionStatusTone[row.original.status]}>
-					{subscriptionStatusLabel[row.original.status]}
-				</StatusBadge>
-			),
-		},
-		{
-			id: "nextBillingDate",
-			header: "Next billing",
-			cell: ({ row }) => (
-				<span className="text-(--ink-2)">
-					{formatRelativeBillingDate(row.original.nextBillingDate)}
-				</span>
-			),
-		},
-		{
-			id: "currentPeriodEnd",
-			header: "Period end",
-			cell: ({ row }) => (
-				<span className="text-(--ink-2)">
-					{formatDate(row.original.currentPeriodEnd)}
-				</span>
-			),
-		},
-		{
-			id: "amount",
-			header: "Amount",
-			cell: ({ row }) => (
-				<span className="text-(--ink-2)">
-					{formatNGN(row.original.amountKobo)}
-				</span>
-			),
-		},
-		{
-			id: "updatedAt",
-			header: "Updated",
-			cell: ({ row }) => (
-				<span className="text-(--ink-3)">
-					{formatDate(row.original.updatedAt)}
-				</span>
-			),
-		},
-	];
+	const columns = useMemo<ColumnDef<SubscriptionSummary>[]>(
+		() => [
+			{
+				id: "customer",
+				header: "Customer",
+				cell: ({ row }) => (
+					<div>
+						<p className="m-0 font-medium text-(--ink)">
+							{row.original.customerName}
+						</p>
+						<p className="m-0 text-xs text-(--ink-3)">
+							{row.original.customerEmail}
+						</p>
+					</div>
+				),
+			},
+			{
+				id: "plan",
+				header: "Plan",
+				cell: ({ row }) => (
+					<span className="text-(--ink-2)">{row.original.planName}</span>
+				),
+			},
+			{
+				id: "status",
+				header: "Status",
+				cell: ({ row }) => (
+					<div className="flex flex-col gap-1">
+						<StatusBadge tone={subscriptionStatusTone[row.original.status]}>
+							{subscriptionStatusLabel[row.original.status]}
+						</StatusBadge>
+						{row.original.cancelAtPeriodEnd && (
+							<span className="text-xs text-(--warning)">
+								Cancels{" "}
+								{formatRelativeBillingDate(row.original.currentPeriodEnd)}
+							</span>
+						)}
+					</div>
+				),
+			},
+			{
+				id: "nextBillingDate",
+				header: "Next billing",
+				cell: ({ row }) => (
+					<span className="text-(--ink-2)">
+						{formatRelativeBillingDate(row.original.nextBillingDate)}
+					</span>
+				),
+			},
+			{
+				id: "currentPeriodEnd",
+				header: "Period end",
+				cell: ({ row }) => (
+					<span className="text-(--ink-2)">
+						{formatDate(row.original.currentPeriodEnd)}
+					</span>
+				),
+			},
+			{
+				id: "amount",
+				header: "Amount",
+				cell: ({ row }) => (
+					<span className="text-(--ink-2)">
+						{formatNGN(row.original.amountKobo)}
+					</span>
+				),
+			},
+			{
+				id: "updatedAt",
+				header: "Updated",
+				cell: ({ row }) => (
+					<span className="text-(--ink-3)">
+						{formatDate(row.original.updatedAt)}
+					</span>
+				),
+			},
+		],
+		[],
+	);
 
 	const table = useReactTable({
 		data: filtered,
@@ -449,9 +466,20 @@ function SubscriptionsListPage() {
 							No subscriptions yet
 						</EmptyTitle>
 						<EmptyDescription className="text-(--ink-3)">
-							Subscriptions appear here after a customer completes checkout.
+							Subscriptions appear here after a customer completes checkout. If
+							you just shared a checkout link, a new subscription may still be
+							processing — refresh in a few seconds.
 						</EmptyDescription>
 					</EmptyHeader>
+					<EmptyContent>
+						<Button
+							variant="outline"
+							onClick={refreshSubscriptions}
+							className="border-(--line)"
+						>
+							Refresh
+						</Button>
+					</EmptyContent>
 				</Empty>
 			) : isEmpty ? (
 				<Empty className="rounded-2xl border border-dashed border-(--line) bg-(--surface-1)">
@@ -538,6 +566,11 @@ function SubscriptionsListPage() {
 									{isPastDue && sub.nextRetryAt && (
 										<div className="relative z-10 text-xs font-medium text-(--warning)">
 											Next retry: {formatRelativeBillingDate(sub.nextRetryAt)}
+										</div>
+									)}
+									{sub.cancelAtPeriodEnd && (
+										<div className="relative z-10 text-xs font-medium text-(--warning)">
+											Cancels: {formatRelativeBillingDate(sub.currentPeriodEnd)}
 										</div>
 									)}
 								</div>

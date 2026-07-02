@@ -513,20 +513,24 @@ function NewPlanPage() {
 					</form.Subscribe>
 
 					<div className="flex gap-3">
-						<Button
-							type="submit"
-							disabled={form.state.isSubmitting}
-							className="flex-1 border-0 bg-(--brand) text-(--brand-fg) hover:bg-(--brand)/90"
-						>
-							{form.state.isSubmitting ? (
-								<>
-									<Spinner data-icon="inline-start" />
-									Creating…
-								</>
-							) : (
-								"Create plan"
+						<form.Subscribe selector={(state) => state.isSubmitting}>
+							{(isSubmitting) => (
+								<Button
+									type="submit"
+									disabled={isSubmitting}
+									className="flex-1 border-0 bg-(--brand) text-(--brand-fg) hover:bg-(--brand)/90"
+								>
+									{isSubmitting ? (
+										<>
+											<Spinner data-icon="inline-start" />
+											Creating…
+										</>
+									) : (
+										"Create plan"
+									)}
+								</Button>
 							)}
-						</Button>
+						</form.Subscribe>
 						<Button
 							asChild
 							type="button"

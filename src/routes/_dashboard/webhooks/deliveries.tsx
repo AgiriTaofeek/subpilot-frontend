@@ -1,4 +1,5 @@
 import { CopyIcon, FunnelIcon } from "@phosphor-icons/react";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import {
 	createFileRoute,
 	stripSearchParams,
@@ -15,6 +16,7 @@ import {
 	EmptyHeader,
 	EmptyTitle,
 } from "#/components/ui/empty.tsx";
+import { ListPageSkeleton } from "#/components/ui/page-skeleton.tsx";
 import {
 	Pagination,
 	PaginationContent,
@@ -49,15 +51,15 @@ import {
 } from "#/components/ui/table.tsx";
 import { ToggleGroup, ToggleGroupItem } from "#/components/ui/toggle-group.tsx";
 import {
-	type DeliveryStatus,
-	webhookDeliveries as initialDeliveries,
-	type WebhookDelivery,
+	deliveryStatusLabel,
+	deliveryStatusTone,
+	httpStatusColor,
+	webhookDeliveriesListQueryOptions,
 } from "#/data/webhook-deliveries.ts";
-import { eventTypeGroups, webhookEndpoints } from "#/data/webhooks.ts";
+import { webhookEndpointsListQueryOptions } from "#/data/webhooks.ts";
+import type { WebhookDeliveryStatusDto } from "#/types/api.ts";
 
-const statusValues = ["succeeded", "failed", "retrying"] as const;
-
-const allEventTypes = eventTypeGroups.flatMap((g) => g.events);
+const statusValues = ["succeeded", "pending", "failed"] as const;
 
 const defaultDeliveriesSearch = { page: 1 };
 
@@ -73,45 +75,27 @@ export const Route = createFileRoute("/_dashboard/webhooks/deliveries")({
 	search: {
 		middlewares: [stripSearchParams(defaultDeliveriesSearch)],
 	},
+	loader: async ({ context }) => {
+		await Promise.all([
+			context.queryClient.ensureQueryData(webhookDeliveriesListQueryOptions()),
+			context.queryClient.ensureQueryData(webhookEndpointsListQueryOptions()),
+		]);
+	},
 	component: WebhookDeliveriesPage,
+	pendingComponent: () => <ListPageSkeleton columns={6} />,
 	head: () => ({ meta: [{ title: "Webhook deliveries | SubPilot" }] }),
 });
 
 const PAGE_SIZE = 10;
 
-const statusTone: Record<DeliveryStatus, "success" | "danger" | "warning"> = {
-	succeeded: "success",
-	failed: "danger",
-	retrying: "warning",
-};
-
-const statusLabel: Record<DeliveryStatus, string> = {
-	succeeded: "Succeeded",
-	failed: "Failed",
-	retrying: "Retrying",
-};
-
-function statusRank(status: DeliveryStatus): number {
+function statusRank(status: WebhookDeliveryStatusDto): number {
 	if (status === "failed") return 0;
-	if (status === "retrying") return 1;
+	if (status === "pending") return 1;
 	return 2;
 }
 
-function endpointUrlFor(endpointId: string): string {
-	return (
-		webhookEndpoints.find((e) => e.id === endpointId)?.url ?? "Unknown endpoint"
-	);
-}
-
-function httpStatusColor(status: number | null): string {
-	if (status === null) return "text-destructive";
-	if (status >= 200 && status < 300) return "text-(--success)";
-	if (status >= 300 && status < 400) return "text-(--ink-3)";
-	if (status >= 400 && status < 500) return "text-(--warning)";
-	return "text-destructive";
-}
-
-function formatDateTime(iso: string): string {
+function formatDateTime(iso: string | null): string {
+	if (!iso) return "—";
 	return new Date(iso).toLocaleString("en-US", {
 		month: "short",
 		day: "numeric",
@@ -121,8 +105,12 @@ function formatDateTime(iso: string): string {
 }
 
 async function copyText(text: string, label: string) {
-	await navigator.clipboard.writeText(text);
-	toast.success(`${label} copied`, { duration: 2000 });
+	try {
+		await navigator.clipboard.writeText(text);
+		toast.success(`${label} copied`, { duration: 2000 });
+	} catch {
+		toast.error("Couldn't copy to clipboard.");
+	}
 }
 
 function CodeBlock({ label, content }: { label: string; content: string }) {
@@ -149,16 +137,23 @@ function CodeBlock({ label, content }: { label: string; content: string }) {
 function WebhookDeliveriesPage() {
 	const { page, status, endpointId, eventType } = Route.useSearch();
 	const navigate = useNavigate({ from: Route.fullPath });
-	const [deliveries, setDeliveries] =
-		useState<WebhookDelivery[]>(initialDeliveries);
+	const { data: deliveries } = useSuspenseQuery(
+		webhookDeliveriesListQueryOptions(),
+	);
+	const { data: endpoints } = useSuspenseQuery(
+		webhookEndpointsListQueryOptions(),
+	);
 	const [selectedId, setSelectedId] = useState<string | null>(null);
-	const [retrying, setRetrying] = useState(false);
+
+	const allEventTypes = Array.from(
+		new Set(deliveries.map((d) => d.eventType)),
+	).sort();
 
 	function handleStatusFilterChange(value: string) {
 		navigate({
 			search: (prev) => ({
 				...prev,
-				status: (value || undefined) as DeliveryStatus | undefined,
+				status: (value || undefined) as WebhookDeliveryStatusDto | undefined,
 				page: 1,
 			}),
 			resetScroll: false,
@@ -203,30 +198,6 @@ function WebhookDeliveriesPage() {
 
 	const selectedDelivery = deliveries.find((d) => d.id === selectedId) ?? null;
 
-	function handleRetry() {
-		if (!selectedDelivery) return;
-		setRetrying(true);
-		setTimeout(() => {
-			setDeliveries((prev) =>
-				prev.map((d) =>
-					d.id === selectedDelivery.id
-						? {
-								...d,
-								status: "succeeded",
-								httpStatus: 200,
-								attempts: d.attempts + 1,
-								attemptedAt: new Date().toISOString(),
-								durationMs: 120,
-								timedOut: false,
-							}
-						: d,
-				),
-			);
-			setRetrying(false);
-			toast.success("Delivery retried successfully");
-		}, 900);
-	}
-
 	return (
 		<div className="flex flex-1 flex-col gap-6 p-6">
 			<h1 className="text-2xl font-semibold tracking-tight text-(--ink)">
@@ -249,7 +220,7 @@ function WebhookDeliveriesPage() {
 								value={s}
 								className="rounded-full border-(--line) px-4 text-xs font-medium normal-case tracking-normal data-[state=on]:bg-(--surface-2) data-[state=on]:text-(--ink)"
 							>
-								{statusLabel[s]}
+								{deliveryStatusLabel[s]}
 							</ToggleGroupItem>
 						))}
 					</ToggleGroup>
@@ -265,7 +236,7 @@ function WebhookDeliveriesPage() {
 							</SelectTrigger>
 							<SelectContent>
 								<SelectItem value="all">All endpoints</SelectItem>
-								{webhookEndpoints.map((ep) => (
+								{endpoints.map((ep) => (
 									<SelectItem key={ep.id} value={ep.id}>
 										{ep.url}
 									</SelectItem>
@@ -321,7 +292,7 @@ function WebhookDeliveriesPage() {
 									</SelectTrigger>
 									<SelectContent>
 										<SelectItem value="all">All endpoints</SelectItem>
-										{webhookEndpoints.map((ep) => (
+										{endpoints.map((ep) => (
 											<SelectItem key={ep.id} value={ep.id}>
 												{ep.url}
 											</SelectItem>
@@ -397,22 +368,22 @@ function WebhookDeliveriesPage() {
 											{formatDateTime(d.createdAt)}
 										</TableCell>
 										<TableCell className="max-w-56 truncate font-heading text-xs text-(--ink)">
-											{endpointUrlFor(d.endpointId)}
+											{d.endpointUrl}
 										</TableCell>
 										<TableCell className="font-heading text-xs text-(--ink-2)">
 											{d.eventType}
 										</TableCell>
 										<TableCell
-											className={`font-heading text-xs ${httpStatusColor(d.httpStatus)}`}
+											className={`font-heading text-xs ${httpStatusColor(d.responseStatus)}`}
 										>
-											{d.httpStatus ?? "timeout"}
+											{d.responseStatus ?? "timeout"}
 										</TableCell>
 										<TableCell className="text-(--ink-2)">
-											{d.attempts}
+											{d.attemptCount}
 										</TableCell>
 										<TableCell>
-											<StatusBadge tone={statusTone[d.status]}>
-												{statusLabel[d.status]}
+											<StatusBadge tone={deliveryStatusTone[d.status]}>
+												{deliveryStatusLabel[d.status]}
 											</StatusBadge>
 										</TableCell>
 										<TableCell>
@@ -445,22 +416,22 @@ function WebhookDeliveriesPage() {
 							>
 								<div className="flex items-center justify-between gap-2">
 									<span className="truncate font-heading text-xs text-(--ink)">
-										{endpointUrlFor(d.endpointId)}
+										{d.endpointUrl}
 									</span>
-									<StatusBadge tone={statusTone[d.status]}>
-										{statusLabel[d.status]}
+									<StatusBadge tone={deliveryStatusTone[d.status]}>
+										{deliveryStatusLabel[d.status]}
 									</StatusBadge>
 								</div>
 								<div className="font-heading text-xs text-(--ink-2)">
 									{d.eventType}
 								</div>
 								<div className="flex items-center gap-2 text-xs text-(--ink-3)">
-									<span className={httpStatusColor(d.httpStatus)}>
-										{d.httpStatus ?? "timeout"}
+									<span className={httpStatusColor(d.responseStatus)}>
+										{d.responseStatus ?? "timeout"}
 									</span>
 									<span>·</span>
 									<span>
-										{d.attempts} attempt{d.attempts === 1 ? "" : "s"}
+										{d.attemptCount} attempt{d.attemptCount === 1 ? "" : "s"}
 									</span>
 									<span>·</span>
 									<span>{formatDateTime(d.createdAt)}</span>
@@ -535,41 +506,45 @@ function WebhookDeliveriesPage() {
 									{selectedDelivery.eventType}
 								</SheetTitle>
 								<SheetDescription className="truncate text-(--ink-2)">
-									{endpointUrlFor(selectedDelivery.endpointId)}
+									{selectedDelivery.endpointUrl}
 								</SheetDescription>
 							</SheetHeader>
 							<div className="flex flex-col gap-5 overflow-y-auto px-8 pb-8">
 								<div className="flex items-center gap-3">
-									<StatusBadge tone={statusTone[selectedDelivery.status]}>
-										{statusLabel[selectedDelivery.status]}
+									<StatusBadge
+										tone={deliveryStatusTone[selectedDelivery.status]}
+									>
+										{deliveryStatusLabel[selectedDelivery.status]}
 									</StatusBadge>
 									<span
-										className={`font-heading text-xs ${httpStatusColor(selectedDelivery.httpStatus)}`}
+										className={`font-heading text-xs ${httpStatusColor(selectedDelivery.responseStatus)}`}
 									>
-										{selectedDelivery.httpStatus ?? "timeout"}
+										{selectedDelivery.responseStatus ?? "timeout"}
 									</span>
 								</div>
 
 								<div className="flex flex-col gap-1">
 									<p className="m-0 text-sm text-(--ink-2)">
-										Attempted at{" "}
+										Created at{" "}
 										<span className="font-heading text-xs text-(--ink)">
-											{selectedDelivery.attemptedAt}
+											{formatDateTime(selectedDelivery.createdAt)}
 										</span>
 									</p>
 									<p className="m-0 text-sm text-(--ink-2)">
-										{selectedDelivery.timedOut ? (
+										Last attempted{" "}
+										<span className="font-heading text-xs text-(--ink)">
+											{formatDateTime(selectedDelivery.lastAttemptedAt)}
+										</span>
+									</p>
+									<p className="m-0 text-sm text-(--ink-2)">
+										{selectedDelivery.attemptCount} attempt
+										{selectedDelivery.attemptCount === 1 ? "" : "s"}
+										{selectedDelivery.nextRetryAt && (
 											<>
-												Timed out after{" "}
+												{" "}
+												· next retry{" "}
 												<span className="font-heading text-xs text-(--ink)">
-													10s
-												</span>
-											</>
-										) : (
-											<>
-												Delivered in{" "}
-												<span className="font-heading text-xs text-(--ink)">
-													{selectedDelivery.durationMs}ms
+													{formatDateTime(selectedDelivery.nextRetryAt)}
 												</span>
 											</>
 										)}
@@ -577,31 +552,9 @@ function WebhookDeliveriesPage() {
 								</div>
 
 								<CodeBlock
-									label="Request headers"
-									content={JSON.stringify(
-										selectedDelivery.requestHeaders,
-										null,
-										2,
-									)}
-								/>
-								<CodeBlock
-									label="Request body"
-									content={selectedDelivery.requestBody}
-								/>
-								<CodeBlock
 									label="Response body"
-									content={selectedDelivery.responseBody}
+									content={selectedDelivery.responseBody ?? ""}
 								/>
-
-								{selectedDelivery.status === "failed" && (
-									<Button
-										onClick={handleRetry}
-										disabled={retrying}
-										className="border-0 bg-(--brand) text-(--brand-fg) hover:bg-(--brand)/90"
-									>
-										{retrying ? "Retrying…" : "Retry delivery"}
-									</Button>
-								)}
 							</div>
 						</>
 					)}

@@ -5,6 +5,11 @@ import {
 	WarningCircleIcon,
 } from "@phosphor-icons/react";
 import { useForm } from "@tanstack/react-form";
+import {
+	useMutation,
+	useQueryClient,
+	useSuspenseQuery,
+} from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -50,6 +55,7 @@ import {
 	SheetTitle,
 	SheetTrigger,
 } from "#/components/ui/sheet.tsx";
+import { Spinner } from "#/components/ui/spinner.tsx";
 import { StatusBadge } from "#/components/ui/status-badge.tsx";
 import {
 	Table,
@@ -61,13 +67,22 @@ import {
 } from "#/components/ui/table.tsx";
 import {
 	eventTypeGroups,
-	generateSigningSecret,
-	webhookEndpoints as initialEndpoints,
-	type WebhookEndpoint,
-	type WebhookEventType,
+	webhookEndpointsListQueryOptions,
 } from "#/data/webhooks.ts";
+import { useHandleMutationError } from "#/hooks/use-handle-mutation-error.ts";
+import {
+	deleteWebhookEndpoint,
+	registerWebhookEndpoint,
+} from "#/lib/api/webhooks.ts";
+import { formatDate } from "#/lib/date.ts";
+import type { WebhookEndpointDto } from "#/types/api.ts";
 
 export const Route = createFileRoute("/_dashboard/webhooks/")({
+	loader: async ({ context }) => {
+		await context.queryClient.ensureQueryData(
+			webhookEndpointsListQueryOptions(),
+		);
+	},
 	component: WebhookEndpointsPage,
 	head: () => ({ meta: [{ title: "Webhooks | SubPilot" }] }),
 });
@@ -87,53 +102,73 @@ const registerSchema = z.object({
 	events: z.array(z.string()).min(1, "Select at least one event."),
 });
 
-function formatDate(iso: string): string {
-	return new Date(iso).toLocaleDateString("en-US", {
-		month: "short",
-		day: "numeric",
-		year: "numeric",
-	});
-}
-
 function WebhookEndpointsPage() {
-	const [endpoints, setEndpoints] =
-		useState<WebhookEndpoint[]>(initialEndpoints);
+	const queryClient = useQueryClient();
+	const { data: endpoints } = useSuspenseQuery(
+		webhookEndpointsListQueryOptions(),
+	);
 	const [registerOpen, setRegisterOpen] = useState(false);
-	const [revealSecret, setRevealSecret] = useState<string | null>(null);
-	const [deleteTarget, setDeleteTarget] = useState<WebhookEndpoint | null>(
+	const [secretTarget, setSecretTarget] = useState<WebhookEndpointDto | null>(
 		null,
 	);
+	const [deleteTarget, setDeleteTarget] = useState<WebhookEndpointDto | null>(
+		null,
+	);
+	const handleMutationError = useHandleMutationError();
+
+	const registerMutation = useMutation({
+		mutationFn: (value: {
+			url: string;
+			description: string;
+			events: string[];
+		}) => registerWebhookEndpoint({ data: value }),
+		onSuccess: async (created) => {
+			await queryClient.invalidateQueries({ queryKey: ["webhook-endpoints"] });
+			form.reset();
+			setRegisterOpen(false);
+			setSecretTarget(created);
+		},
+		onError: (error) =>
+			handleMutationError(error, {
+				fallbackMessage: "Couldn't register the endpoint.",
+			}),
+	});
+
+	const deleteMutation = useMutation({
+		mutationFn: (endpointId: string) =>
+			deleteWebhookEndpoint({ data: { endpointId } }),
+		onSuccess: async () => {
+			await queryClient.invalidateQueries({ queryKey: ["webhook-endpoints"] });
+			toast.success("Webhook endpoint deleted");
+			setDeleteTarget(null);
+		},
+		onError: (error) =>
+			handleMutationError(error, {
+				fallbackMessage: "Couldn't delete the endpoint.",
+			}),
+	});
 
 	const form = useForm({
 		defaultValues: { url: "", description: "", events: [] as string[] },
 		validators: { onSubmit: registerSchema },
 		onSubmit: async ({ value }) => {
-			const newEndpoint: WebhookEndpoint = {
-				id: `we_${Date.now()}`,
-				url: value.url,
-				description: value.description,
-				events: value.events as WebhookEventType[],
-				active: true,
-				createdAt: new Date().toISOString(),
-			};
-			setEndpoints((prev) => [newEndpoint, ...prev]);
-			form.reset();
-			setRegisterOpen(false);
-			setRevealSecret(generateSigningSecret());
+			await registerMutation.mutateAsync(value);
 		},
 	});
 
 	function handleDelete() {
 		if (!deleteTarget) return;
-		setEndpoints((prev) => prev.filter((e) => e.id !== deleteTarget.id));
-		toast.success("Webhook endpoint deleted");
-		setDeleteTarget(null);
+		deleteMutation.mutate(deleteTarget.id);
 	}
 
 	async function copySecret() {
-		if (!revealSecret) return;
-		await navigator.clipboard.writeText(revealSecret);
-		toast.success("Signing secret copied");
+		if (!secretTarget) return;
+		try {
+			await navigator.clipboard.writeText(secretTarget.signingSecretHash);
+			toast.success("Signing secret copied");
+		} catch {
+			toast.error("Couldn't copy to clipboard.");
+		}
 	}
 
 	const hasEndpoints = endpoints.length > 0;
@@ -289,9 +324,7 @@ function WebhookEndpointsPage() {
 																					field.handleChange(
 																						selected.filter(
 																							(ev) =>
-																								!group.events.includes(
-																									ev as WebhookEventType,
-																								),
+																								!group.events.includes(ev),
 																						),
 																					);
 																				}
@@ -351,13 +384,24 @@ function WebhookEndpointsPage() {
 									</form.Field>
 								</FieldGroup>
 
-								<Button
-									type="submit"
-									disabled={form.state.isSubmitting}
-									className="w-full border-0 bg-(--brand) text-(--brand-fg) hover:bg-(--brand)/90"
-								>
-									Register endpoint
-								</Button>
+								<form.Subscribe selector={(state) => state.isSubmitting}>
+									{(isSubmitting) => (
+										<Button
+											type="submit"
+											disabled={isSubmitting}
+											className="w-full border-0 bg-(--brand) text-(--brand-fg) hover:bg-(--brand)/90"
+										>
+											{isSubmitting ? (
+												<>
+													<Spinner data-icon="inline-start" />
+													Registering…
+												</>
+											) : (
+												"Register endpoint"
+											)}
+										</Button>
+									)}
+								</form.Subscribe>
 							</form>
 						</SheetContent>
 					</Sheet>
@@ -408,8 +452,8 @@ function WebhookEndpointsPage() {
 											{ep.description || "—"}
 										</TableCell>
 										<TableCell className="text-(--ink-2)">
-											{ep.events.length} event
-											{ep.events.length === 1 ? "" : "s"}
+											{ep.subscribedEvents.length} event
+											{ep.subscribedEvents.length === 1 ? "" : "s"}
 										</TableCell>
 										<TableCell>
 											<StatusBadge tone={ep.active ? "success" : "neutral"}>
@@ -420,14 +464,29 @@ function WebhookEndpointsPage() {
 											{formatDate(ep.createdAt)}
 										</TableCell>
 										<TableCell>
-											<Button
-												variant="ghost"
-												size="sm"
-												onClick={() => setDeleteTarget(ep)}
-												className="text-(--ink-3) hover:text-destructive"
-											>
-												Delete
-											</Button>
+											<DropdownMenu>
+												<DropdownMenuTrigger asChild>
+													<Button
+														variant="ghost"
+														size="icon-sm"
+														aria-label="Endpoint actions"
+														className="text-(--ink-3) hover:text-(--ink)"
+													>
+														<DotsThreeIcon className="size-5" weight="bold" />
+													</Button>
+												</DropdownMenuTrigger>
+												<DropdownMenuContent align="end">
+													<DropdownMenuItem onClick={() => setSecretTarget(ep)}>
+														View signing secret
+													</DropdownMenuItem>
+													<DropdownMenuItem
+														variant="destructive"
+														onClick={() => setDeleteTarget(ep)}
+													>
+														Delete
+													</DropdownMenuItem>
+												</DropdownMenuContent>
+											</DropdownMenu>
 										</TableCell>
 									</TableRow>
 								))}
@@ -451,12 +510,16 @@ function WebhookEndpointsPage() {
 											<Button
 												variant="ghost"
 												size="icon-sm"
+												aria-label="Endpoint actions"
 												className="shrink-0 text-(--ink-3) hover:text-(--ink)"
 											>
 												<DotsThreeIcon className="size-5" weight="bold" />
 											</Button>
 										</DropdownMenuTrigger>
 										<DropdownMenuContent align="end">
+											<DropdownMenuItem onClick={() => setSecretTarget(ep)}>
+												View signing secret
+											</DropdownMenuItem>
 											<DropdownMenuItem
 												variant="destructive"
 												onClick={() => setDeleteTarget(ep)}
@@ -474,7 +537,8 @@ function WebhookEndpointsPage() {
 										{ep.active ? "Active" : "Inactive"}
 									</StatusBadge>
 									<span className="text-xs text-(--ink-3)">
-										{ep.events.length} event{ep.events.length === 1 ? "" : "s"}
+										{ep.subscribedEvents.length} event
+										{ep.subscribedEvents.length === 1 ? "" : "s"}
 									</span>
 								</div>
 							</div>
@@ -507,27 +571,44 @@ function WebhookEndpointsPage() {
 						>
 							Cancel
 						</Button>
-						<Button variant="destructive" onClick={handleDelete}>
-							Delete
+						<Button
+							variant="destructive"
+							onClick={handleDelete}
+							disabled={deleteMutation.isPending}
+						>
+							{deleteMutation.isPending ? (
+								<>
+									<Spinner data-icon="inline-start" />
+									Deleting…
+								</>
+							) : (
+								"Delete"
+							)}
 						</Button>
 					</DialogFooter>
 				</DialogContent>
 			</Dialog>
 
 			<Dialog
-				open={revealSecret !== null}
-				onOpenChange={(open) => !open && setRevealSecret(null)}
+				open={secretTarget !== null}
+				onOpenChange={(open) => !open && setSecretTarget(null)}
 			>
 				<DialogContent>
 					<DialogHeader>
-						<DialogTitle>Endpoint registered</DialogTitle>
+						<DialogTitle>Signing secret</DialogTitle>
 						<DialogDescription>
-							Copy this now. You won't see it again.
+							Use this to verify the{" "}
+							<span className="font-heading">X-SubPilot-Signature</span> header
+							on incoming webhook requests to{" "}
+							<span className="font-heading text-xs text-(--ink)">
+								{secretTarget?.url}
+							</span>
+							. You can view it again here any time.
 						</DialogDescription>
 					</DialogHeader>
 					<div className="flex items-center gap-2 rounded-md border border-(--line) bg-(--surface) px-3 py-2">
 						<span className="flex-1 truncate font-heading text-xs text-(--ink)">
-							{revealSecret}
+							{secretTarget?.signingSecretHash}
 						</span>
 						<Button
 							variant="ghost"
@@ -540,7 +621,7 @@ function WebhookEndpointsPage() {
 					</div>
 					<DialogFooter>
 						<Button
-							onClick={() => setRevealSecret(null)}
+							onClick={() => setSecretTarget(null)}
 							className="w-full border-0 bg-(--brand) text-(--brand-fg) hover:bg-(--brand)/90"
 						>
 							Done

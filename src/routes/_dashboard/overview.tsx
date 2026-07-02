@@ -3,8 +3,10 @@ import {
 	PlusIcon,
 	WarningCircleIcon,
 } from "@phosphor-icons/react";
+import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 
+import { QueryErrorPanel } from "#/components/layout/query-error-panel.tsx";
 import { Button } from "#/components/ui/button.tsx";
 import {
 	Card,
@@ -12,6 +14,7 @@ import {
 	CardHeader,
 	CardTitle,
 } from "#/components/ui/card.tsx";
+import { Skeleton } from "#/components/ui/skeleton.tsx";
 import { StatusBadge } from "#/components/ui/status-badge.tsx";
 import {
 	Table,
@@ -21,19 +24,31 @@ import {
 	TableHeader,
 	TableRow,
 } from "#/components/ui/table.tsx";
-import { auditEvents, formatRelativeTime } from "#/data/events.ts";
-import { plans } from "#/data/plans.ts";
-import { revenueForWindow, sumGross, sumNet } from "#/data/revenue.ts";
+import { eventsListQueryOptions } from "#/data/events.ts";
+import { plansQueryOptions } from "#/data/plans.ts";
+import { revenueSummaryQueryOptions } from "#/data/revenue.ts";
 import {
 	formatRelativeBillingDate,
-	planNameFor,
 	subscriptionStatusLabel,
 	subscriptionStatusTone,
-	subscriptions,
+	subscriptionsListQueryOptions,
 } from "#/data/subscriptions.ts";
 import { formatNGN } from "#/lib/currency.ts";
+import { formatDate, formatRelativeTime } from "#/lib/date.ts";
 
 export const Route = createFileRoute("/_dashboard/overview")({
+	// Only the primary content (subscriptions + plans) blocks the page
+	// loader. Recent activity and the 30d revenue stats are secondary —
+	// per docs/frontend-error-and-loading-strategy.md ("slow overview KPIs
+	// should not block sidebar rendering... slow secondary cards should not
+	// hide the whole page"), they're fetched client-side below so a slow or
+	// broken secondary source degrades that one card instead of the page.
+	loader: async ({ context }) => {
+		await Promise.all([
+			context.queryClient.ensureQueryData(subscriptionsListQueryOptions()),
+			context.queryClient.ensureQueryData(plansQueryOptions()),
+		]);
+	},
 	component: OverviewPage,
 	head: () => ({ meta: [{ title: "Overview | SubPilot" }] }),
 });
@@ -44,6 +59,12 @@ function truncateId(id: string): string {
 
 function OverviewPage() {
 	const navigate = useNavigate();
+	const { data: plans } = useSuspenseQuery(plansQueryOptions());
+	const { data: subscriptions } = useSuspenseQuery(
+		subscriptionsListQueryOptions(),
+	);
+	const eventsQuery = useQuery(eventsListQueryOptions());
+	const revenueQuery = useQuery(revenueSummaryQueryOptions("30d"));
 	const hasPlans = plans.length > 0;
 
 	if (!hasPlans) {
@@ -85,16 +106,14 @@ function OverviewPage() {
 		(s) => new Date(s.createdAt).getTime() >= thirtyDaysAgo,
 	).length;
 
-	const window30 = revenueForWindow("30d");
-	const net30 = sumNet(window30);
-	const gross30 = sumGross(window30);
-
-	const recentEvents = [...auditEvents]
-		.sort(
-			(a, b) =>
-				new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-		)
-		.slice(0, 6);
+	const recentEvents = eventsQuery.data
+		? [...eventsQuery.data]
+				.sort(
+					(a, b) =>
+						new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
+				)
+				.slice(0, 6)
+		: [];
 
 	const recentSubscriptions = [...subscriptions]
 		.sort(
@@ -139,7 +158,7 @@ function OverviewPage() {
 								<CheckCircleIcon className="size-4 shrink-0" />
 							)}
 							{pastDueCount > 0
-								? `${pastDueCount} subscription${pastDueCount === 1 ? "" : "s"} are past due and retrying`
+								? `${pastDueCount} subscription${pastDueCount === 1 ? "" : "s"} are past due`
 								: "All subscriptions current"}
 						</div>
 					</CardContent>
@@ -167,17 +186,29 @@ function OverviewPage() {
 					<Card className="border border-(--line) bg-(--surface-1) shadow-none">
 						<CardContent className="py-4">
 							<p className="island-kicker m-0">Net · last 30d</p>
-							<p className="mt-1 text-lg font-semibold text-(--ink)">
-								{formatNGN(net30)}
-							</p>
+							{revenueQuery.isPending ? (
+								<Skeleton className="mt-1 h-6 w-24 rounded-none" />
+							) : revenueQuery.isError ? (
+								<p className="mt-1 text-sm text-destructive">Unavailable</p>
+							) : (
+								<p className="mt-1 text-lg font-semibold text-(--ink)">
+									{formatNGN(revenueQuery.data.current.totalNetAmount)}
+								</p>
+							)}
 						</CardContent>
 					</Card>
 					<Card className="border border-(--line) bg-(--surface-1) shadow-none">
 						<CardContent className="py-4">
 							<p className="island-kicker m-0">Gross · last 30d</p>
-							<p className="mt-1 text-lg font-semibold text-(--ink)">
-								{formatNGN(gross30)}
-							</p>
+							{revenueQuery.isPending ? (
+								<Skeleton className="mt-1 h-6 w-24 rounded-none" />
+							) : revenueQuery.isError ? (
+								<p className="mt-1 text-sm text-destructive">Unavailable</p>
+							) : (
+								<p className="mt-1 text-lg font-semibold text-(--ink)">
+									{formatNGN(revenueQuery.data.current.totalGrossAmount)}
+								</p>
+							)}
 						</CardContent>
 					</Card>
 				</div>
@@ -192,7 +223,18 @@ function OverviewPage() {
 						</CardTitle>
 					</CardHeader>
 					<CardContent>
-						{recentEvents.length === 0 ? (
+						{eventsQuery.isPending ? (
+							<div className="flex flex-col gap-2">
+								<Skeleton className="h-4 w-full rounded-none" />
+								<Skeleton className="h-4 w-3/4 rounded-none" />
+								<Skeleton className="h-4 w-5/6 rounded-none" />
+							</div>
+						) : eventsQuery.isError ? (
+							<QueryErrorPanel
+								error={eventsQuery.error}
+								onRetry={() => eventsQuery.refetch()}
+							/>
+						) : recentEvents.length === 0 ? (
 							<p className="m-0 text-sm text-(--ink-3)">No activity yet.</p>
 						) : (
 							<div className="flex flex-col">
@@ -252,8 +294,8 @@ function OverviewPage() {
 												</span>
 											</div>
 											<p className="m-0 mt-0.5 text-xs text-(--ink-3)">
-												{planNameFor(sub.planId)} · next retry{" "}
-												{formatRelativeBillingDate(sub.nextRetryAt ?? null)}
+												{sub.planName} · past due since{" "}
+												{formatDate(sub.updatedAt)}
 											</p>
 										</Link>
 									))}
@@ -313,7 +355,7 @@ function OverviewPage() {
 											{sub.customerName}
 										</TableCell>
 										<TableCell className="text-(--ink-2)">
-											{planNameFor(sub.planId)}
+											{sub.planName}
 										</TableCell>
 										<TableCell>
 											<StatusBadge tone={subscriptionStatusTone[sub.status]}>
@@ -350,7 +392,7 @@ function OverviewPage() {
 									</StatusBadge>
 								</div>
 								<p className="m-0 text-sm text-(--ink-2)">
-									{planNameFor(sub.planId)} · {formatNGN(sub.amountKobo)}
+									{sub.planName} · {formatNGN(sub.amountKobo)}
 								</p>
 								<p className="m-0 text-xs text-(--ink-3)">
 									Next billing {formatRelativeBillingDate(sub.nextBillingDate)}

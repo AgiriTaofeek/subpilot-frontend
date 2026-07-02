@@ -322,17 +322,6 @@ export async function initiatePublicCheckout(input: {
 	});
 }
 
-export function resolvePublicPlan(
-	merchantSlug: string,
-	planSlug: string,
-): Plan | null {
-	const plan = plans.find(
-		(p) => p.merchantSlug === merchantSlug && p.planSlug === planSlug,
-	);
-	if (!plan || plan.status !== "published") return null;
-	return plan;
-}
-
 export const merchantSlug = "acme-corp";
 
 export const plans: Plan[] = [

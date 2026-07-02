@@ -31,6 +31,7 @@ import {
 } from "#/components/ui/dropdown-menu.tsx";
 import { Input } from "#/components/ui/input.tsx";
 import { Separator } from "#/components/ui/separator.tsx";
+import { Spinner } from "#/components/ui/spinner.tsx";
 import { StatusBadge } from "#/components/ui/status-badge.tsx";
 import { Textarea } from "#/components/ui/textarea.tsx";
 import {
@@ -44,6 +45,7 @@ import {
 	statusTone,
 	updatePlan,
 } from "#/data/plans.ts";
+import { useHandleMutationError } from "#/hooks/use-handle-mutation-error.ts";
 import { formatNGN } from "#/lib/currency.ts";
 
 export const Route = createFileRoute("/_dashboard/plans/$planId")({
@@ -69,6 +71,8 @@ function PlanDetailPage() {
 	const [publishDialogOpen, setPublishDialogOpen] = useState(false);
 	const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
 
+	const handleMutationError = useHandleMutationError();
+
 	const updateMutation = useMutation({
 		mutationFn: (nextPlan: Pick<Plan, "description" | "name" | "trialDays">) =>
 			updatePlan({
@@ -86,11 +90,10 @@ function PlanDetailPage() {
 			setIsEditing(false);
 			toast.success("Plan updated");
 		},
-		onError: (error) => {
-			toast.error(
-				error instanceof Error ? error.message : "Couldn't update the plan.",
-			);
-		},
+		onError: (error) =>
+			handleMutationError(error, {
+				fallbackMessage: "Couldn't update the plan.",
+			}),
 	});
 
 	const publishMutation = useMutation({
@@ -104,11 +107,10 @@ function PlanDetailPage() {
 			setPublishDialogOpen(false);
 			toast.success("Plan published");
 		},
-		onError: (error) => {
-			toast.error(
-				error instanceof Error ? error.message : "Couldn't publish the plan.",
-			);
-		},
+		onError: (error) =>
+			handleMutationError(error, {
+				fallbackMessage: "Couldn't publish the plan.",
+			}),
 	});
 
 	const archiveMutation = useMutation({
@@ -122,11 +124,10 @@ function PlanDetailPage() {
 			setArchiveDialogOpen(false);
 			toast.success("Plan archived");
 		},
-		onError: (error) => {
-			toast.error(
-				error instanceof Error ? error.message : "Couldn't archive the plan.",
-			);
-		},
+		onError: (error) =>
+			handleMutationError(error, {
+				fallbackMessage: "Couldn't archive the plan.",
+			}),
 	});
 
 	const primaryAction =
@@ -167,8 +168,12 @@ function PlanDetailPage() {
 	async function handleCopyUrl() {
 		if (!plan) return;
 		const url = `${window.location.origin}${checkoutUrl(plan)}`;
-		await navigator.clipboard.writeText(url);
-		toast.success("Checkout link copied", { duration: 2000 });
+		try {
+			await navigator.clipboard.writeText(url);
+			toast.success("Checkout link copied", { duration: 2000 });
+		} catch {
+			toast.error("Couldn't copy to clipboard.");
+		}
 	}
 
 	return (
@@ -193,9 +198,17 @@ function PlanDetailPage() {
 								<Button
 									size="sm"
 									onClick={saveEdit}
+									disabled={updateMutation.isPending}
 									className="border-0 bg-(--brand) text-(--brand-fg) hover:bg-(--brand)/90"
 								>
-									Save
+									{updateMutation.isPending ? (
+										<>
+											<Spinner data-icon="inline-start" />
+											Saving…
+										</>
+									) : (
+										"Save"
+									)}
 								</Button>
 								<Button
 									size="sm"
@@ -248,6 +261,7 @@ function PlanDetailPage() {
 								<Button
 									variant="outline"
 									size="icon-sm"
+									aria-label="Plan actions"
 									className="border-(--line)"
 								>
 									<DotsThreeIcon className="size-5" weight="bold" />
@@ -412,9 +426,17 @@ function PlanDetailPage() {
 						</Button>
 						<Button
 							onClick={handlePublish}
+							disabled={publishMutation.isPending}
 							className="border-0 bg-(--brand) text-(--brand-fg) hover:bg-(--brand)/90"
 						>
-							Publish
+							{publishMutation.isPending ? (
+								<>
+									<Spinner data-icon="inline-start" />
+									Publishing…
+								</>
+							) : (
+								"Publish"
+							)}
 						</Button>
 					</DialogFooter>
 				</DialogContent>
@@ -437,8 +459,19 @@ function PlanDetailPage() {
 						>
 							Cancel
 						</Button>
-						<Button variant="destructive" onClick={handleArchive}>
-							Archive
+						<Button
+							variant="destructive"
+							onClick={handleArchive}
+							disabled={archiveMutation.isPending}
+						>
+							{archiveMutation.isPending ? (
+								<>
+									<Spinner data-icon="inline-start" />
+									Archiving…
+								</>
+							) : (
+								"Archive"
+							)}
 						</Button>
 					</DialogFooter>
 				</DialogContent>

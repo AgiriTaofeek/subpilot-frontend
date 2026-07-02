@@ -26,6 +26,7 @@ import {
 } from "#/components/ui/input-group.tsx";
 import { Spinner } from "#/components/ui/spinner.tsx";
 import { loginMerchant } from "#/lib/api/auth.ts";
+import { CATEGORY_COPY, classifyError } from "#/lib/api/classify-error.ts";
 
 export const Route = createFileRoute("/auth/login")({
 	component: LoginPage,
@@ -59,7 +60,7 @@ function LoginPage() {
 				) {
 					setCredentialError("Incorrect email or password.");
 				} else {
-					toast.error("Couldn't reach the server. Check your connection.");
+					toast.error(CATEGORY_COPY[classifyError(message)]);
 				}
 				return;
 			}
@@ -193,20 +194,24 @@ function LoginPage() {
 						</form.Field>
 					</FieldGroup>
 
-					<Button
-						type="submit"
-						disabled={form.state.isSubmitting}
-						className="w-full border-0 bg-(--brand) text-(--brand-fg) hover:bg-(--brand)/90 active:scale-[0.98]"
-					>
-						{form.state.isSubmitting ? (
-							<>
-								<Spinner data-icon="inline-start" />
-								Logging in…
-							</>
-						) : (
-							"Log in"
+					<form.Subscribe selector={(state) => state.isSubmitting}>
+						{(isSubmitting) => (
+							<Button
+								type="submit"
+								disabled={isSubmitting}
+								className="w-full border-0 bg-(--brand) text-(--brand-fg) hover:bg-(--brand)/90 active:scale-[0.98]"
+							>
+								{isSubmitting ? (
+									<>
+										<Spinner data-icon="inline-start" />
+										Logging in…
+									</>
+								) : (
+									"Log in"
+								)}
+							</Button>
 						)}
-					</Button>
+					</form.Subscribe>
 				</form>
 
 				<p className="mt-5 text-center text-sm text-(--ink-3)">

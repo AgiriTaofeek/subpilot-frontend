@@ -1,7 +1,6 @@
 import { useForm } from "@tanstack/react-form";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 
@@ -25,6 +24,8 @@ import {
 	initiatePublicCheckout,
 	publicPlanQueryOptions,
 } from "#/data/plans.ts";
+import { useSlowState } from "#/hooks/use-slow-state.ts";
+import { CATEGORY_COPY, classifyError } from "#/lib/api/classify-error.ts";
 import { formatNGN } from "#/lib/currency.ts";
 
 export const Route = createFileRoute("/pay/$merchantSlug/$planSlug")({
@@ -49,27 +50,13 @@ function PublicCheckoutPage() {
 		publicPlanQueryOptions(merchantSlug, planSlug),
 	);
 
-	const [slowMessage, setSlowMessage] = useState<
-		"none" | "preparing" | "stalled"
-	>("none");
-	const timersRef = useRef<{
-		slow?: ReturnType<typeof setTimeout>;
-		stalled?: ReturnType<typeof setTimeout>;
-	}>({});
+	const { tier, start, reset } = useSlowState();
 
 	const form = useForm({
 		defaultValues: { fullName: "", email: "", phone: "" },
 		validators: { onSubmit: checkoutSchema },
 		onSubmit: async ({ value }) => {
-			setSlowMessage("none");
-			timersRef.current.slow = setTimeout(
-				() => setSlowMessage("preparing"),
-				3000,
-			);
-			timersRef.current.stalled = setTimeout(
-				() => setSlowMessage("stalled"),
-				10000,
-			);
+			start();
 
 			try {
 				const result = await initiatePublicCheckout({
@@ -80,27 +67,18 @@ function PublicCheckoutPage() {
 					phone: value.phone,
 				});
 
-				clearTimeout(timersRef.current.slow);
-				clearTimeout(timersRef.current.stalled);
+				reset();
 				window.location.assign(result.checkoutUrl);
 			} catch (error) {
-				clearTimeout(timersRef.current.slow);
-				clearTimeout(timersRef.current.stalled);
+				reset();
 				const message =
 					error instanceof Error
 						? error.message
 						: "Couldn't start checkout. Please try again.";
-				toast.error(message);
+				toast.error(CATEGORY_COPY[classifyError(message)]);
 			}
 		},
 	});
-
-	useEffect(() => {
-		return () => {
-			clearTimeout(timersRef.current.slow);
-			clearTimeout(timersRef.current.stalled);
-		};
-	}, []);
 
 	return (
 		<div className="min-h-screen bg-(--surface)">
@@ -274,22 +252,24 @@ function PublicCheckoutPage() {
 
 								<Separator className="bg-(--line)" />
 
-								<Button
-									type="submit"
-									disabled={form.state.isSubmitting}
-									className="w-full border-0 bg-(--brand) text-(--brand-fg) hover:bg-(--brand)/90"
-								>
-									{form.state.isSubmitting
-										? "Redirecting…"
-										: "Continue to payment"}
-								</Button>
+								<form.Subscribe selector={(state) => state.isSubmitting}>
+									{(isSubmitting) => (
+										<Button
+											type="submit"
+											disabled={isSubmitting}
+											className="w-full border-0 bg-(--brand) text-(--brand-fg) hover:bg-(--brand)/90"
+										>
+											{isSubmitting ? "Redirecting…" : "Continue to payment"}
+										</Button>
+									)}
+								</form.Subscribe>
 
-								{slowMessage === "preparing" && (
+								{tier === "delayed" && (
 									<p className="text-center text-xs text-(--ink-3)">
 										Preparing your secure checkout — almost there.
 									</p>
 								)}
-								{slowMessage === "stalled" && (
+								{tier === "very_delayed" && (
 									<p className="text-center text-xs text-(--warning)">
 										This is taking longer than usual. Check your connection or
 										try again.

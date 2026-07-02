@@ -1,14 +1,14 @@
+import {
+	useMutation,
+	useQueryClient,
+	useSuspenseQuery,
+} from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "#/components/ui/button.tsx";
-import {
-	Card,
-	CardContent,
-	CardHeader,
-	CardTitle,
-} from "#/components/ui/card.tsx";
+import { Card, CardContent } from "#/components/ui/card.tsx";
 import {
 	Dialog,
 	DialogContent,
@@ -17,78 +17,33 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "#/components/ui/dialog.tsx";
-import {
-	Empty,
-	EmptyContent,
-	EmptyDescription,
-	EmptyHeader,
-	EmptyTitle,
-} from "#/components/ui/empty.tsx";
+import { Spinner } from "#/components/ui/spinner.tsx";
 import { StatusBadge } from "#/components/ui/status-badge.tsx";
-import {
-	Table,
-	TableBody,
-	TableCell,
-	TableHead,
-	TableHeader,
-	TableRow,
-} from "#/components/ui/table.tsx";
 import {
 	Tooltip,
 	TooltipContent,
 	TooltipTrigger,
 } from "#/components/ui/tooltip.tsx";
-import { customers } from "#/data/customers.ts";
 import {
-	invoices as allInvoices,
-	type Invoice,
-	type InvoiceStatus,
+	invoiceDetailQueryOptions,
 	invoiceStatusLabel,
 	invoiceStatusTone,
 } from "#/data/invoices.ts";
-import {
-	type PaymentAttemptStatus,
-	paymentAttemptsFor,
-} from "#/data/payment-attempts.ts";
-import { planNameFor } from "#/data/subscriptions.ts";
+import { useHandleMutationError } from "#/hooks/use-handle-mutation-error.ts";
+import { voidInvoice } from "#/lib/api/invoices.ts";
 import { formatNGN } from "#/lib/currency.ts";
+import { formatDate } from "#/lib/date.ts";
+import type { InvoiceStatusDto } from "#/types/api.ts";
 
 export const Route = createFileRoute("/_dashboard/invoices/$invoiceId")({
+	loader: async ({ context, params }) => {
+		await context.queryClient.ensureQueryData(
+			invoiceDetailQueryOptions(params.invoiceId),
+		);
+	},
 	component: InvoiceDetailPage,
 	head: () => ({ meta: [{ title: "Invoice | SubPilot" }] }),
 });
-
-const attemptStatusTone: Record<
-	PaymentAttemptStatus,
-	"success" | "warning" | "danger"
-> = {
-	succeeded: "success",
-	retrying: "warning",
-	failed: "danger",
-};
-
-const attemptStatusLabel: Record<PaymentAttemptStatus, string> = {
-	succeeded: "Succeeded",
-	retrying: "Retrying",
-	failed: "Failed",
-};
-
-function formatDate(iso: string): string {
-	return new Date(iso).toLocaleDateString("en-US", {
-		month: "short",
-		day: "numeric",
-		year: "numeric",
-	});
-}
-
-function formatDateTime(iso: string): string {
-	return new Date(iso).toLocaleString("en-US", {
-		month: "short",
-		day: "numeric",
-		hour: "numeric",
-		minute: "2-digit",
-	});
-}
 
 function formatPeriod(startIso: string, endIso: string): string {
 	const start = new Date(startIso);
@@ -102,52 +57,40 @@ function formatPeriod(startIso: string, endIso: string): string {
 }
 
 function voidButtonState(
-	status: InvoiceStatus,
+	status: InvoiceStatusDto,
 ): "enabled" | "disabled" | "hidden" {
-	if (status === "open") return "enabled";
+	if (status === "pending") return "enabled";
 	if (status === "paid") return "disabled";
 	return "hidden";
 }
 
 function InvoiceDetailPage() {
 	const { invoiceId } = Route.useParams();
-	const [invoice, setInvoice] = useState<Invoice | undefined>(() =>
-		allInvoices.find((i) => i.id === invoiceId),
+	const queryClient = useQueryClient();
+	const { data: invoice } = useSuspenseQuery(
+		invoiceDetailQueryOptions(invoiceId),
 	);
 	const [voidOpen, setVoidOpen] = useState(false);
+	const handleMutationError = useHandleMutationError();
 
-	if (!invoice) {
-		return (
-			<div className="flex flex-1 items-center justify-center p-10">
-				<Empty className="max-w-sm rounded-2xl border border-dashed border-(--line) bg-(--surface-1)">
-					<EmptyHeader>
-						<EmptyTitle className="font-sans text-lg normal-case tracking-tight text-(--ink)">
-							Invoice not found
-						</EmptyTitle>
-						<EmptyDescription className="text-(--ink-3)">
-							This invoice may have been removed or the link is incorrect.
-						</EmptyDescription>
-					</EmptyHeader>
-					<EmptyContent>
-						<Button asChild variant="outline" className="border-(--line)">
-							<Link to="/invoices">Back to invoices</Link>
-						</Button>
-					</EmptyContent>
-				</Empty>
-			</div>
-		);
-	}
-
-	const customer = customers.find((c) => c.email === invoice.customerEmail);
-	const attempts = paymentAttemptsFor(invoice.id);
 	const voidState = voidButtonState(invoice.status);
 	const feePercent = Math.round(invoice.grossKobo * 0.015);
 
-	function handleVoid() {
-		setInvoice((prev) => (prev ? { ...prev, status: "void" } : prev));
-		setVoidOpen(false);
-		toast.success("Invoice voided");
-	}
+	const voidMutation = useMutation({
+		mutationFn: () => voidInvoice({ data: { invoiceId } }),
+		onSuccess: async () => {
+			await queryClient.invalidateQueries({
+				queryKey: invoiceDetailQueryOptions(invoiceId).queryKey,
+			});
+			await queryClient.invalidateQueries({ queryKey: ["invoices"] });
+			setVoidOpen(false);
+			toast.success("Invoice voided");
+		},
+		onError: (error) =>
+			handleMutationError(error, {
+				fallbackMessage: "Couldn't void the invoice.",
+			}),
+	});
 
 	return (
 		<div className="p-6">
@@ -200,17 +143,13 @@ function InvoiceDetailPage() {
 				<div>
 					<p className="m-0 text-(--ink-3)">Customer</p>
 					<p className="m-0 mt-0.5 font-medium text-(--ink)">
-						{customer ? (
-							<Link
-								to="/customers/$customerId"
-								params={{ customerId: customer.id }}
-								className="text-(--brand) hover:underline"
-							>
-								{invoice.customerName}
-							</Link>
-						) : (
-							invoice.customerName
-						)}
+						<Link
+							to="/customers/$customerId"
+							params={{ customerId: invoice.customerId }}
+							className="text-(--brand) hover:underline"
+						>
+							{invoice.customerName}
+						</Link>
 					</p>
 				</div>
 				<div>
@@ -221,7 +160,7 @@ function InvoiceDetailPage() {
 							params={{ subscriptionId: invoice.subscriptionId }}
 							className="text-(--brand) hover:underline"
 						>
-							{planNameFor(invoice.subscriptionId)}
+							{invoice.planName}
 						</Link>
 					</p>
 				</div>
@@ -272,88 +211,6 @@ function InvoiceDetailPage() {
 				</Card>
 			</div>
 
-			<Card className="mt-6 border border-(--line) bg-(--surface-1) shadow-none">
-				<CardHeader>
-					<CardTitle className="font-sans text-base normal-case tracking-tight text-(--ink)">
-						Payment attempts
-					</CardTitle>
-				</CardHeader>
-				<CardContent>
-					{attempts.length === 0 ? (
-						<p className="m-0 text-sm text-(--ink-3)">
-							No payment attempts yet.
-						</p>
-					) : (
-						<>
-							{/* Desktop table */}
-							<div className="hidden overflow-hidden rounded-md border border-(--line) md:block">
-								<Table>
-									<TableHeader>
-										<TableRow className="border-(--line) hover:bg-transparent">
-											<TableHead className="text-(--ink-3)">
-												Timestamp
-											</TableHead>
-											<TableHead className="text-(--ink-3)">Status</TableHead>
-											<TableHead className="text-(--ink-3)">
-												Reference
-											</TableHead>
-											<TableHead className="text-(--ink-3)">
-												Failure reason
-											</TableHead>
-										</TableRow>
-									</TableHeader>
-									<TableBody>
-										{attempts.map((attempt) => (
-											<TableRow
-												key={attempt.attemptNumber}
-												className="border-(--line)"
-											>
-												<TableCell className="text-(--ink-3)">
-													{formatDateTime(attempt.timestamp)}
-												</TableCell>
-												<TableCell>
-													<StatusBadge tone={attemptStatusTone[attempt.status]}>
-														{attemptStatusLabel[attempt.status]}
-													</StatusBadge>
-												</TableCell>
-												<TableCell className="font-heading text-xs text-(--ink-2)">
-													{attempt.reference}
-												</TableCell>
-												<TableCell className="text-(--ink-2)">
-													{attempt.failureReason ?? "—"}
-												</TableCell>
-											</TableRow>
-										))}
-									</TableBody>
-								</Table>
-							</div>
-
-							{/* Mobile: attempt timeline */}
-							<div className="flex flex-col gap-3 border-l-2 border-(--line) pl-4 md:hidden">
-								{attempts.map((attempt) => (
-									<div key={attempt.attemptNumber}>
-										<p className="m-0 text-sm text-(--ink)">
-											Attempt {attempt.attemptNumber} ·{" "}
-											{formatDateTime(attempt.timestamp)}
-										</p>
-										<div className="mt-1 flex items-center gap-2">
-											<StatusBadge tone={attemptStatusTone[attempt.status]}>
-												{attemptStatusLabel[attempt.status]}
-											</StatusBadge>
-											{attempt.failureReason && (
-												<span className="text-xs text-(--ink-3)">
-													{attempt.failureReason}
-												</span>
-											)}
-										</div>
-									</div>
-								))}
-							</div>
-						</>
-					)}
-				</CardContent>
-			</Card>
-
 			<Dialog open={voidOpen} onOpenChange={setVoidOpen}>
 				<DialogContent>
 					<DialogHeader>
@@ -370,8 +227,19 @@ function InvoiceDetailPage() {
 						>
 							Cancel
 						</Button>
-						<Button variant="destructive" onClick={handleVoid}>
-							Void invoice
+						<Button
+							variant="destructive"
+							onClick={() => voidMutation.mutate()}
+							disabled={voidMutation.isPending}
+						>
+							{voidMutation.isPending ? (
+								<>
+									<Spinner data-icon="inline-start" />
+									Voiding…
+								</>
+							) : (
+								"Void invoice"
+							)}
 						</Button>
 					</DialogFooter>
 				</DialogContent>

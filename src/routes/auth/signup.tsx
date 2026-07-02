@@ -32,6 +32,7 @@ import {
 } from "#/components/ui/password-strength.tsx";
 import { Spinner } from "#/components/ui/spinner.tsx";
 import { signupMerchant } from "#/lib/api/auth.ts";
+import { CATEGORY_COPY, classifyError } from "#/lib/api/classify-error.ts";
 
 export const Route = createFileRoute("/auth/signup")({
 	component: SignupPage,
@@ -82,7 +83,7 @@ function SignupPage() {
 				) {
 					setEmailTakenError("An account with this email already exists.");
 				} else {
-					toast.error("Couldn't reach the server. Check your connection.");
+					toast.error(CATEGORY_COPY[classifyError(message)]);
 				}
 				return;
 			}
@@ -294,20 +295,24 @@ function SignupPage() {
 						</form.Field>
 					</FieldGroup>
 
-					<Button
-						type="submit"
-						disabled={form.state.isSubmitting}
-						className="w-full border-0 bg-(--brand) text-(--brand-fg) hover:bg-(--brand)/90 active:scale-[0.98]"
-					>
-						{form.state.isSubmitting ? (
-							<>
-								<Spinner data-icon="inline-start" />
-								Creating account…
-							</>
-						) : (
-							"Create account"
+					<form.Subscribe selector={(state) => state.isSubmitting}>
+						{(isSubmitting) => (
+							<Button
+								type="submit"
+								disabled={isSubmitting}
+								className="w-full border-0 bg-(--brand) text-(--brand-fg) hover:bg-(--brand)/90 active:scale-[0.98]"
+							>
+								{isSubmitting ? (
+									<>
+										<Spinner data-icon="inline-start" />
+										Creating account…
+									</>
+								) : (
+									"Create account"
+								)}
+							</Button>
 						)}
-					</Button>
+					</form.Subscribe>
 
 					<p className="text-center text-xs text-(--ink-3)">
 						You can change billing settings later.

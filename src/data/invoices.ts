@@ -1,5 +1,15 @@
+import { queryOptions } from "@tanstack/react-query";
 import { subscriptions } from "#/data/subscriptions.ts";
+import {
+	getInvoiceSummary,
+	listInvoiceSummaries,
+	listInvoiceSummariesForSubscription,
+} from "#/lib/api/invoices.ts";
+import type { InvoiceStatusDto } from "#/types/api.ts";
 
+// Legacy mock status vocabulary — kept only for the portal, which is still
+// on mock data (its real endpoints currently 500 on the backend). The real
+// invoice domain below uses InvoiceStatusDto instead.
 export type InvoiceStatus = "paid" | "open" | "void" | "failed";
 
 export interface Invoice {
@@ -17,22 +27,60 @@ export interface Invoice {
 	createdAt: string;
 }
 
+export interface InvoiceSummary {
+	id: string;
+	number: string;
+	subscriptionId: string;
+	customerId: string;
+	customerName: string;
+	customerEmail: string;
+	planName: string;
+	status: InvoiceStatusDto;
+	grossKobo: number;
+	feeKobo: number;
+	netKobo: number;
+	periodStart: string;
+	periodEnd: string;
+	createdAt: string;
+}
+
 export const invoiceStatusTone: Record<
-	InvoiceStatus,
+	InvoiceStatusDto,
 	"success" | "warning" | "danger" | "neutral"
 > = {
 	paid: "success",
-	open: "warning",
+	pending: "warning",
 	failed: "danger",
 	void: "neutral",
+	refunded: "neutral",
 };
 
-export const invoiceStatusLabel: Record<InvoiceStatus, string> = {
+export const invoiceStatusLabel: Record<InvoiceStatusDto, string> = {
 	paid: "Paid",
-	open: "Open",
+	pending: "Pending",
 	failed: "Failed",
 	void: "Void",
+	refunded: "Refunded",
 };
+
+export const invoicesListQueryOptions = () =>
+	queryOptions({
+		queryKey: ["invoices"],
+		queryFn: () => listInvoiceSummaries(),
+	});
+
+export const invoiceDetailQueryOptions = (invoiceId: string) =>
+	queryOptions({
+		queryKey: ["invoices", invoiceId],
+		queryFn: () => getInvoiceSummary({ data: { invoiceId } }),
+	});
+
+export const invoicesForSubscriptionQueryOptions = (subscriptionId: string) =>
+	queryOptions({
+		queryKey: ["invoices", "subscription", subscriptionId],
+		queryFn: () =>
+			listInvoiceSummariesForSubscription({ data: { subscriptionId } }),
+	});
 
 function customerFor(subscriptionId: string) {
 	const sub = subscriptions.find((s) => s.id === subscriptionId);

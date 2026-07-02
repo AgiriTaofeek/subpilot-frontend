@@ -1,12 +1,31 @@
 import { createServerFn } from "@tanstack/react-start";
+import { z } from "zod";
 
 import { backendRequest } from "#/lib/api/backend.ts";
 import type {
+	CancelSubscriptionRequestDto,
+	ChangePlanRequestDto,
+	ChangePlanResponseDto,
 	CustomerEntityDto,
 	PageResponse,
 	PlanResponseDto,
 	SubscriptionEntityDto,
 } from "#/types/api.ts";
+
+const subscriptionIdSchema = z.object({
+	subscriptionId: z.string().min(1),
+});
+
+const cancelSchema = z.object({
+	subscriptionId: z.string().min(1),
+	immediate: z.boolean(),
+	reason: z.string().optional(),
+});
+
+const changePlanSchema = z.object({
+	subscriptionId: z.string().min(1),
+	newPlanId: z.string().min(1),
+});
 
 export const listSubscriptionSummaries = createServerFn({
 	method: "GET",
@@ -56,3 +75,63 @@ export const listSubscriptionSummaries = createServerFn({
 		};
 	});
 });
+
+export const getSubscriptionDetail = createServerFn({ method: "GET" })
+	.validator(subscriptionIdSchema)
+	.handler(async ({ data }) => {
+		const subscription = await backendRequest<SubscriptionEntityDto>({
+			path: `/v1/subscriptions/${data.subscriptionId}`,
+		});
+
+		const [customer, plan] = await Promise.all([
+			backendRequest<CustomerEntityDto>({
+				path: `/v1/customers/${subscription.customerId}`,
+			}),
+			backendRequest<PlanResponseDto>({
+				path: `/v1/plans/${subscription.planId}`,
+			}),
+		]);
+
+		return { subscription, customer, plan };
+	});
+
+export const cancelSubscription = createServerFn({ method: "POST" })
+	.validator(cancelSchema)
+	.handler(async ({ data }) => {
+		return backendRequest<SubscriptionEntityDto>({
+			path: `/v1/subscriptions/${data.subscriptionId}/cancel`,
+			method: "POST",
+			body: {
+				immediate: data.immediate,
+				reason: data.reason,
+			} satisfies CancelSubscriptionRequestDto,
+		});
+	});
+
+export const pauseSubscription = createServerFn({ method: "POST" })
+	.validator(subscriptionIdSchema)
+	.handler(async ({ data }) => {
+		return backendRequest<SubscriptionEntityDto>({
+			path: `/v1/subscriptions/${data.subscriptionId}/pause`,
+			method: "POST",
+		});
+	});
+
+export const resumeSubscription = createServerFn({ method: "POST" })
+	.validator(subscriptionIdSchema)
+	.handler(async ({ data }) => {
+		return backendRequest<SubscriptionEntityDto>({
+			path: `/v1/subscriptions/${data.subscriptionId}/resume`,
+			method: "POST",
+		});
+	});
+
+export const changePlanSubscription = createServerFn({ method: "POST" })
+	.validator(changePlanSchema)
+	.handler(async ({ data }) => {
+		return backendRequest<ChangePlanResponseDto>({
+			path: `/v1/subscriptions/${data.subscriptionId}/change-plan`,
+			method: "POST",
+			body: { newPlanId: data.newPlanId } satisfies ChangePlanRequestDto,
+		});
+	});

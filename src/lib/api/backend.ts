@@ -160,8 +160,18 @@ async function forwardResponseCookies(
 	response: Response,
 	serverHeaders: typeof import("@tanstack/react-start/server"),
 ) {
+	// setResponseHeader("set-cookie", value) calls Headers.set() for a
+	// single string, which REPLACES any existing set-cookie header rather
+	// than adding another. Looping it per-cookie meant only the last
+	// cookie in the response (and only the last across every call to this
+	// function within one request, e.g. the auth-refresh retry path)
+	// actually reached the browser — signup/login responses set session +
+	// refresh + csrf cookies, and all but one were silently dropped.
+	// Headers.append() is the correct primitive for repeatable headers
+	// like Set-Cookie: it always adds, never clears what's already there.
+	const headers = serverHeaders.getResponseHeaders();
 	for (const cookie of getResponseSetCookies(response)) {
-		serverHeaders.setResponseHeader("set-cookie", cookie);
+		headers.append("set-cookie", cookie);
 	}
 }
 

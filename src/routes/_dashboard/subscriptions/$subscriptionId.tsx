@@ -1,8 +1,9 @@
+import { CaretRightIcon, DotsThreeIcon } from "@phosphor-icons/react";
 import {
-	CaretRightIcon,
-	DotsThreeIcon,
-	WarningCircleIcon,
-} from "@phosphor-icons/react";
+	useMutation,
+	useQueryClient,
+	useSuspenseQuery,
+} from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -28,13 +29,6 @@ import {
 	DropdownMenuItem,
 	DropdownMenuTrigger,
 } from "#/components/ui/dropdown-menu.tsx";
-import {
-	Empty,
-	EmptyContent,
-	EmptyDescription,
-	EmptyHeader,
-	EmptyTitle,
-} from "#/components/ui/empty.tsx";
 import { Field, FieldContent, FieldLabel } from "#/components/ui/field.tsx";
 import { RadioGroup, RadioGroupItem } from "#/components/ui/radio-group.tsx";
 import {
@@ -43,6 +37,7 @@ import {
 	SheetHeader,
 	SheetTitle,
 } from "#/components/ui/sheet.tsx";
+import { Spinner } from "#/components/ui/spinner.tsx";
 import { StatusBadge } from "#/components/ui/status-badge.tsx";
 import {
 	Table,
@@ -53,31 +48,47 @@ import {
 	TableRow,
 } from "#/components/ui/table.tsx";
 import { Textarea } from "#/components/ui/textarea.tsx";
-import { customers } from "#/data/customers.ts";
 import {
-	type DunningAttemptStatus,
-	dunningAttemptsFor,
-} from "#/data/dunning.ts";
-import {
-	invoices as allInvoices,
 	invoiceStatusLabel,
 	invoiceStatusTone,
+	invoicesForSubscriptionQueryOptions,
 } from "#/data/invoices.ts";
-import { formatInterval, plans } from "#/data/plans.ts";
 import {
-	subscriptions as allSubscriptions,
+	formatInterval,
+	plansQueryOptions,
+	prorationLabels,
+} from "#/data/plans.ts";
+import {
 	formatRelativeBillingDate,
-	type Subscription,
 	type SubscriptionStatus,
+	subscriptionDetailQueryOptions,
 	subscriptionStatusLabel,
 	subscriptionStatusTone,
 } from "#/data/subscriptions.ts";
+import { useHandleMutationError } from "#/hooks/use-handle-mutation-error.ts";
+import {
+	cancelSubscription,
+	changePlanSubscription,
+	pauseSubscription,
+	resumeSubscription,
+} from "#/lib/api/subscriptions.ts";
 import { formatNGN } from "#/lib/currency.ts";
-import { calculateProration } from "#/lib/proration.ts";
+import { formatDate } from "#/lib/date.ts";
 
 export const Route = createFileRoute(
 	"/_dashboard/subscriptions/$subscriptionId",
 )({
+	loader: async ({ context, params }) => {
+		await Promise.all([
+			context.queryClient.ensureQueryData(
+				subscriptionDetailQueryOptions(params.subscriptionId),
+			),
+			context.queryClient.ensureQueryData(plansQueryOptions()),
+			context.queryClient.ensureQueryData(
+				invoicesForSubscriptionQueryOptions(params.subscriptionId),
+			),
+		]);
+	},
 	component: SubscriptionDetailPage,
 	head: () => ({ meta: [{ title: "Subscription | SubPilot" }] }),
 });
@@ -106,38 +117,6 @@ const transitionLabels: Record<string, string> = {
 	"paused->active": "resume",
 	"paused->cancelled": "cancel",
 };
-
-const dunningStatusTone: Record<
-	DunningAttemptStatus,
-	"success" | "warning" | "danger"
-> = {
-	succeeded: "success",
-	retrying: "warning",
-	failed: "danger",
-};
-
-const dunningStatusLabel: Record<DunningAttemptStatus, string> = {
-	succeeded: "Succeeded",
-	retrying: "Retrying",
-	failed: "Failed",
-};
-
-function formatDate(iso: string): string {
-	return new Date(iso).toLocaleDateString("en-US", {
-		month: "short",
-		day: "numeric",
-		year: "numeric",
-	});
-}
-
-function formatDateTime(iso: string): string {
-	return new Date(iso).toLocaleString("en-US", {
-		month: "short",
-		day: "numeric",
-		hour: "numeric",
-		minute: "2-digit",
-	});
-}
 
 function StateMachineDiagram({ current }: { current: SubscriptionStatus }) {
 	const reachable = transitions[current];
@@ -173,8 +152,15 @@ function StateMachineDiagram({ current }: { current: SubscriptionStatus }) {
 
 function SubscriptionDetailPage() {
 	const { subscriptionId } = Route.useParams();
-	const [subscription, setSubscription] = useState<Subscription | undefined>(
-		() => allSubscriptions.find((s) => s.id === subscriptionId),
+	const queryClient = useQueryClient();
+
+	const { data } = useSuspenseQuery(
+		subscriptionDetailQueryOptions(subscriptionId),
+	);
+	const { subscription, customer, plan } = data;
+	const { data: allPlans } = useSuspenseQuery(plansQueryOptions());
+	const { data: subInvoices } = useSuspenseQuery(
+		invoicesForSubscriptionQueryOptions(subscriptionId),
 	);
 
 	const [cancelOpen, setCancelOpen] = useState(false);
@@ -187,104 +173,100 @@ function SubscriptionDetailPage() {
 	const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
 	const [showFullDiagram, setShowFullDiagram] = useState(false);
 
-	if (!subscription) {
-		return (
-			<div className="flex flex-1 items-center justify-center p-10">
-				<Empty className="max-w-sm rounded-2xl border border-dashed border-(--line) bg-(--surface-1)">
-					<EmptyHeader>
-						<EmptyTitle className="font-sans text-lg normal-case tracking-tight text-(--ink)">
-							Subscription not found
-						</EmptyTitle>
-						<EmptyDescription className="text-(--ink-3)">
-							This subscription may have been removed or the link is incorrect.
-						</EmptyDescription>
-					</EmptyHeader>
-					<EmptyContent>
-						<Button asChild variant="outline" className="border-(--line)">
-							<Link to="/subscriptions">Back to subscriptions</Link>
-						</Button>
-					</EmptyContent>
-				</Empty>
-			</div>
-		);
+	const detailKey = subscriptionDetailQueryOptions(subscriptionId).queryKey;
+
+	const handleMutationError = useHandleMutationError();
+
+	async function refreshAfterMutation() {
+		await queryClient.invalidateQueries({ queryKey: detailKey });
+		await queryClient.invalidateQueries({ queryKey: ["subscriptions"] });
 	}
 
-	const customer = customers.find(
-		(c) => c.email === subscription.customerEmail,
-	);
-	const plan = plans.find((p) => p.id === subscription.planId);
+	const cancelMutation = useMutation({
+		mutationFn: () =>
+			cancelSubscription({
+				data: {
+					subscriptionId,
+					immediate: cancelMode === "immediate",
+					reason: cancelReason.trim() || undefined,
+				},
+			}),
+		onSuccess: async () => {
+			await refreshAfterMutation();
+			setCancelOpen(false);
+			setCancelReason("");
+			toast.success(
+				cancelMode === "immediate"
+					? "Subscription cancelled"
+					: "Cancellation scheduled",
+			);
+		},
+		onError: (error) =>
+			handleMutationError(error, {
+				fallbackMessage: "Couldn't cancel the subscription.",
+			}),
+	});
+
+	const pauseMutation = useMutation({
+		mutationFn: () => pauseSubscription({ data: { subscriptionId } }),
+		onSuccess: async () => {
+			await refreshAfterMutation();
+			setPauseOpen(false);
+			toast.success("Subscription paused");
+		},
+		onError: (error) =>
+			handleMutationError(error, {
+				fallbackMessage: "Couldn't pause the subscription.",
+			}),
+	});
+
+	const resumeMutation = useMutation({
+		mutationFn: () => resumeSubscription({ data: { subscriptionId } }),
+		onSuccess: async () => {
+			await refreshAfterMutation();
+			toast.success("Subscription resumed");
+		},
+		onError: (error) =>
+			handleMutationError(error, {
+				fallbackMessage: "Couldn't resume the subscription.",
+			}),
+	});
+
+	const changePlanMutation = useMutation({
+		mutationFn: (newPlanId: string) =>
+			changePlanSubscription({ data: { subscriptionId, newPlanId } }),
+		onSuccess: async (result) => {
+			await refreshAfterMutation();
+			setChangePlanOpen(false);
+			setSelectedPlanId(null);
+			if (result.chargedImmediately && result.netChargeToday > 0) {
+				toast.success(
+					`Plan changed. ${formatNGN(result.netChargeToday)} charged today.`,
+				);
+			} else if (result.netCreditForward > 0) {
+				toast.success(
+					`Plan changed. ${formatNGN(result.netCreditForward)} credited to your next invoice.`,
+				);
+			} else {
+				toast.success("Plan changed.");
+			}
+		},
+		onError: (error) =>
+			handleMutationError(error, {
+				fallbackMessage: "Couldn't change the plan.",
+			}),
+	});
+
 	const isTerminal =
 		subscription.status === "cancelled" || subscription.status === "expired";
-	const isPastDue = subscription.status === "past_due";
-	const dunning = isPastDue ? dunningAttemptsFor(subscription.id) : [];
 
-	const periodStart = new Date(subscription.currentPeriodEnd);
-	periodStart.setDate(periodStart.getDate() - 30);
-
-	const subInvoices = allInvoices
-		.filter((i) => i.subscriptionId === subscription.id)
-		.sort(
-			(a, b) =>
-				new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-		)
-		.slice(0, 10);
-
-	const alternativePlans = plans.filter(
+	const alternativePlans = allPlans.filter(
 		(p) => p.status === "published" && p.id !== subscription.planId,
 	);
-	const newPlan = plans.find((p) => p.id === selectedPlanId);
-	const proration =
-		newPlan && plan
-			? calculateProration(
-					plan.amountKobo,
-					newPlan.amountKobo,
-					subscription.currentPeriodEnd,
-				)
-			: null;
-
-	function handleConfirmCancel() {
-		setSubscription((prev) =>
-			prev
-				? {
-						...prev,
-						status: cancelMode === "immediate" ? "cancelled" : prev.status,
-						cancelAtPeriodEnd:
-							cancelMode === "period_end" ? true : prev.cancelAtPeriodEnd,
-					}
-				: prev,
-		);
-		setCancelOpen(false);
-		setCancelReason("");
-		toast.success(
-			cancelMode === "immediate"
-				? "Subscription cancelled"
-				: "Cancellation scheduled",
-		);
-	}
-
-	function handleConfirmPause() {
-		setSubscription((prev) => (prev ? { ...prev, status: "paused" } : prev));
-		setPauseOpen(false);
-		toast.success("Subscription paused");
-	}
+	const newPlan = allPlans.find((p) => p.id === selectedPlanId) ?? null;
 
 	function handleResume() {
-		setSubscription((prev) =>
-			prev ? { ...prev, status: "active", cancelAtPeriodEnd: false } : prev,
-		);
-		toast.success("Subscription resumed");
-	}
-
-	function handleConfirmChangePlan() {
-		if (!newPlan) return;
-		setSubscription((prev) =>
-			prev
-				? { ...prev, planId: newPlan.id, amountKobo: newPlan.amountKobo }
-				: prev,
-		);
-		setChangePlanOpen(false);
-		setSelectedPlanId(null);
-		toast.success("Plan changed");
+		resumeMutation.mutate();
 	}
 
 	return (
@@ -293,13 +275,18 @@ function SubscriptionDetailPage() {
 				<div>
 					<div className="flex flex-wrap items-center gap-3">
 						<h1 className="text-2xl font-semibold tracking-tight text-(--ink)">
-							{subscription.customerName}
+							{customer.fullName}
 						</h1>
 						<StatusBadge tone={subscriptionStatusTone[subscription.status]}>
 							{subscriptionStatusLabel[subscription.status]}
 						</StatusBadge>
+						{subscription.cancelAtPeriodEnd && (
+							<span className="text-sm text-(--warning)">
+								Cancels on {formatDate(subscription.currentPeriodEnd)}
+							</span>
+						)}
 					</div>
-					<p className="text-sm text-(--ink-3)">{subscription.customerEmail}</p>
+					<p className="text-sm text-(--ink-3)">{customer.email}</p>
 				</div>
 
 				{!isTerminal && (
@@ -314,9 +301,17 @@ function SubscriptionDetailPage() {
 						{subscription.status === "paused" ? (
 							<Button
 								onClick={handleResume}
+								disabled={resumeMutation.isPending}
 								className="border-0 bg-(--brand) text-(--brand-fg) hover:bg-(--brand)/90"
 							>
-								Resume
+								{resumeMutation.isPending ? (
+									<>
+										<Spinner data-icon="inline-start" />
+										Resuming…
+									</>
+								) : (
+									"Resume"
+								)}
 							</Button>
 						) : (
 							<Button
@@ -342,15 +337,14 @@ function SubscriptionDetailPage() {
 				<div>
 					<p className="m-0 text-(--ink-3)">Plan</p>
 					<p className="m-0 mt-0.5 font-medium text-(--ink)">
-						{plan ? plan.name : "—"}
-						{plan &&
-							` · ${formatNGN(subscription.amountKobo)} / ${formatInterval(plan.interval).toLowerCase()}`}
+						{plan.name} · {formatNGN(plan.amountKobo)} /{" "}
+						{formatInterval(plan.interval).toLowerCase()}
 					</p>
 				</div>
 				<div>
 					<p className="m-0 text-(--ink-3)">Current period</p>
 					<p className="m-0 mt-0.5 font-medium text-(--ink)">
-						{formatDate(periodStart.toISOString())} →{" "}
+						{formatDate(subscription.currentPeriodStart)} →{" "}
 						{formatDate(subscription.currentPeriodEnd)}
 					</p>
 				</div>
@@ -363,8 +357,8 @@ function SubscriptionDetailPage() {
 				<div className="sm:col-span-2 lg:col-span-3">
 					<p className="m-0 text-(--ink-3)">Payment method</p>
 					<p className="m-0 mt-0.5 font-medium text-(--ink)">
-						{customer?.cardBrand ?? "Card"} •••• {customer?.cardLast4 ?? "0000"}
-						{customer?.cardExpiry && ` · Exp. ${customer.cardExpiry}`}
+						{customer.cardBrand ?? "Card"} •••• {customer.cardLast4 ?? "0000"}
+						{customer.cardExpiry && ` · Exp. ${customer.cardExpiry}`}
 					</p>
 				</div>
 			</div>
@@ -397,58 +391,6 @@ function SubscriptionDetailPage() {
 					</div>
 				</CardContent>
 			</Card>
-
-			{isPastDue && (
-				<Card className="mt-6 border border-amber-500/20 bg-amber-500/5 shadow-none">
-					<CardContent className="flex flex-col gap-4 pt-6">
-						<div className="flex items-center gap-2">
-							<WarningCircleIcon className="size-5 text-(--warning)" />
-							<h2 className="m-0 text-base font-semibold text-(--ink)">
-								Payment failed
-							</h2>
-						</div>
-						<div className="grid gap-4 text-sm sm:grid-cols-2">
-							<div>
-								<p className="m-0 text-(--ink-3)">Next retry</p>
-								<p className="m-0 mt-0.5 font-medium text-(--ink)">
-									{subscription.nextRetryAt
-										? formatRelativeBillingDate(subscription.nextRetryAt)
-										: "—"}
-								</p>
-							</div>
-							<div>
-								<p className="m-0 text-(--ink-3)">Last failure reason</p>
-								<p className="m-0 mt-0.5 font-medium text-(--ink)">
-									{dunning[0]?.failureReason ?? "Unknown"}
-								</p>
-							</div>
-						</div>
-						<div>
-							<p className="island-kicker m-0 mb-2">Attempt history</p>
-							<div className="flex flex-col gap-3 border-l-2 border-(--line) pl-4">
-								{dunning.map((attempt) => (
-									<div key={attempt.attemptNumber}>
-										<p className="m-0 text-sm text-(--ink)">
-											Attempt {attempt.attemptNumber} ·{" "}
-											{formatDateTime(attempt.timestamp)}
-										</p>
-										<div className="mt-1 flex items-center gap-2">
-											<StatusBadge tone={dunningStatusTone[attempt.status]}>
-												{dunningStatusLabel[attempt.status]}
-											</StatusBadge>
-											{attempt.failureReason && (
-												<span className="text-xs text-(--ink-3)">
-													{attempt.failureReason}
-												</span>
-											)}
-										</div>
-									</div>
-								))}
-							</div>
-						</div>
-					</CardContent>
-				</Card>
-			)}
 
 			<Card className="mt-6 border border-(--line) bg-(--surface-1) shadow-none">
 				<CardHeader>
@@ -551,6 +493,7 @@ function SubscriptionDetailPage() {
 							<Button
 								variant="outline"
 								size="icon-sm"
+								aria-label="Subscription actions"
 								className="border-(--line)"
 							>
 								<DotsThreeIcon className="size-5" weight="bold" />
@@ -558,7 +501,10 @@ function SubscriptionDetailPage() {
 						</DropdownMenuTrigger>
 						<DropdownMenuContent align="end">
 							{subscription.status === "paused" ? (
-								<DropdownMenuItem onClick={handleResume}>
+								<DropdownMenuItem
+									onClick={handleResume}
+									disabled={resumeMutation.isPending}
+								>
 									Resume
 								</DropdownMenuItem>
 							) : (
@@ -650,8 +596,19 @@ function SubscriptionDetailPage() {
 						>
 							Keep subscription
 						</Button>
-						<Button variant="destructive" onClick={handleConfirmCancel}>
-							Confirm cancellation
+						<Button
+							variant="destructive"
+							onClick={() => cancelMutation.mutate()}
+							disabled={cancelMutation.isPending}
+						>
+							{cancelMutation.isPending ? (
+								<>
+									<Spinner data-icon="inline-start" />
+									Cancelling…
+								</>
+							) : (
+								"Confirm cancellation"
+							)}
 						</Button>
 					</DialogFooter>
 				</DialogContent>
@@ -675,10 +632,18 @@ function SubscriptionDetailPage() {
 							Cancel
 						</Button>
 						<Button
-							onClick={handleConfirmPause}
+							onClick={() => pauseMutation.mutate()}
+							disabled={pauseMutation.isPending}
 							className="border-0 bg-(--brand) text-(--brand-fg) hover:bg-(--brand)/90"
 						>
-							Pause subscription
+							{pauseMutation.isPending ? (
+								<>
+									<Spinner data-icon="inline-start" />
+									Pausing…
+								</>
+							) : (
+								"Pause subscription"
+							)}
 						</Button>
 					</DialogFooter>
 				</DialogContent>
@@ -747,23 +712,27 @@ function SubscriptionDetailPage() {
 									<CardContent className="flex flex-col gap-2 py-4 text-sm">
 										<p className="island-kicker m-0">Proration</p>
 										<p className="m-0 text-(--ink-2)">
-											{proration && proration.chargeKobo > 0
-												? `Charge ${formatNGN(proration.chargeKobo)} today.`
-												: proration && proration.creditKobo > 0
-													? `Credit ${formatNGN(proration.creditKobo)} on next invoice.`
-													: "No additional charge or credit."}
+											{prorationLabels[newPlan.proration]}
 										</p>
 										<p className="m-0 text-(--ink-3)">
-											Effective {formatDate(new Date().toISOString())}
+											The exact amount is calculated when you confirm.
 										</p>
 									</CardContent>
 								</Card>
 								<div className="flex flex-col gap-3">
 									<Button
-										onClick={handleConfirmChangePlan}
+										onClick={() => changePlanMutation.mutate(newPlan.id)}
+										disabled={changePlanMutation.isPending}
 										className="w-full border-0 bg-(--brand) text-(--brand-fg) hover:bg-(--brand)/90"
 									>
-										Confirm change
+										{changePlanMutation.isPending ? (
+											<>
+												<Spinner data-icon="inline-start" />
+												Changing plan…
+											</>
+										) : (
+											"Confirm change"
+										)}
 									</Button>
 									<button
 										type="button"

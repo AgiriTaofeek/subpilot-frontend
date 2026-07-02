@@ -3,7 +3,7 @@ import { HttpResponse, http } from "msw";
 import { describe, expect, test, vi } from "vitest";
 
 import { backendRequest } from "#/lib/api/backend.ts";
-import { server } from "#/test/setup.ts";
+import { mockResponseHeaders, server } from "#/test/setup.ts";
 import type { AuthSessionDto } from "#/types/api.ts";
 
 describe("backendRequest", () => {
@@ -157,5 +157,58 @@ describe("backendRequest", () => {
 		});
 
 		expect(meCalls).toBe(2);
+	});
+
+	test("forwards every Set-Cookie header from the backend response, not just the last one", async () => {
+		vi.stubEnv("VITE_API_BASE_URL", "https://api.test");
+
+		const backendCookies = new Headers();
+		backendCookies.append(
+			"set-cookie",
+			"_subpilot_session=session_abc; Path=/; HttpOnly; SameSite=Lax",
+		);
+		backendCookies.append(
+			"set-cookie",
+			"_subpilot_refresh=refresh_abc; Path=/; HttpOnly; SameSite=Lax",
+		);
+		backendCookies.append(
+			"set-cookie",
+			"_subpilot_csrf=csrf_abc; Path=/; SameSite=Lax",
+		);
+
+		server.use(
+			http.post("https://api.test/v1/auth/signup", () => {
+				return new HttpResponse(
+					JSON.stringify({
+						merchantId: "merch_123",
+						userId: "user_123",
+						email: "hello@acme.test",
+						businessName: "Acme Corp",
+					} satisfies AuthSessionDto),
+					{ headers: backendCookies },
+				);
+			}),
+		);
+
+		await backendRequest<AuthSessionDto>({
+			path: "/v1/auth/signup",
+			method: "POST",
+			body: {
+				email: "hello@acme.test",
+				password: "secret",
+				businessName: "Acme Corp",
+			},
+		});
+
+		const forwarded = mockResponseHeaders.getSetCookie();
+
+		expect(forwarded).toHaveLength(3);
+		expect(forwarded.some((c) => c.startsWith("_subpilot_session="))).toBe(
+			true,
+		);
+		expect(forwarded.some((c) => c.startsWith("_subpilot_refresh="))).toBe(
+			true,
+		);
+		expect(forwarded.some((c) => c.startsWith("_subpilot_csrf="))).toBe(true);
 	});
 });

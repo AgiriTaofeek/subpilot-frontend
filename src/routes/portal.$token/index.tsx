@@ -24,6 +24,7 @@ import {
 	type Subscription,
 } from "#/data/subscriptions.ts";
 import { formatNGN } from "#/lib/currency.ts";
+import { formatDateLong as formatDate } from "#/lib/date.ts";
 
 export const Route = createFileRoute("/portal/$token/")({
 	component: PortalOverviewPage,
@@ -64,14 +65,6 @@ const statusTone: Record<PortalUiState, "success" | "warning" | "neutral"> = {
 	paused: "neutral",
 	expired: "neutral",
 };
-
-function formatDate(iso: string): string {
-	return new Date(iso).toLocaleDateString("en-US", {
-		month: "long",
-		day: "numeric",
-		year: "numeric",
-	});
-}
 
 function PortalOverviewPage() {
 	const { token } = Route.useParams();

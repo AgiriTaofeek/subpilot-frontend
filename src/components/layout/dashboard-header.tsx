@@ -43,7 +43,7 @@ export function DashboardHeader() {
 	return (
 		<header
 			className={cn(
-				"sticky top-0 z-40 flex h-14 shrink-0 items-center gap-3 border-b bg-(--surface)/90 px-4 backdrop-blur-xl transition-shadow duration-200",
+				"sticky top-0 z-40 flex h-14 shrink-0 items-center gap-3 border-b bg-(--surface-1)/90 px-4 backdrop-blur-xl transition-shadow duration-200",
 				scrolled
 					? "border-(--line) shadow-[0_1px_0_0_var(--line)]"
 					: "border-(--line)/60",

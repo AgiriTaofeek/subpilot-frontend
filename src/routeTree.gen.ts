@@ -14,12 +14,12 @@ import { Route as MarketingRouteImport } from './routes/_marketing'
 import { Route as DashboardRouteImport } from './routes/_dashboard'
 import { Route as MarketingIndexRouteImport } from './routes/_marketing/index'
 import { Route as PortalTokenRouteImport } from './routes/portal.$token'
-import { Route as CheckoutReturnRouteImport } from './routes/checkout.return'
 import { Route as AuthSignupRouteImport } from './routes/auth/signup'
 import { Route as AuthLoginRouteImport } from './routes/auth/login'
 import { Route as DashboardRevenueRouteImport } from './routes/_dashboard/revenue'
 import { Route as DashboardOverviewRouteImport } from './routes/_dashboard/overview'
 import { Route as DashboardEventsRouteImport } from './routes/_dashboard/events'
+import { Route as DashboardAnalyticsRouteImport } from './routes/_dashboard/analytics'
 import { Route as PortalTokenIndexRouteImport } from './routes/portal.$token/index'
 import { Route as DashboardWebhooksIndexRouteImport } from './routes/_dashboard/webhooks/index'
 import { Route as DashboardSubscriptionsIndexRouteImport } from './routes/_dashboard/subscriptions/index'
@@ -32,12 +32,15 @@ import { Route as PortalTokenCardUpdatedRouteImport } from './routes/portal.$tok
 import { Route as PayMerchantSlugPlanSlugRouteImport } from './routes/pay.$merchantSlug.$planSlug'
 import { Route as DashboardWebhooksDeliveriesRouteImport } from './routes/_dashboard/webhooks/deliveries'
 import { Route as DashboardSubscriptionsSubscriptionIdRouteImport } from './routes/_dashboard/subscriptions/$subscriptionId'
+import { Route as DashboardSettingsDunningRouteImport } from './routes/_dashboard/settings/dunning'
+import { Route as DashboardSettingsAuditLogRouteImport } from './routes/_dashboard/settings/audit-log'
 import { Route as DashboardSettingsApiKeysRouteImport } from './routes/_dashboard/settings/api-keys'
 import { Route as DashboardSettingsAccountRouteImport } from './routes/_dashboard/settings/account'
 import { Route as DashboardPlansNewRouteImport } from './routes/_dashboard/plans/new'
 import { Route as DashboardPlansPlanIdRouteImport } from './routes/_dashboard/plans/$planId'
 import { Route as DashboardInvoicesInvoiceIdRouteImport } from './routes/_dashboard/invoices/$invoiceId'
 import { Route as DashboardCustomersCustomerIdRouteImport } from './routes/_dashboard/customers/$customerId'
+import { Route as PlansMerchantSlugPlanSlugSuccessRouteImport } from './routes/plans.$merchantSlug.$planSlug.success'
 
 const AuthRoute = AuthRouteImport.update({
   id: '/auth',
@@ -60,11 +63,6 @@ const MarketingIndexRoute = MarketingIndexRouteImport.update({
 const PortalTokenRoute = PortalTokenRouteImport.update({
   id: '/portal/$token',
   path: '/portal/$token',
-  getParentRoute: () => rootRouteImport,
-} as any)
-const CheckoutReturnRoute = CheckoutReturnRouteImport.update({
-  id: '/checkout/return',
-  path: '/checkout/return',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AuthSignupRoute = AuthSignupRouteImport.update({
@@ -90,6 +88,11 @@ const DashboardOverviewRoute = DashboardOverviewRouteImport.update({
 const DashboardEventsRoute = DashboardEventsRouteImport.update({
   id: '/events',
   path: '/events',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardAnalyticsRoute = DashboardAnalyticsRouteImport.update({
+  id: '/analytics',
+  path: '/analytics',
   getParentRoute: () => DashboardRoute,
 } as any)
 const PortalTokenIndexRoute = PortalTokenIndexRouteImport.update({
@@ -155,6 +158,18 @@ const DashboardSubscriptionsSubscriptionIdRoute =
     path: '/subscriptions/$subscriptionId',
     getParentRoute: () => DashboardRoute,
   } as any)
+const DashboardSettingsDunningRoute =
+  DashboardSettingsDunningRouteImport.update({
+    id: '/settings/dunning',
+    path: '/settings/dunning',
+    getParentRoute: () => DashboardRoute,
+  } as any)
+const DashboardSettingsAuditLogRoute =
+  DashboardSettingsAuditLogRouteImport.update({
+    id: '/settings/audit-log',
+    path: '/settings/audit-log',
+    getParentRoute: () => DashboardRoute,
+  } as any)
 const DashboardSettingsApiKeysRoute =
   DashboardSettingsApiKeysRouteImport.update({
     id: '/settings/api-keys',
@@ -189,16 +204,22 @@ const DashboardCustomersCustomerIdRoute =
     path: '/customers/$customerId',
     getParentRoute: () => DashboardRoute,
   } as any)
+const PlansMerchantSlugPlanSlugSuccessRoute =
+  PlansMerchantSlugPlanSlugSuccessRouteImport.update({
+    id: '/plans/$merchantSlug/$planSlug/success',
+    path: '/plans/$merchantSlug/$planSlug/success',
+    getParentRoute: () => rootRouteImport,
+  } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof MarketingIndexRoute
   '/auth': typeof AuthRouteWithChildren
+  '/analytics': typeof DashboardAnalyticsRoute
   '/events': typeof DashboardEventsRoute
   '/overview': typeof DashboardOverviewRoute
   '/revenue': typeof DashboardRevenueRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/signup': typeof AuthSignupRoute
-  '/checkout/return': typeof CheckoutReturnRoute
   '/portal/$token': typeof PortalTokenRouteWithChildren
   '/customers/$customerId': typeof DashboardCustomersCustomerIdRoute
   '/invoices/$invoiceId': typeof DashboardInvoicesInvoiceIdRoute
@@ -206,6 +227,8 @@ export interface FileRoutesByFullPath {
   '/plans/new': typeof DashboardPlansNewRoute
   '/settings/account': typeof DashboardSettingsAccountRoute
   '/settings/api-keys': typeof DashboardSettingsApiKeysRoute
+  '/settings/audit-log': typeof DashboardSettingsAuditLogRoute
+  '/settings/dunning': typeof DashboardSettingsDunningRoute
   '/subscriptions/$subscriptionId': typeof DashboardSubscriptionsSubscriptionIdRoute
   '/webhooks/deliveries': typeof DashboardWebhooksDeliveriesRoute
   '/pay/$merchantSlug/$planSlug': typeof PayMerchantSlugPlanSlugRoute
@@ -218,22 +241,25 @@ export interface FileRoutesByFullPath {
   '/subscriptions/': typeof DashboardSubscriptionsIndexRoute
   '/webhooks/': typeof DashboardWebhooksIndexRoute
   '/portal/$token/': typeof PortalTokenIndexRoute
+  '/plans/$merchantSlug/$planSlug/success': typeof PlansMerchantSlugPlanSlugSuccessRoute
 }
 export interface FileRoutesByTo {
   '/': typeof MarketingIndexRoute
   '/auth': typeof AuthRouteWithChildren
+  '/analytics': typeof DashboardAnalyticsRoute
   '/events': typeof DashboardEventsRoute
   '/overview': typeof DashboardOverviewRoute
   '/revenue': typeof DashboardRevenueRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/signup': typeof AuthSignupRoute
-  '/checkout/return': typeof CheckoutReturnRoute
   '/customers/$customerId': typeof DashboardCustomersCustomerIdRoute
   '/invoices/$invoiceId': typeof DashboardInvoicesInvoiceIdRoute
   '/plans/$planId': typeof DashboardPlansPlanIdRoute
   '/plans/new': typeof DashboardPlansNewRoute
   '/settings/account': typeof DashboardSettingsAccountRoute
   '/settings/api-keys': typeof DashboardSettingsApiKeysRoute
+  '/settings/audit-log': typeof DashboardSettingsAuditLogRoute
+  '/settings/dunning': typeof DashboardSettingsDunningRoute
   '/subscriptions/$subscriptionId': typeof DashboardSubscriptionsSubscriptionIdRoute
   '/webhooks/deliveries': typeof DashboardWebhooksDeliveriesRoute
   '/pay/$merchantSlug/$planSlug': typeof PayMerchantSlugPlanSlugRoute
@@ -246,18 +272,19 @@ export interface FileRoutesByTo {
   '/subscriptions': typeof DashboardSubscriptionsIndexRoute
   '/webhooks': typeof DashboardWebhooksIndexRoute
   '/portal/$token': typeof PortalTokenIndexRoute
+  '/plans/$merchantSlug/$planSlug/success': typeof PlansMerchantSlugPlanSlugSuccessRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_dashboard': typeof DashboardRouteWithChildren
   '/_marketing': typeof MarketingRouteWithChildren
   '/auth': typeof AuthRouteWithChildren
+  '/_dashboard/analytics': typeof DashboardAnalyticsRoute
   '/_dashboard/events': typeof DashboardEventsRoute
   '/_dashboard/overview': typeof DashboardOverviewRoute
   '/_dashboard/revenue': typeof DashboardRevenueRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/signup': typeof AuthSignupRoute
-  '/checkout/return': typeof CheckoutReturnRoute
   '/portal/$token': typeof PortalTokenRouteWithChildren
   '/_marketing/': typeof MarketingIndexRoute
   '/_dashboard/customers/$customerId': typeof DashboardCustomersCustomerIdRoute
@@ -266,6 +293,8 @@ export interface FileRoutesById {
   '/_dashboard/plans/new': typeof DashboardPlansNewRoute
   '/_dashboard/settings/account': typeof DashboardSettingsAccountRoute
   '/_dashboard/settings/api-keys': typeof DashboardSettingsApiKeysRoute
+  '/_dashboard/settings/audit-log': typeof DashboardSettingsAuditLogRoute
+  '/_dashboard/settings/dunning': typeof DashboardSettingsDunningRoute
   '/_dashboard/subscriptions/$subscriptionId': typeof DashboardSubscriptionsSubscriptionIdRoute
   '/_dashboard/webhooks/deliveries': typeof DashboardWebhooksDeliveriesRoute
   '/pay/$merchantSlug/$planSlug': typeof PayMerchantSlugPlanSlugRoute
@@ -278,18 +307,19 @@ export interface FileRoutesById {
   '/_dashboard/subscriptions/': typeof DashboardSubscriptionsIndexRoute
   '/_dashboard/webhooks/': typeof DashboardWebhooksIndexRoute
   '/portal/$token/': typeof PortalTokenIndexRoute
+  '/plans/$merchantSlug/$planSlug/success': typeof PlansMerchantSlugPlanSlugSuccessRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/auth'
+    | '/analytics'
     | '/events'
     | '/overview'
     | '/revenue'
     | '/auth/login'
     | '/auth/signup'
-    | '/checkout/return'
     | '/portal/$token'
     | '/customers/$customerId'
     | '/invoices/$invoiceId'
@@ -297,6 +327,8 @@ export interface FileRouteTypes {
     | '/plans/new'
     | '/settings/account'
     | '/settings/api-keys'
+    | '/settings/audit-log'
+    | '/settings/dunning'
     | '/subscriptions/$subscriptionId'
     | '/webhooks/deliveries'
     | '/pay/$merchantSlug/$planSlug'
@@ -309,22 +341,25 @@ export interface FileRouteTypes {
     | '/subscriptions/'
     | '/webhooks/'
     | '/portal/$token/'
+    | '/plans/$merchantSlug/$planSlug/success'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/auth'
+    | '/analytics'
     | '/events'
     | '/overview'
     | '/revenue'
     | '/auth/login'
     | '/auth/signup'
-    | '/checkout/return'
     | '/customers/$customerId'
     | '/invoices/$invoiceId'
     | '/plans/$planId'
     | '/plans/new'
     | '/settings/account'
     | '/settings/api-keys'
+    | '/settings/audit-log'
+    | '/settings/dunning'
     | '/subscriptions/$subscriptionId'
     | '/webhooks/deliveries'
     | '/pay/$merchantSlug/$planSlug'
@@ -337,17 +372,18 @@ export interface FileRouteTypes {
     | '/subscriptions'
     | '/webhooks'
     | '/portal/$token'
+    | '/plans/$merchantSlug/$planSlug/success'
   id:
     | '__root__'
     | '/_dashboard'
     | '/_marketing'
     | '/auth'
+    | '/_dashboard/analytics'
     | '/_dashboard/events'
     | '/_dashboard/overview'
     | '/_dashboard/revenue'
     | '/auth/login'
     | '/auth/signup'
-    | '/checkout/return'
     | '/portal/$token'
     | '/_marketing/'
     | '/_dashboard/customers/$customerId'
@@ -356,6 +392,8 @@ export interface FileRouteTypes {
     | '/_dashboard/plans/new'
     | '/_dashboard/settings/account'
     | '/_dashboard/settings/api-keys'
+    | '/_dashboard/settings/audit-log'
+    | '/_dashboard/settings/dunning'
     | '/_dashboard/subscriptions/$subscriptionId'
     | '/_dashboard/webhooks/deliveries'
     | '/pay/$merchantSlug/$planSlug'
@@ -368,15 +406,16 @@ export interface FileRouteTypes {
     | '/_dashboard/subscriptions/'
     | '/_dashboard/webhooks/'
     | '/portal/$token/'
+    | '/plans/$merchantSlug/$planSlug/success'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   DashboardRoute: typeof DashboardRouteWithChildren
   MarketingRoute: typeof MarketingRouteWithChildren
   AuthRoute: typeof AuthRouteWithChildren
-  CheckoutReturnRoute: typeof CheckoutReturnRoute
   PortalTokenRoute: typeof PortalTokenRouteWithChildren
   PayMerchantSlugPlanSlugRoute: typeof PayMerchantSlugPlanSlugRoute
+  PlansMerchantSlugPlanSlugSuccessRoute: typeof PlansMerchantSlugPlanSlugSuccessRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -416,13 +455,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof PortalTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
-    '/checkout/return': {
-      id: '/checkout/return'
-      path: '/checkout/return'
-      fullPath: '/checkout/return'
-      preLoaderRoute: typeof CheckoutReturnRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/auth/signup': {
       id: '/auth/signup'
       path: '/signup'
@@ -456,6 +488,13 @@ declare module '@tanstack/react-router' {
       path: '/events'
       fullPath: '/events'
       preLoaderRoute: typeof DashboardEventsRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/_dashboard/analytics': {
+      id: '/_dashboard/analytics'
+      path: '/analytics'
+      fullPath: '/analytics'
+      preLoaderRoute: typeof DashboardAnalyticsRouteImport
       parentRoute: typeof DashboardRoute
     }
     '/portal/$token/': {
@@ -542,6 +581,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardSubscriptionsSubscriptionIdRouteImport
       parentRoute: typeof DashboardRoute
     }
+    '/_dashboard/settings/dunning': {
+      id: '/_dashboard/settings/dunning'
+      path: '/settings/dunning'
+      fullPath: '/settings/dunning'
+      preLoaderRoute: typeof DashboardSettingsDunningRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/_dashboard/settings/audit-log': {
+      id: '/_dashboard/settings/audit-log'
+      path: '/settings/audit-log'
+      fullPath: '/settings/audit-log'
+      preLoaderRoute: typeof DashboardSettingsAuditLogRouteImport
+      parentRoute: typeof DashboardRoute
+    }
     '/_dashboard/settings/api-keys': {
       id: '/_dashboard/settings/api-keys'
       path: '/settings/api-keys'
@@ -584,10 +637,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof DashboardCustomersCustomerIdRouteImport
       parentRoute: typeof DashboardRoute
     }
+    '/plans/$merchantSlug/$planSlug/success': {
+      id: '/plans/$merchantSlug/$planSlug/success'
+      path: '/plans/$merchantSlug/$planSlug/success'
+      fullPath: '/plans/$merchantSlug/$planSlug/success'
+      preLoaderRoute: typeof PlansMerchantSlugPlanSlugSuccessRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 interface DashboardRouteChildren {
+  DashboardAnalyticsRoute: typeof DashboardAnalyticsRoute
   DashboardEventsRoute: typeof DashboardEventsRoute
   DashboardOverviewRoute: typeof DashboardOverviewRoute
   DashboardRevenueRoute: typeof DashboardRevenueRoute
@@ -597,6 +658,8 @@ interface DashboardRouteChildren {
   DashboardPlansNewRoute: typeof DashboardPlansNewRoute
   DashboardSettingsAccountRoute: typeof DashboardSettingsAccountRoute
   DashboardSettingsApiKeysRoute: typeof DashboardSettingsApiKeysRoute
+  DashboardSettingsAuditLogRoute: typeof DashboardSettingsAuditLogRoute
+  DashboardSettingsDunningRoute: typeof DashboardSettingsDunningRoute
   DashboardSubscriptionsSubscriptionIdRoute: typeof DashboardSubscriptionsSubscriptionIdRoute
   DashboardWebhooksDeliveriesRoute: typeof DashboardWebhooksDeliveriesRoute
   DashboardCustomersIndexRoute: typeof DashboardCustomersIndexRoute
@@ -607,6 +670,7 @@ interface DashboardRouteChildren {
 }
 
 const DashboardRouteChildren: DashboardRouteChildren = {
+  DashboardAnalyticsRoute: DashboardAnalyticsRoute,
   DashboardEventsRoute: DashboardEventsRoute,
   DashboardOverviewRoute: DashboardOverviewRoute,
   DashboardRevenueRoute: DashboardRevenueRoute,
@@ -616,6 +680,8 @@ const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardPlansNewRoute: DashboardPlansNewRoute,
   DashboardSettingsAccountRoute: DashboardSettingsAccountRoute,
   DashboardSettingsApiKeysRoute: DashboardSettingsApiKeysRoute,
+  DashboardSettingsAuditLogRoute: DashboardSettingsAuditLogRoute,
+  DashboardSettingsDunningRoute: DashboardSettingsDunningRoute,
   DashboardSubscriptionsSubscriptionIdRoute:
     DashboardSubscriptionsSubscriptionIdRoute,
   DashboardWebhooksDeliveriesRoute: DashboardWebhooksDeliveriesRoute,
@@ -676,9 +742,9 @@ const rootRouteChildren: RootRouteChildren = {
   DashboardRoute: DashboardRouteWithChildren,
   MarketingRoute: MarketingRouteWithChildren,
   AuthRoute: AuthRouteWithChildren,
-  CheckoutReturnRoute: CheckoutReturnRoute,
   PortalTokenRoute: PortalTokenRouteWithChildren,
   PayMerchantSlugPlanSlugRoute: PayMerchantSlugPlanSlugRoute,
+  PlansMerchantSlugPlanSlugSuccessRoute: PlansMerchantSlugPlanSlugSuccessRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

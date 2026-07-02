@@ -4,6 +4,11 @@ import {
 	PlusIcon,
 	WarningCircleIcon,
 } from "@phosphor-icons/react";
+import {
+	useMutation,
+	useQueryClient,
+	useSuspenseQuery,
+} from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -40,6 +45,7 @@ import {
 } from "#/components/ui/empty.tsx";
 import { Field, FieldDescription, FieldLabel } from "#/components/ui/field.tsx";
 import { Input } from "#/components/ui/input.tsx";
+import { Spinner } from "#/components/ui/spinner.tsx";
 import { StatusBadge } from "#/components/ui/status-badge.tsx";
 import {
 	Table,
@@ -49,27 +55,23 @@ import {
 	TableHeader,
 	TableRow,
 } from "#/components/ui/table.tsx";
-import {
-	type ApiKey,
-	generateApiKey,
-	apiKeys as initialApiKeys,
-} from "#/data/api-keys.ts";
+import { apiKeysListQueryOptions } from "#/data/api-keys.ts";
+import { useHandleMutationError } from "#/hooks/use-handle-mutation-error.ts";
+import { createApiKey, revokeApiKey } from "#/lib/api/api-keys.ts";
+import { formatDate } from "#/lib/date.ts";
+import type { ApiKeyResponseDto } from "#/types/api.ts";
 
 export const Route = createFileRoute("/_dashboard/settings/api-keys")({
+	loader: async ({ context }) => {
+		await context.queryClient.ensureQueryData(apiKeysListQueryOptions());
+	},
 	component: SettingsApiKeysPage,
 	head: () => ({ meta: [{ title: "API keys | SubPilot" }] }),
 });
 
-function formatDate(iso: string): string {
-	return new Date(iso).toLocaleDateString("en-US", {
-		month: "short",
-		day: "numeric",
-		year: "numeric",
-	});
-}
-
 function SettingsApiKeysPage() {
-	const [keys, setKeys] = useState<ApiKey[]>(initialApiKeys);
+	const queryClient = useQueryClient();
+	const { data: keys } = useSuspenseQuery(apiKeysListQueryOptions());
 	const [createOpen, setCreateOpen] = useState(false);
 	const [label, setLabel] = useState("");
 	const [newKey, setNewKey] = useState<{ raw: string; label: string } | null>(
@@ -78,24 +80,44 @@ function SettingsApiKeysPage() {
 	const [copyStatus, setCopyStatus] = useState<"idle" | "copied" | "failed">(
 		"idle",
 	);
-	const [revokeTarget, setRevokeTarget] = useState<ApiKey | null>(null);
+	const [revokeTarget, setRevokeTarget] = useState<ApiKeyResponseDto | null>(
+		null,
+	);
+	const handleMutationError = useHandleMutationError();
+
+	const createMutation = useMutation({
+		mutationFn: () => createApiKey({ data: { label: label.trim() } }),
+		onSuccess: async (created) => {
+			await queryClient.invalidateQueries({ queryKey: ["api-keys"] });
+			setLabel("");
+			setCreateOpen(false);
+			setCopyStatus("idle");
+			if (created.rawKey) {
+				setNewKey({ raw: created.rawKey, label: created.label });
+			}
+		},
+		onError: (error) =>
+			handleMutationError(error, {
+				fallbackMessage: "Couldn't create the key.",
+			}),
+	});
+
+	const revokeMutation = useMutation({
+		mutationFn: (apiKeyId: string) => revokeApiKey({ data: { apiKeyId } }),
+		onSuccess: async () => {
+			await queryClient.invalidateQueries({ queryKey: ["api-keys"] });
+			toast.success("API key revoked");
+			setRevokeTarget(null);
+		},
+		onError: (error) =>
+			handleMutationError(error, {
+				fallbackMessage: "Couldn't revoke the key.",
+			}),
+	});
 
 	function handleCreate() {
 		if (!label.trim()) return;
-		const { raw, prefix } = generateApiKey();
-		const created: ApiKey = {
-			id: `key_${Date.now()}`,
-			label: label.trim(),
-			prefix,
-			status: "active",
-			createdAt: new Date().toISOString(),
-			lastUsedAt: null,
-		};
-		setKeys((prev) => [created, ...prev]);
-		setLabel("");
-		setCreateOpen(false);
-		setCopyStatus("idle");
-		setNewKey({ raw, label: created.label });
+		createMutation.mutate();
 	}
 
 	async function copyRawKey() {
@@ -111,13 +133,7 @@ function SettingsApiKeysPage() {
 
 	function handleRevoke() {
 		if (!revokeTarget) return;
-		setKeys((prev) =>
-			prev.map((k) =>
-				k.id === revokeTarget.id ? { ...k, status: "revoked" } : k,
-			),
-		);
-		toast.success("API key revoked");
-		setRevokeTarget(null);
+		revokeMutation.mutate(revokeTarget.id);
 	}
 
 	const hasAnyKeys = keys.length > 0;
@@ -206,14 +222,12 @@ function SettingsApiKeysPage() {
 												{key.lastUsedAt ? formatDate(key.lastUsedAt) : "Never"}
 											</TableCell>
 											<TableCell>
-												<StatusBadge
-													tone={key.status === "active" ? "success" : "neutral"}
-												>
-													{key.status === "active" ? "Active" : "Revoked"}
+												<StatusBadge tone={key.active ? "success" : "neutral"}>
+													{key.active ? "Active" : "Revoked"}
 												</StatusBadge>
 											</TableCell>
 											<TableCell>
-												{key.status === "active" && (
+												{key.active && (
 													<Button
 														variant="ghost"
 														size="sm"
@@ -242,17 +256,16 @@ function SettingsApiKeysPage() {
 											{key.label}
 										</span>
 										<div className="flex items-center gap-2">
-											<StatusBadge
-												tone={key.status === "active" ? "success" : "neutral"}
-											>
-												{key.status === "active" ? "Active" : "Revoked"}
+											<StatusBadge tone={key.active ? "success" : "neutral"}>
+												{key.active ? "Active" : "Revoked"}
 											</StatusBadge>
-											{key.status === "active" && (
+											{key.active && (
 												<DropdownMenu>
 													<DropdownMenuTrigger asChild>
 														<Button
 															variant="ghost"
 															size="icon-sm"
+															aria-label="API key actions"
 															className="shrink-0 text-(--ink-3) hover:text-(--ink)"
 														>
 															<DotsThreeIcon className="size-5" weight="bold" />
@@ -345,10 +358,17 @@ function SettingsApiKeysPage() {
 						</Button>
 						<Button
 							onClick={handleCreate}
-							disabled={!label.trim()}
+							disabled={!label.trim() || createMutation.isPending}
 							className="border-0 bg-(--brand) text-(--brand-fg) hover:bg-(--brand)/90"
 						>
-							Create key
+							{createMutation.isPending ? (
+								<>
+									<Spinner data-icon="inline-start" />
+									Creating…
+								</>
+							) : (
+								"Create key"
+							)}
 						</Button>
 					</DialogFooter>
 				</DialogContent>
@@ -424,8 +444,19 @@ function SettingsApiKeysPage() {
 						>
 							Cancel
 						</Button>
-						<Button variant="destructive" onClick={handleRevoke}>
-							Revoke
+						<Button
+							variant="destructive"
+							onClick={handleRevoke}
+							disabled={revokeMutation.isPending}
+						>
+							{revokeMutation.isPending ? (
+								<>
+									<Spinner data-icon="inline-start" />
+									Revoking…
+								</>
+							) : (
+								"Revoke"
+							)}
 						</Button>
 					</DialogFooter>
 				</DialogContent>

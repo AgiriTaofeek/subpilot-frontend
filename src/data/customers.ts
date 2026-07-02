@@ -1,7 +1,38 @@
+import { queryOptions } from "@tanstack/react-query";
+
 import {
 	type SubscriptionStatus,
 	subscriptions,
 } from "#/data/subscriptions.ts";
+import {
+	getCustomerDetail,
+	listCustomerSummaries,
+} from "#/lib/api/customers.ts";
+
+export interface CustomerSummary {
+	id: string;
+	name: string;
+	email: string;
+	phone: string;
+	cardBrand: string;
+	cardLast4: string;
+	cardExpiry: string;
+	createdAt: string;
+	subscriptionSummary: Array<{ status: SubscriptionStatus; count: number }>;
+	mostRecentSubscriptionUpdate: string | null;
+}
+
+export const customersListQueryOptions = () =>
+	queryOptions({
+		queryKey: ["customers"],
+		queryFn: () => listCustomerSummaries(),
+	});
+
+export const customerDetailQueryOptions = (customerId: string) =>
+	queryOptions({
+		queryKey: ["customers", customerId],
+		queryFn: () => getCustomerDetail({ data: { customerId } }),
+	});
 
 export interface Customer {
 	id: string;
@@ -16,19 +47,6 @@ export interface Customer {
 
 export function subscriptionsForCustomer(email: string) {
 	return subscriptions.filter((s) => s.customerEmail === email);
-}
-
-export function subscriptionSummaryForCustomer(
-	email: string,
-): Array<{ status: SubscriptionStatus; count: number }> {
-	const counts = new Map<SubscriptionStatus, number>();
-	for (const s of subscriptionsForCustomer(email)) {
-		counts.set(s.status, (counts.get(s.status) ?? 0) + 1);
-	}
-	return Array.from(counts.entries()).map(([status, count]) => ({
-		status,
-		count,
-	}));
 }
 
 export function mostRecentSubscriptionUpdate(email: string): string | null {

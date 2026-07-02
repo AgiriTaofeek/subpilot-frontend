@@ -1,5 +1,6 @@
 import {
 	ArrowsClockwiseIcon,
+	ChartBarIcon,
 	ChartLineUpIcon,
 	ClipboardTextIcon,
 	ClockClockwiseIcon,
@@ -33,6 +34,12 @@ const navItems = [
 		href: "/overview",
 		icon: SquaresFourIcon,
 		activePrefix: "/overview",
+	},
+	{
+		label: "Analytics",
+		href: "/analytics",
+		icon: ChartBarIcon,
+		activePrefix: "/analytics",
 	},
 	{
 		label: "Plans",
@@ -174,14 +181,14 @@ export function DashboardSidebar({
 						</div>
 					</SidebarMenuItem>
 					<SidebarMenuItem>
-						<button
-							type="button"
+						<SidebarMenuButton
 							onClick={handleLogout}
-							className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-left text-sidebar-foreground/60 hover:bg-sidebar-accent hover:text-sidebar-foreground"
+							tooltip="Log out"
+							className="text-sidebar-foreground/60 hover:text-sidebar-foreground"
 						>
 							<SignOutIcon />
 							<span>Log out</span>
-						</button>
+						</SidebarMenuButton>
 					</SidebarMenuItem>
 				</SidebarMenu>
 			</SidebarFooter>

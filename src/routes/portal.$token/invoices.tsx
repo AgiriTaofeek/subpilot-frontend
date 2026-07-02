@@ -26,6 +26,7 @@ import {
 import { resolvePortalToken } from "#/data/portal.ts";
 import type { Subscription } from "#/data/subscriptions.ts";
 import { formatNGN } from "#/lib/currency.ts";
+import { formatDate } from "#/lib/date.ts";
 
 export const Route = createFileRoute("/portal/$token/invoices")({
 	component: PortalInvoicesPage,
@@ -45,14 +46,6 @@ const statusTone: Record<InvoiceStatus, "success" | "warning" | "neutral"> = {
 	void: "neutral",
 	failed: "warning",
 };
-
-function formatDate(iso: string): string {
-	return new Date(iso).toLocaleDateString("en-US", {
-		month: "short",
-		day: "numeric",
-		year: "numeric",
-	});
-}
 
 function emptyStateCopy(subscription: Subscription): string {
 	if (subscription.status === "trialing") {
@@ -116,7 +109,16 @@ function PortalInvoicesPage() {
 									<TableRow
 										key={invoice.id}
 										onClick={() => setSelectedId(invoice.id)}
-										className="cursor-pointer border-(--line) hover:bg-(--surface-2)"
+										onKeyDown={(e) => {
+											if (e.key === "Enter" || e.key === " ") {
+												e.preventDefault();
+												setSelectedId(invoice.id);
+											}
+										}}
+										tabIndex={0}
+										role="button"
+										aria-label={`View invoice ${invoice.number}`}
+										className="cursor-pointer border-(--line) hover:bg-(--surface-2) focus-visible:outline-2 focus-visible:outline-(--brand) focus-visible:-outline-offset-2"
 									>
 										<TableCell className="text-(--ink-3)">
 											{formatDate(invoice.createdAt)}

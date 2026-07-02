@@ -1,3 +1,4 @@
+import { useSuspenseQuery } from "@tanstack/react-query";
 import {
 	createFileRoute,
 	Link,
@@ -45,17 +46,16 @@ import {
 import {
 	invoiceStatusLabel,
 	invoiceStatusTone,
-	invoices,
+	invoicesListQueryOptions,
 } from "#/data/invoices.ts";
 import {
-	priorRevenueForWindow,
+	dailyChartForWindow,
+	ledgerInvoicesForWindow,
 	type RevenueWindow,
-	revenueForWindow,
-	sumFee,
-	sumGross,
-	sumNet,
+	revenueSummaryQueryOptions,
 } from "#/data/revenue.ts";
 import { formatNGN } from "#/lib/currency.ts";
+import { formatChartDate } from "#/lib/date.ts";
 
 const revenueWindows = ["7d", "30d", "90d"] as const;
 
@@ -70,6 +70,15 @@ export const Route = createFileRoute("/_dashboard/revenue")({
 	search: {
 		middlewares: [stripSearchParams(defaultRevenueSearch)],
 	},
+	loaderDeps: ({ search }) => ({ window: search.window }),
+	loader: async ({ context, deps }) => {
+		await Promise.all([
+			context.queryClient.ensureQueryData(invoicesListQueryOptions()),
+			context.queryClient.ensureQueryData(
+				revenueSummaryQueryOptions(deps.window),
+			),
+		]);
+	},
 	component: RevenuePage,
 	head: () => ({ meta: [{ title: "Revenue | SubPilot" }] }),
 });
@@ -83,16 +92,14 @@ function windowLabelText(window: RevenueWindow): string {
 	return window === "7d" ? "7 days" : window === "30d" ? "30 days" : "90 days";
 }
 
-function formatChartDate(dateStr: string): string {
-	return new Date(dateStr).toLocaleDateString("en-US", {
-		month: "short",
-		day: "numeric",
-	});
-}
-
 function RevenuePage() {
 	const { window } = Route.useSearch();
 	const navigate = useNavigate({ from: Route.fullPath });
+
+	const { data: allInvoices } = useSuspenseQuery(invoicesListQueryOptions());
+	const { data: summary } = useSuspenseQuery(
+		revenueSummaryQueryOptions(window),
+	);
 
 	function handleWindowChange(value: string) {
 		if (!value) return;
@@ -124,36 +131,28 @@ function RevenuePage() {
 		URL.revokeObjectURL(url);
 	}
 
-	const currentDays = revenueForWindow(window);
-	const priorDays = priorRevenueForWindow(window);
-
-	const grossKobo = sumGross(currentDays);
-	const feeKobo = sumFee(currentDays);
-	const netKobo = sumNet(currentDays);
-	const priorNetKobo = sumNet(priorDays);
+	const grossKobo = summary.current.totalGrossAmount;
+	const feeKobo = summary.current.totalFeeAmount;
+	const netKobo = summary.current.totalNetAmount;
+	const priorNetKobo = summary.prior.totalNetAmount;
 	const feeRate = grossKobo > 0 ? (feeKobo / grossKobo) * 100 : 0;
+	const feeBpsPercent = summary.rate.feeBps / 100;
 
-	const hasDelta = priorDays.length > 0 && priorNetKobo > 0;
+	const hasDelta = priorNetKobo > 0;
 	const deltaPct = hasDelta
 		? ((netKobo - priorNetKobo) / priorNetKobo) * 100
 		: 0;
 	const isUp = deltaPct >= 0;
 
-	const chartData = currentDays.map((d) => ({
+	const chartData = dailyChartForWindow(allInvoices, window).map((d) => ({
 		date: d.date,
 		gross: d.grossKobo,
 		net: d.netKobo,
 	}));
 
-	const windowStart = currentDays[0]?.date ?? null;
-	const ledgerInvoices = invoices
-		.filter((i) => !windowStart || i.createdAt.slice(0, 10) >= windowStart)
-		.sort(
-			(a, b) =>
-				new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-		);
+	const ledgerInvoices = ledgerInvoicesForWindow(allInvoices, window);
 
-	const hasAnyRevenue = invoices.length > 0;
+	const hasAnyRevenue = allInvoices.length > 0;
 
 	if (!hasAnyRevenue) {
 		return (
@@ -279,13 +278,14 @@ function RevenuePage() {
 				<Tooltip>
 					<TooltipTrigger asChild>
 						<span className="cursor-help underline decoration-dotted underline-offset-2">
-							1.5%
+							{feeBpsPercent}%
 						</span>
 					</TooltipTrigger>
-					<TooltipContent>150 basis points</TooltipContent>
+					<TooltipContent>{summary.rate.feeBps} basis points</TooltipContent>
 				</Tooltip>{" "}
-				+ ₦100 per successful payment. Fees are deducted from gross before net
-				is calculated.
+				+ {formatNGN(summary.rate.feeFixedMinor)} per successful payment.
+				{summary.rate.isOverride && " This rate is a custom override."} Fees are
+				deducted from gross before net is calculated.
 			</div>
 
 			<Card className="border border-(--line) bg-(--surface-1) shadow-none">

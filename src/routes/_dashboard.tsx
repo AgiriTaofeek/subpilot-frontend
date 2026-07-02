@@ -11,7 +11,6 @@ import { RouteErrorFallback } from "#/components/layout/route-error-fallback.tsx
 import { Button } from "#/components/ui/button.tsx";
 import { SidebarInset, SidebarProvider } from "#/components/ui/sidebar.tsx";
 import { getMerchantSession } from "#/lib/api/auth.ts";
-import { isUnauthenticatedBackendError } from "#/lib/api/backend.ts";
 import { isSessionError } from "#/lib/api/is-session-error.ts";
 
 export const Route = createFileRoute("/_dashboard")({
@@ -20,7 +19,17 @@ export const Route = createFileRoute("/_dashboard")({
 			const merchantSession = await getMerchantSession();
 			return { merchantSession };
 		} catch (error) {
-			if (isUnauthenticatedBackendError(error)) {
+			// isUnauthenticatedBackendError (BackendApiError.status) only
+			// works when this beforeLoad runs server-side during SSR — the
+			// error stays in-process, so its class survives. On a
+			// client-side navigation (e.g. right after signup/login),
+			// getMerchantSession() is called over the createServerFn RPC
+			// bridge, which strips BackendApiError down to a plain Error
+			// with only .message intact. Classifying on the message
+			// (isSessionError, same helper RootErrorFallback and
+			// useHandleMutationError already use) works in both cases.
+			const message = error instanceof Error ? error.message : String(error);
+			if (isSessionError(message)) {
 				throw redirect({ to: "/auth/login" });
 			}
 
