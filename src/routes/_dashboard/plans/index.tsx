@@ -472,7 +472,7 @@ function PlansListPage() {
 							placeholder="Search plans…"
 							value={q}
 							onChange={(e) => handleSearchChange(e.target.value)}
-							className="border-(--line) bg-(--surface) pl-9 focus-visible:ring-(--brand)/30"
+							className="border-(--line) bg-(--surface) pl-9 pr-3 focus-visible:ring-(--brand)/30"
 						/>
 					</div>
 				</div>

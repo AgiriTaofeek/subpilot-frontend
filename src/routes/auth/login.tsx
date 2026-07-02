@@ -143,7 +143,7 @@ function LoginPage() {
 										>
 											Password
 										</FieldLabel>
-										<InputGroup className="rounded-md border-(--line) bg-(--surface)">
+										<InputGroup className="rounded-md border-(--line) bg-(--surface) px-3">
 											<InputGroupInput
 												id="password"
 												name={field.name}
@@ -157,7 +157,6 @@ function LoginPage() {
 													field.handleChange(e.target.value);
 												}}
 												aria-invalid={hasError}
-												className="px-3"
 											/>
 											<InputGroupAddon align="inline-end">
 												<InputGroupButton

@@ -214,7 +214,7 @@ function SignupPage() {
 										>
 											Password
 										</FieldLabel>
-										<InputGroup className="rounded-md border-(--line) bg-(--surface)">
+										<InputGroup className="rounded-md border-(--line) bg-(--surface) px-3">
 											<InputGroupInput
 												id="password"
 												name={field.name}
@@ -225,7 +225,6 @@ function SignupPage() {
 												onBlur={field.handleBlur}
 												onChange={(e) => field.handleChange(e.target.value)}
 												aria-invalid={isInvalid}
-												className="px-3"
 											/>
 											<InputGroupAddon align="inline-end">
 												<InputGroupButton

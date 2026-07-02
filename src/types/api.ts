@@ -383,3 +383,48 @@ export interface AuditLogDto {
 	afterSnapshot: string | null;
 	createdAt: string;
 }
+
+export interface PortalSubscriptionViewDto {
+	subscriptionId: string;
+	status: SubscriptionStatusDto;
+	planName: string;
+	planAmount: number;
+	currency: string;
+	billingInterval: string;
+	currentPeriodStart: string;
+	currentPeriodEnd: string;
+	nextBillingDate: string;
+	trialEndsAt: string | null;
+	cancelAtPeriodEnd: boolean;
+	cardLast4: string | null;
+	cardBrand: string | null;
+}
+
+export interface PortalInvoiceViewDto {
+	invoiceId: string;
+	invoiceNumber: string;
+	amount: number;
+	currency: string;
+	status: InvoiceStatusDto;
+	dueDate: string;
+	paidAt: string | null;
+	periodStart: string;
+	periodEnd: string;
+}
+
+export interface PortalAvailablePlanDto {
+	planId: string;
+	name: string;
+	amount: number;
+	currency: string;
+	billingInterval: string;
+}
+
+export interface PortalCancelRequestDto {
+	reason?: string;
+}
+
+export interface PortalUpdateCardResponseDto {
+	checkoutUrl: string;
+	reference: string;
+}

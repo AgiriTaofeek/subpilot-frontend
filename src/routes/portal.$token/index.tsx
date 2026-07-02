@@ -1,4 +1,9 @@
 import { WarningCircleIcon } from "@phosphor-icons/react";
+import {
+	useMutation,
+	useQueryClient,
+	useSuspenseQuery,
+} from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -14,17 +19,19 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "#/components/ui/dialog.tsx";
+import { Spinner } from "#/components/ui/spinner.tsx";
 import { StatusBadge } from "#/components/ui/status-badge.tsx";
 import { Textarea } from "#/components/ui/textarea.tsx";
-import { formatInterval, plans } from "#/data/plans.ts";
-import { resolvePortalToken } from "#/data/portal.ts";
+import { portalSubscriptionQueryOptions } from "#/data/portal.ts";
+import { formatRelativeBillingDate } from "#/data/subscriptions.ts";
+import { CATEGORY_COPY, classifyError } from "#/lib/api/classify-error.ts";
 import {
-	formatRelativeBillingDate,
-	planNameFor,
-	type Subscription,
-} from "#/data/subscriptions.ts";
+	cancelPortalSubscription,
+	updatePortalCard,
+} from "#/lib/api/portal.ts";
 import { formatNGN } from "#/lib/currency.ts";
 import { formatDateLong as formatDate } from "#/lib/date.ts";
+import type { PortalSubscriptionViewDto } from "#/types/api.ts";
 
 export const Route = createFileRoute("/portal/$token/")({
 	component: PortalOverviewPage,
@@ -39,7 +46,7 @@ type PortalUiState =
 	| "paused"
 	| "expired";
 
-function resolveUiState(sub: Subscription): PortalUiState {
+function resolveUiState(sub: PortalSubscriptionViewDto): PortalUiState {
 	if (sub.status === "expired") return "expired";
 	if (sub.status === "cancelled") return "cancelled_ended";
 	if (sub.status === "paused") return "paused";
@@ -68,38 +75,44 @@ const statusTone: Record<PortalUiState, "success" | "warning" | "neutral"> = {
 
 function PortalOverviewPage() {
 	const { token } = Route.useParams();
-	const context = resolvePortalToken(token);
-	const [subscription, setSubscription] = useState<Subscription | null>(
-		context?.subscription ?? null,
+	const queryClient = useQueryClient();
+	const { data: subscription } = useSuspenseQuery(
+		portalSubscriptionQueryOptions(token),
 	);
 	const [cancelDialogOpen, setCancelDialogOpen] = useState(false);
 	const [cancelReason, setCancelReason] = useState("");
 
-	if (!subscription || !context) return null;
-
 	const uiState = resolveUiState(subscription);
-	const plan = plans.find((p) => p.id === subscription.planId);
 
-	function handleConfirmCancel() {
-		setSubscription((prev) =>
-			prev ? { ...prev, cancelAtPeriodEnd: true } : prev,
-		);
-		setCancelDialogOpen(false);
-		setCancelReason("");
-		toast.success("Cancellation scheduled");
-	}
+	const cancelMutation = useMutation({
+		mutationFn: (reason: string) =>
+			cancelPortalSubscription({
+				data: { token, reason: reason || undefined },
+			}),
+		onSuccess: async () => {
+			await queryClient.invalidateQueries({
+				queryKey: portalSubscriptionQueryOptions(token).queryKey,
+			});
+			setCancelDialogOpen(false);
+			setCancelReason("");
+			toast.success("Cancellation scheduled");
+		},
+		onError: (error) => {
+			const message = error instanceof Error ? error.message : String(error);
+			toast.error(CATEGORY_COPY[classifyError(message)]);
+		},
+	});
 
-	function handleUndoCancel() {
-		setSubscription((prev) =>
-			prev ? { ...prev, cancelAtPeriodEnd: false } : prev,
-		);
-		toast.success("Cancellation undone");
-	}
-
-	function handleResume() {
-		setSubscription((prev) => (prev ? { ...prev, status: "active" } : prev));
-		toast.success("Billing resumed");
-	}
+	const updateCardMutation = useMutation({
+		mutationFn: () => updatePortalCard({ data: { token } }),
+		onSuccess: (result) => {
+			window.location.assign(result.checkoutUrl);
+		},
+		onError: (error) => {
+			const message = error instanceof Error ? error.message : String(error);
+			toast.error(CATEGORY_COPY[classifyError(message)]);
+		},
+	});
 
 	return (
 		<div className="flex flex-col gap-5">
@@ -107,7 +120,7 @@ function PortalOverviewPage() {
 				<CardContent className="flex flex-col gap-4 pt-6">
 					<div className="flex items-center justify-between gap-3">
 						<h1 className="text-xl font-semibold tracking-tight text-(--ink)">
-							{planNameFor(subscription.planId)}
+							{subscription.planName}
 						</h1>
 						<StatusBadge tone={statusTone[uiState]}>
 							{statusLabel[uiState]}
@@ -126,16 +139,19 @@ function PortalOverviewPage() {
 						<div>
 							<p className="m-0 text-(--ink-3)">Amount</p>
 							<p className="m-0 mt-0.5 font-medium text-(--ink)">
-								{formatNGN(subscription.amountKobo)}
-								{plan && ` / ${formatInterval(plan.interval).toLowerCase()}`}
+								{formatNGN(subscription.planAmount)} /{" "}
+								{subscription.billingInterval}
 							</p>
 						</div>
-						<div className="col-span-2">
-							<p className="m-0 text-(--ink-3)">Card on file</p>
-							<p className="m-0 mt-0.5 font-medium text-(--ink)">
-								{context.cardBrand} •••• {context.cardLast4}
-							</p>
-						</div>
+						{(subscription.cardBrand || subscription.cardLast4) && (
+							<div className="col-span-2">
+								<p className="m-0 text-(--ink-3)">Card on file</p>
+								<p className="m-0 mt-0.5 font-medium text-(--ink)">
+									{subscription.cardBrand ?? "Card"} ••••{" "}
+									{subscription.cardLast4 ?? "----"}
+								</p>
+							</div>
+						)}
 					</div>
 
 					{uiState === "past_due" && (
@@ -160,7 +176,7 @@ function PortalOverviewPage() {
 
 					{uiState === "paused" && (
 						<p className="m-0 text-sm text-(--ink-2)">
-							Billing is paused. Your access continues.
+							Billing is paused. Contact the business to resume.
 						</p>
 					)}
 
@@ -181,78 +197,59 @@ function PortalOverviewPage() {
 
 			{(uiState === "active" ||
 				uiState === "past_due" ||
-				uiState === "scheduled_cancel") && (
+				uiState === "scheduled_cancel" ||
+				uiState === "paused") && (
 				<div className="flex flex-col gap-3">
 					<div>
 						<Button
-							asChild
+							onClick={() => updateCardMutation.mutate()}
+							disabled={updateCardMutation.isPending}
 							className="w-full border-0 bg-(--brand) text-(--brand-fg) hover:bg-(--brand)/90"
 						>
-							<Link to="/portal/$token/card-updated" params={{ token }}>
-								Update card
-							</Link>
+							{updateCardMutation.isPending ? (
+								<>
+									<Spinner data-icon="inline-start" />
+									Redirecting…
+								</>
+							) : (
+								"Update card"
+							)}
 						</Button>
 						<p className="mt-1 text-xs text-(--ink-3)">
 							You'll be redirected to a secure Nomba flow.
 						</p>
 					</div>
-					<div>
-						<Button
-							asChild
-							variant="outline"
-							className="w-full border-(--line)"
-						>
-							<Link to="/portal/$token/plans" params={{ token }}>
-								Change plan
-							</Link>
-						</Button>
-						<p className="mt-1 text-xs text-(--ink-3)">
-							We'll show any credit or additional charge before you confirm.
-						</p>
-					</div>
-					<div>
-						{uiState === "scheduled_cancel" ? (
+					{uiState !== "paused" && (
+						<div>
 							<Button
+								asChild
 								variant="outline"
-								onClick={handleUndoCancel}
 								className="w-full border-(--line)"
 							>
-								Undo cancellation
+								<Link to="/portal/$token/plans" params={{ token }}>
+									Change plan
+								</Link>
 							</Button>
-						) : (
-							<>
-								<Button
-									variant="outline"
-									onClick={() => setCancelDialogOpen(true)}
-									className="w-full border-destructive/30 text-destructive hover:bg-destructive/10"
-								>
-									Cancel subscription
-								</Button>
-								<p className="mt-1 text-xs text-(--ink-3)">
-									Your access continues until the end of the current billing
-									period.
-								</p>
-							</>
-						)}
-					</div>
-				</div>
-			)}
-
-			{uiState === "paused" && (
-				<div className="flex flex-col gap-3">
-					<Button
-						onClick={handleResume}
-						className="w-full border-0 bg-(--brand) text-(--brand-fg) hover:bg-(--brand)/90"
-					>
-						Resume billing
-					</Button>
-					<Button
-						variant="outline"
-						onClick={() => setCancelDialogOpen(true)}
-						className="w-full border-destructive/30 text-destructive hover:bg-destructive/10"
-					>
-						Cancel subscription
-					</Button>
+							<p className="mt-1 text-xs text-(--ink-3)">
+								We'll show any credit or additional charge before you confirm.
+							</p>
+						</div>
+					)}
+					{uiState !== "scheduled_cancel" && (
+						<div>
+							<Button
+								variant="outline"
+								onClick={() => setCancelDialogOpen(true)}
+								className="w-full border-destructive/30 text-destructive hover:bg-destructive/10"
+							>
+								Cancel subscription
+							</Button>
+							<p className="mt-1 text-xs text-(--ink-3)">
+								Your access continues until the end of the current billing
+								period.
+							</p>
+						</div>
+					)}
 				</div>
 			)}
 
@@ -297,8 +294,19 @@ function PortalOverviewPage() {
 						>
 							Keep subscription
 						</Button>
-						<Button variant="destructive" onClick={handleConfirmCancel}>
-							Cancel subscription
+						<Button
+							variant="destructive"
+							onClick={() => cancelMutation.mutate(cancelReason)}
+							disabled={cancelMutation.isPending}
+						>
+							{cancelMutation.isPending ? (
+								<>
+									<Spinner data-icon="inline-start" />
+									Cancelling…
+								</>
+							) : (
+								"Cancel subscription"
+							)}
 						</Button>
 					</DialogFooter>
 				</DialogContent>

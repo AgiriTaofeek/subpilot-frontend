@@ -18,6 +18,14 @@ import {
 	CardTitle,
 } from "#/components/ui/card.tsx";
 import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "#/components/ui/dialog.tsx";
+import {
 	Field,
 	FieldContent,
 	FieldError,
@@ -50,9 +58,11 @@ export const Route = createFileRoute("/_dashboard/plans/new")({
 });
 
 const intervalSchema = z.discriminatedUnion("kind", [
-	z.object({ kind: z.literal("monthly") }),
-	z.object({ kind: z.literal("annual") }),
+	z.object({ kind: z.literal("daily") }),
 	z.object({ kind: z.literal("weekly") }),
+	z.object({ kind: z.literal("monthly") }),
+	z.object({ kind: z.literal("quarterly") }),
+	z.object({ kind: z.literal("annual") }),
 	z.object({
 		kind: z.literal("custom"),
 		count: z.number().min(1, "Enter a number of at least 1."),
@@ -72,9 +82,11 @@ const schema = z.object({
 });
 
 const intervalPresets = [
-	{ value: "monthly", label: "Monthly" },
-	{ value: "annual", label: "Yearly" },
+	{ value: "daily", label: "Daily" },
 	{ value: "weekly", label: "Weekly" },
+	{ value: "monthly", label: "Monthly" },
+	{ value: "quarterly", label: "Quarterly" },
+	{ value: "annual", label: "Yearly" },
 	{ value: "custom", label: "Custom" },
 ] as const;
 
@@ -136,9 +148,10 @@ function NewPlanPage() {
 		},
 	});
 
-	useBlocker({
+	const { proceed, reset, status } = useBlocker({
 		shouldBlockFn: () => form.state.isDirty,
 		enableBeforeUnload: () => form.state.isDirty,
+		withResolver: true,
 	});
 
 	return (
@@ -309,7 +322,12 @@ function NewPlanPage() {
 														});
 													} else {
 														field.handleChange({
-															kind: value as "monthly" | "annual" | "weekly",
+															kind: value as
+																| "daily"
+																| "weekly"
+																| "monthly"
+																| "quarterly"
+																| "annual",
 														});
 													}
 												}}
@@ -542,6 +560,32 @@ function NewPlanPage() {
 					</div>
 				</div>
 			</form>
+
+			<Dialog
+				open={status === "blocked"}
+				onOpenChange={(open) => !open && reset?.()}
+			>
+				<DialogContent>
+					<DialogHeader>
+						<DialogTitle>Discard unsaved plan?</DialogTitle>
+						<DialogDescription>
+							You have unsaved changes that will be lost if you leave this page.
+						</DialogDescription>
+					</DialogHeader>
+					<DialogFooter>
+						<Button
+							variant="outline"
+							onClick={() => reset?.()}
+							className="border-(--line)"
+						>
+							Keep editing
+						</Button>
+						<Button variant="destructive" onClick={() => proceed?.()}>
+							Discard and leave
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 		</div>
 	);
 }

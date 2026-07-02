@@ -1,9 +1,10 @@
 import { CheckCircleIcon } from "@phosphor-icons/react";
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 
 import { Button } from "#/components/ui/button.tsx";
-import { resolvePortalToken } from "#/data/portal.ts";
+import { portalSubscriptionQueryOptions } from "#/data/portal.ts";
 
 export const Route = createFileRoute("/portal/$token/card-updated")({
 	component: PortalCardUpdatedPage,
@@ -15,24 +16,9 @@ const AUTO_REDIRECT_MS = 8000;
 function PortalCardUpdatedPage() {
 	const { token } = Route.useParams();
 	const navigate = useNavigate();
-	const [cardInfo, setCardInfo] = useState<{
-		brand: string;
-		last4: string;
-	} | null>(null);
-	const [refetchFailed, setRefetchFailed] = useState(false);
-
-	// Simulate refetching the portal subscription to confirm the updated card.
-	useEffect(() => {
-		const timer = setTimeout(() => {
-			const context = resolvePortalToken(token);
-			if (context) {
-				setCardInfo({ brand: context.cardBrand, last4: context.cardLast4 });
-			} else {
-				setRefetchFailed(true);
-			}
-		}, 400);
-		return () => clearTimeout(timer);
-	}, [token]);
+	const { data: subscription } = useSuspenseQuery(
+		portalSubscriptionQueryOptions(token),
+	);
 
 	useEffect(() => {
 		const redirectTimer = setTimeout(() => {
@@ -65,9 +51,10 @@ function PortalCardUpdatedPage() {
 				<p className="m-0 text-sm text-(--ink-3)">
 					Your next billing will use the updated card.
 				</p>
-				{cardInfo && !refetchFailed && (
+				{subscription.cardBrand && subscription.cardLast4 && (
 					<p className="m-0 text-sm text-(--ink-2)">
-						New card on file: {cardInfo.brand} •••• {cardInfo.last4}
+						New card on file: {subscription.cardBrand} ••••{" "}
+						{subscription.cardLast4}
 					</p>
 				)}
 			</div>

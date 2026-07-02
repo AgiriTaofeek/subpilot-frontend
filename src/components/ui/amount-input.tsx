@@ -25,7 +25,7 @@ const AmountInput = React.forwardRef<HTMLInputElement, AmountInputProps>(
 		}, [value]);
 
 		return (
-			<InputGroup className="rounded-md border-(--line) bg-(--surface)">
+			<InputGroup className="rounded-md border-(--line) bg-(--surface) px-3">
 				<InputGroupAddon className="text-(--ink-3)">₦</InputGroupAddon>
 				<InputGroupInput
 					ref={ref}

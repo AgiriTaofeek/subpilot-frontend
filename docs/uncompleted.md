@@ -1,6 +1,5 @@
-1. Real backend wiring — done except the customer portal
-   Plans, subscriptions, customers, invoices, dunning, events, revenue, webhooks, webhook-deliveries, api-keys, account, analytics, and audit-log are all wired to the real backend (createServerFn in src/lib/api/, TanStack Query options factories in src/data/).
-   The one remaining domain still on static mock data is the customer-facing portal (src/routes/portal.$token/**, backed by src/data/portal.ts) — it stays on mocks because the real portal endpoints currently 500 on the backend (see BACKEND-GAPS.md Gap 3, the PortalController @PathVariable mismatch). No frontend work is blocked here; it's waiting on that backend fix.
+1. Real backend wiring — done, including the customer portal
+   Plans, subscriptions, customers, invoices, dunning, events, revenue, webhooks, webhook-deliveries, api-keys, account, analytics, audit-log, and the customer-facing portal (src/routes/portal.$token/**, src/lib/api/portal.ts) are all wired to the real backend (createServerFn in src/lib/api/, TanStack Query options factories in src/data/). The portal was the last holdout — it was on mock data until 2026-07-02 because its backend endpoints previously 500'd (BACKEND-GAPS.md Gap 3, a PortalController @PathVariable mismatch); that's now fixed and verified live end-to-end. No mock data remains anywhere in the app.
 
 2. Error/loading UX strategy — implemented
    docs/frontend-error-and-loading-strategy.md's plan has been built out:

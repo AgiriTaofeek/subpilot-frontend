@@ -1,3 +1,4 @@
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 
@@ -18,64 +19,31 @@ import {
 	TableHeader,
 	TableRow,
 } from "#/components/ui/table.tsx";
-import {
-	invoices as allInvoices,
-	type Invoice,
-	type InvoiceStatus,
-} from "#/data/invoices.ts";
-import { resolvePortalToken } from "#/data/portal.ts";
-import type { Subscription } from "#/data/subscriptions.ts";
+import { invoiceStatusLabel, invoiceStatusTone } from "#/data/invoices.ts";
+import { portalInvoicesQueryOptions } from "#/data/portal.ts";
 import { formatNGN } from "#/lib/currency.ts";
 import { formatDate } from "#/lib/date.ts";
+import type { PortalInvoiceViewDto } from "#/types/api.ts";
 
 export const Route = createFileRoute("/portal/$token/invoices")({
+	loader: async ({ context, params }) => {
+		await context.queryClient.ensureQueryData(
+			portalInvoicesQueryOptions(params.token),
+		);
+	},
 	component: PortalInvoicesPage,
 	head: () => ({ meta: [{ title: "Invoices | SubPilot" }] }),
 });
 
-const statusLabel: Record<InvoiceStatus, string> = {
-	paid: "Paid",
-	open: "Open",
-	void: "Void",
-	failed: "Payment pending",
-};
-
-const statusTone: Record<InvoiceStatus, "success" | "warning" | "neutral"> = {
-	paid: "success",
-	open: "warning",
-	void: "neutral",
-	failed: "warning",
-};
-
-function emptyStateCopy(subscription: Subscription): string {
-	if (subscription.status === "trialing") {
-		return "No invoices yet. Your first invoice will appear after your trial ends.";
-	}
-	const daysSinceCreated =
-		(Date.now() - new Date(subscription.createdAt).getTime()) /
-		(1000 * 60 * 60 * 24);
-	if (daysSinceCreated < 30) {
-		return "No invoices yet. Invoices appear after each billing cycle.";
-	}
-	return "No invoices found.";
-}
-
 function PortalInvoicesPage() {
 	const { token } = Route.useParams();
-	const context = resolvePortalToken(token);
+	const { data: invoices } = useSuspenseQuery(
+		portalInvoicesQueryOptions(token),
+	);
 	const [selectedId, setSelectedId] = useState<string | null>(null);
 
-	if (!context) return null;
-	const { subscription } = context;
-
-	const invoices = allInvoices
-		.filter((i) => i.subscriptionId === subscription.id)
-		.sort(
-			(a, b) =>
-				new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-		);
-
-	const selectedInvoice = invoices.find((i) => i.id === selectedId) ?? null;
+	const selectedInvoice =
+		invoices.find((i) => i.invoiceId === selectedId) ?? null;
 
 	return (
 		<div className="flex flex-col gap-5">
@@ -87,7 +55,7 @@ function PortalInvoicesPage() {
 				<Empty className="rounded-2xl border border-dashed border-(--line) bg-(--surface-1)">
 					<EmptyHeader>
 						<EmptyTitle className="font-sans text-lg normal-case tracking-tight text-(--ink)">
-							{emptyStateCopy(subscription)}
+							No invoices found.
 						</EmptyTitle>
 					</EmptyHeader>
 				</Empty>
@@ -107,31 +75,31 @@ function PortalInvoicesPage() {
 							<TableBody>
 								{invoices.map((invoice) => (
 									<TableRow
-										key={invoice.id}
-										onClick={() => setSelectedId(invoice.id)}
+										key={invoice.invoiceId}
+										onClick={() => setSelectedId(invoice.invoiceId)}
 										onKeyDown={(e) => {
 											if (e.key === "Enter" || e.key === " ") {
 												e.preventDefault();
-												setSelectedId(invoice.id);
+												setSelectedId(invoice.invoiceId);
 											}
 										}}
 										tabIndex={0}
 										role="button"
-										aria-label={`View invoice ${invoice.number}`}
+										aria-label={`View invoice ${invoice.invoiceNumber}`}
 										className="cursor-pointer border-(--line) hover:bg-(--surface-2) focus-visible:outline-2 focus-visible:outline-(--brand) focus-visible:-outline-offset-2"
 									>
 										<TableCell className="text-(--ink-3)">
-											{formatDate(invoice.createdAt)}
+											{formatDate(invoice.dueDate)}
 										</TableCell>
 										<TableCell className="font-heading text-xs text-(--ink)">
-											{invoice.number}
+											{invoice.invoiceNumber}
 										</TableCell>
 										<TableCell className="text-(--ink-2)">
-											{formatNGN(invoice.grossKobo)}
+											{formatNGN(invoice.amount)}
 										</TableCell>
 										<TableCell>
-											<StatusBadge tone={statusTone[invoice.status]}>
-												{statusLabel[invoice.status]}
+											<StatusBadge tone={invoiceStatusTone[invoice.status]}>
+												{invoiceStatusLabel[invoice.status]}
 											</StatusBadge>
 										</TableCell>
 									</TableRow>
@@ -144,24 +112,24 @@ function PortalInvoicesPage() {
 					<div className="flex flex-col gap-3 md:hidden">
 						{invoices.map((invoice) => (
 							<button
-								key={invoice.id}
+								key={invoice.invoiceId}
 								type="button"
-								onClick={() => setSelectedId(invoice.id)}
+								onClick={() => setSelectedId(invoice.invoiceId)}
 								className="flex flex-col gap-1.5 rounded-2xl border border-(--line) bg-(--surface-1) p-4 text-left"
 							>
 								<div className="flex items-center justify-between gap-2">
 									<span className="text-sm text-(--ink-3)">
-										{formatDate(invoice.createdAt)}
+										{formatDate(invoice.dueDate)}
 									</span>
-									<StatusBadge tone={statusTone[invoice.status]}>
-										{statusLabel[invoice.status]}
+									<StatusBadge tone={invoiceStatusTone[invoice.status]}>
+										{invoiceStatusLabel[invoice.status]}
 									</StatusBadge>
 								</div>
 								<div className="text-base font-medium text-(--ink)">
-									{formatNGN(invoice.grossKobo)}
+									{formatNGN(invoice.amount)}
 								</div>
 								<div className="font-heading text-xs text-(--ink-3)">
-									{invoice.number}
+									{invoice.invoiceNumber}
 								</div>
 							</button>
 						))}
@@ -184,29 +152,29 @@ function PortalInvoicesPage() {
 	);
 }
 
-function InvoiceDetail({ invoice }: { invoice: Invoice }) {
+function InvoiceDetail({ invoice }: { invoice: PortalInvoiceViewDto }) {
 	return (
 		<>
 			<SheetHeader className="pb-4">
 				<SheetTitle className="font-sans text-lg normal-case tracking-tight text-(--ink)">
-					{invoice.number}
+					{invoice.invoiceNumber}
 				</SheetTitle>
 				<SheetDescription className="text-(--ink-2)">
-					{formatDate(invoice.createdAt)}
+					{formatDate(invoice.dueDate)}
 				</SheetDescription>
 			</SheetHeader>
 			<div className="flex flex-col gap-4 px-8 pb-8">
 				<div>
 					<p className="m-0 text-(--ink-3)">Amount</p>
 					<p className="m-0 mt-0.5 text-lg font-semibold text-(--ink)">
-						{formatNGN(invoice.grossKobo)}
+						{formatNGN(invoice.amount)}
 					</p>
 				</div>
 				<div>
 					<p className="m-0 text-(--ink-3)">Status</p>
 					<div className="mt-1">
-						<StatusBadge tone={statusTone[invoice.status]}>
-							{statusLabel[invoice.status]}
+						<StatusBadge tone={invoiceStatusTone[invoice.status]}>
+							{invoiceStatusLabel[invoice.status]}
 						</StatusBadge>
 					</div>
 					{invoice.status === "failed" && (

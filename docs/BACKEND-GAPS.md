@@ -2,7 +2,7 @@
 
 These are backend gaps that currently block parts of the frontend from being implemented cleanly.
 
-## Gap 1 — Merchant Session Lifecycle Follow-Up
+## Gap 1 — Merchant Session Lifecycle Follow-Up (RESOLVED, verified 2026-07-02)
 
 The backend now exposes the core cookie-auth pieces the frontend needed:
 
@@ -11,23 +11,35 @@ The backend now exposes the core cookie-auth pieces the frontend needed:
 - logout keyed off the refresh credential
 - CSRF protection for cookie-authenticated merchant mutations
 
-But live end-to-end verification uncovered one remaining blocker inside that
-session model:
+Live end-to-end verification had previously uncovered one remaining blocker:
 
-- a valid `_subpilot_session` cookie created by signup can still cause
+- a valid `_subpilot_session` cookie created by signup could still cause
   `GET /v1/auth/me` to return `500 internal_error`
 
-That means Gap 1 is no longer blocking implementation of the frontend auth
-surfaces, but it is still blocking a fully working live dashboard bootstrap.
+**Re-verified live on 2026-07-02** with a fresh signup → cookie jar →
+`GET /v1/auth/me` round trip: the endpoint now returns `200` with the
+correct merchant payload. No `500` reproduced. Whether this was a backend
+fix or was actually caused by the frontend's own cookie-forwarding bug (also
+fixed this session — see `forwardResponseCookies` in `src/lib/api/backend.ts`,
+which was clobbering all but the last `Set-Cookie` header) is unclear, but
+either way the full signup → session bootstrap → dashboard flow now works
+end-to-end against the live backend. No further action needed here.
 
 The remaining backend auth cleanup is now narrower and is tracked in:
 
 - `docs/backend-auth-follow-up.md`
 - `docs/backend-phase-b-handoff.md`
 
-## Gap 2 — Plan Response Omits Public-Link Fidelity
+## Gap 2 — Plan Response Omits Public-Link Fidelity (still present, re-verified 2026-07-02)
 
 The frontend can now create, list, publish, and open hosted checkout links against the real backend.
+
+Re-checked live against a fresh plan (created with a `custom` interval,
+`intervalValue: 3, intervalUnit: "weeks"`, then published): both issues
+below still reproduce exactly as described — `hostedUrl` is still
+`/plans/{slug}/{slug}`, and `intervalValue`/`intervalUnit` are absent
+from every response (create, publish, and a plain `GET`), even though
+they were sent on creation. Neither is fixed on the backend yet.
 
 Two plan-response gaps still force frontend workarounds:
 
@@ -46,43 +58,45 @@ What the backend should ideally return:
 
 This does not block the tracer-bullet demo, but it does block exact parity between the form input and the persisted/displayed plan.
 
-## Gap 3 — Portal Endpoints Return 500 on Every Request (root cause found)
+## Gap 3 — Portal Endpoints Return 500 on Every Request (RESOLVED, verified 2026-07-02)
 
-All subscriber-facing portal endpoints return `500 internal_error` for every
-request tried, including with a freshly-issued, valid subscription token.
-Verified live (2026-07-02) against `GET /v1/portal/:token`,
-`GET /v1/portal/:token/invoices`, and `GET /v1/portal/:token/available-plans`
-— all three return `{"error":{"code":"internal_error", ...}}` with a
-distinct `request_id` each time.
+All subscriber-facing portal endpoints previously returned `500 internal_error`
+for every request tried, including with a freshly-issued, valid subscription
+token, due to a `@PathVariable` name mismatch in `PortalController` (the
+class-level `{subscriptionToken}` template variable didn't match the
+per-method `@PathVariable String token` parameter name, so Spring MVC
+couldn't resolve the argument and threw before any method body ran).
 
-**Root cause, confirmed by reading `sub-pilot/src/main/java/co/subpilot/portal/controller/PortalController.java`:**
-the class is mapped `@RequestMapping("/v1/portal/{subscriptionToken}")`, but
-every single method binds the path variable with `@PathVariable String token`
-— a name that doesn't match the URI template variable `subscriptionToken`,
-and no explicit `@PathVariable("subscriptionToken")` is given either. Spring
-MVC cannot resolve that argument at request time, so it throws before the
-method body ever runs, on **every** method in the controller:
+**Re-verified live on 2026-07-02:** `GET /v1/portal/{id}`,
+`GET /v1/portal/{id}/invoices`, and `GET /v1/portal/{id}/available-plans`
+all now return a proper `404 subscription_not_found` for an unknown/pending
+ID (tested against both an arbitrary string and a real, freshly-created but
+not-yet-paid `subscriptionId` from a live checkout) instead of `500
+internal_error`. The argument-binding bug is fixed — the backend now reaches
+its actual business logic instead of throwing before the method body runs.
 
-```java
-@RequestMapping("/v1/portal/{subscriptionToken}")
-public class PortalController {
-    @GetMapping
-    public ResponseEntity<PortalDtos.PortalSubscriptionView> getSubscription(@PathVariable String token) { ... }
-    // getInvoices, cancel, updateCard, getAvailablePlans, changePlan — all the same mismatch
-}
-```
+**Frontend: now wired (2026-07-02).** `src/routes/portal.$token/*` (all 5
+route files) and `src/lib/api/portal.ts` now call the real backend directly
+— no more mock data. Exact request/response shapes were pulled from the
+live OpenAPI spec (`GET /v3/api-docs`) and cross-checked against a real
+active subscription (`GET /v1/portal/{subscriptionToken}` returns
+`PortalSubscriptionView`; note the portal auth token is the subscription's
+own `subscriptionToken` field, not its `id`). All 6 endpoints are wired:
+the 3 GETs (subscription, invoices, available-plans) plus cancel,
+change-plan, and update-card mutations. Verified live end-to-end via SSR
+(`vite preview` + curl) against a real subscription and a real invalid
+token — both the happy path and the "link no longer valid" fallback render
+correctly with live data, no fabricated/mock content remains anywhere in
+the portal.
 
-Fix: rename the parameter (or add an explicit name) in all six methods, e.g.
-`@PathVariable("subscriptionToken") String token` or just
-`@PathVariable String subscriptionToken`. This is a backend-only fix — no
-frontend change is needed once it lands, since `src/lib/api/portal.ts` was
-never built against the currently-broken shape. Written up as an actionable
-item for the backend developer in `docs/backend-dev-todo.md`.
-
-Impact: the merchant-facing dashboard is now fully wired to real data, but
-`src/routes/portal.$token/*` remains on the pre-existing mock data
-(`src/data/customers.ts`, `src/data/plans.ts`, `src/data/subscriptions.ts`
-mock arrays) until this lands.
+Two customer actions from the old mock UI have no backend equivalent and
+were removed rather than faked: undoing a scheduled cancellation, and
+resuming a paused subscription from the customer's side (only `cancel`,
+`change-plan`, and `update-card` mutations exist on `PortalController`).
+The client-side proration preview (`src/lib/proration.ts`) was also removed
+in favor of showing the backend's real computed proration numbers in a
+toast after confirming a plan change — matching the same pattern already
+used on the merchant dashboard's own change-plan flow.
 
 ## Gap 4 — No Payment-Attempt Read Endpoint (Dunning Itself Is Real — See Below)
 

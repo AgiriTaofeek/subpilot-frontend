@@ -1,77 +1,79 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import {
+	useMutation,
+	useQueryClient,
+	useSuspenseQuery,
+} from "@tanstack/react-query";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
+import { toast } from "sonner";
 
-import { Badge } from "#/components/ui/badge.tsx";
 import { Button } from "#/components/ui/button.tsx";
 import { Card, CardContent } from "#/components/ui/card.tsx";
 import { Empty, EmptyHeader, EmptyTitle } from "#/components/ui/empty.tsx";
-import { formatInterval, plans } from "#/data/plans.ts";
-import { resolvePortalToken } from "#/data/portal.ts";
+import { Spinner } from "#/components/ui/spinner.tsx";
+import {
+	portalAvailablePlansQueryOptions,
+	portalSubscriptionQueryOptions,
+} from "#/data/portal.ts";
+import { CATEGORY_COPY, classifyError } from "#/lib/api/classify-error.ts";
+import { changePortalPlan } from "#/lib/api/portal.ts";
 import { formatNGN } from "#/lib/currency.ts";
-import { formatDateLong as formatDate } from "#/lib/date.ts";
-import { calculateProration } from "#/lib/proration.ts";
 
 export const Route = createFileRoute("/portal/$token/plans")({
+	loader: async ({ context, params }) => {
+		await context.queryClient.ensureQueryData(
+			portalAvailablePlansQueryOptions(params.token),
+		);
+	},
 	component: PortalPlansPage,
 	head: () => ({ meta: [{ title: "Change plan | SubPilot" }] }),
 });
 
 function PortalPlansPage() {
 	const { token } = Route.useParams();
-	const context = resolvePortalToken(token);
-	const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
-	const [confirming, setConfirming] = useState(false);
-	const [confirmed, setConfirmed] = useState(false);
-
-	if (!context) return null;
-	const { subscription } = context;
-
-	const availablePlans = plans.filter((p) => p.status === "published");
-	const currentPlan = plans.find((p) => p.id === subscription.planId);
-	const alternatives = availablePlans.filter(
-		(p) => p.id !== subscription.planId,
+	const navigate = useNavigate();
+	const queryClient = useQueryClient();
+	const { data: subscription } = useSuspenseQuery(
+		portalSubscriptionQueryOptions(token),
 	);
+	const { data: availablePlans } = useSuspenseQuery(
+		portalAvailablePlansQueryOptions(token),
+	);
+	const [selectedPlanId, setSelectedPlanId] = useState<string | null>(null);
+
 	const selectedPlan =
-		availablePlans.find((p) => p.id === selectedPlanId) ?? null;
+		availablePlans.find((p) => p.planId === selectedPlanId) ?? null;
 
-	const proration =
-		selectedPlan && currentPlan
-			? calculateProration(
-					currentPlan.amountKobo,
-					selectedPlan.amountKobo,
-					subscription.currentPeriodEnd,
-				)
-			: null;
-
-	function handleConfirm() {
-		if (confirming) return;
-		setConfirming(true);
-		setTimeout(() => {
-			setConfirming(false);
-			setConfirmed(true);
-		}, 900);
-	}
-
-	if (confirmed) {
-		return (
-			<div className="flex flex-col items-center gap-3 py-10 text-center">
-				<h1 className="text-lg font-semibold tracking-tight text-(--ink)">
-					Plan changed
-				</h1>
-				<p className="max-w-xs text-sm text-(--ink-3)">
-					You're now on the {selectedPlan?.name} plan.
-				</p>
-				<Button
-					asChild
-					className="border-0 bg-(--brand) text-(--brand-fg) hover:bg-(--brand)/90"
-				>
-					<Link to="/portal/$token" params={{ token }}>
-						Back to overview
-					</Link>
-				</Button>
-			</div>
-		);
-	}
+	const changePlanMutation = useMutation({
+		mutationFn: (newPlanId: string) =>
+			changePortalPlan({ data: { token, newPlanId } }),
+		onSuccess: async (result) => {
+			await Promise.all([
+				queryClient.invalidateQueries({
+					queryKey: portalSubscriptionQueryOptions(token).queryKey,
+				}),
+				queryClient.invalidateQueries({
+					queryKey: portalAvailablePlansQueryOptions(token).queryKey,
+				}),
+			]);
+			if (result.chargedImmediately && result.netChargeToday > 0) {
+				toast.success(
+					`Plan changed. ${formatNGN(result.netChargeToday)} charged today.`,
+				);
+			} else if (result.netCreditForward > 0) {
+				toast.success(
+					`Plan changed. ${formatNGN(result.netCreditForward)} credited to your next invoice.`,
+				);
+			} else {
+				toast.success("Plan changed.");
+			}
+			navigate({ to: "/portal/$token", params: { token } });
+		},
+		onError: (error) => {
+			const message = error instanceof Error ? error.message : String(error);
+			toast.error(CATEGORY_COPY[classifyError(message)]);
+		},
+	});
 
 	return (
 		<div className="flex flex-col gap-5">
@@ -80,7 +82,7 @@ function PortalPlansPage() {
 			</h1>
 
 			{!selectedPlan ? (
-				alternatives.length === 0 ? (
+				availablePlans.length === 0 ? (
 					<Empty className="rounded-2xl border border-dashed border-(--line) bg-(--surface-1)">
 						<EmptyHeader>
 							<EmptyTitle className="font-sans text-lg normal-case tracking-tight text-(--ink)">
@@ -90,39 +92,29 @@ function PortalPlansPage() {
 					</Empty>
 				) : (
 					<div className="flex flex-col gap-3">
-						{currentPlan && (
-							<Card className="border border-(--line) bg-(--surface-1) shadow-none">
-								<CardContent className="flex items-center justify-between gap-3 py-4">
-									<div>
-										<div className="flex items-center gap-2">
-											<span className="font-medium text-(--ink)">
-												{currentPlan.name}
-											</span>
-											<Badge variant="secondary">Current plan</Badge>
-										</div>
-										<p className="mt-1 text-sm text-(--ink-2)">
-											{formatNGN(currentPlan.amountKobo)} /{" "}
-											{formatInterval(currentPlan.interval).toLowerCase()}
-										</p>
-										{currentPlan.description && (
-											<p className="mt-1 text-xs text-(--ink-3)">
-												{currentPlan.description}
-											</p>
-										)}
-									</div>
-									<Button
-										variant="outline"
-										disabled
-										className="border-(--line) text-(--ink-3)"
-									>
-										Current
-									</Button>
-								</CardContent>
-							</Card>
-						)}
-						{alternatives.map((plan) => (
+						<Card className="border border-(--line) bg-(--surface-1) shadow-none">
+							<CardContent className="flex items-center justify-between gap-3 py-4">
+								<div>
+									<span className="font-medium text-(--ink)">
+										{subscription.planName}
+									</span>
+									<p className="mt-1 text-sm text-(--ink-2)">
+										{formatNGN(subscription.planAmount)} /{" "}
+										{subscription.billingInterval}
+									</p>
+								</div>
+								<Button
+									variant="outline"
+									disabled
+									className="border-(--line) text-(--ink-3)"
+								>
+									Current
+								</Button>
+							</CardContent>
+						</Card>
+						{availablePlans.map((plan) => (
 							<Card
-								key={plan.id}
+								key={plan.planId}
 								className="border border-(--line) bg-(--surface-1) shadow-none"
 							>
 								<CardContent className="flex items-center justify-between gap-3 py-4">
@@ -131,18 +123,12 @@ function PortalPlansPage() {
 											{plan.name}
 										</span>
 										<p className="mt-1 text-sm text-(--ink-2)">
-											{formatNGN(plan.amountKobo)} /{" "}
-											{formatInterval(plan.interval).toLowerCase()}
+											{formatNGN(plan.amount)} / {plan.billingInterval}
 										</p>
-										{plan.description && (
-											<p className="mt-1 text-xs text-(--ink-3)">
-												{plan.description}
-											</p>
-										)}
 									</div>
 									<Button
 										variant="outline"
-										onClick={() => setSelectedPlanId(plan.id)}
+										onClick={() => setSelectedPlanId(plan.planId)}
 										className="border-(--line)"
 									>
 										Select
@@ -161,56 +147,31 @@ function PortalPlansPage() {
 								{selectedPlan.name}
 							</p>
 							<p className="m-0 text-sm text-(--ink-2)">
-								{formatNGN(selectedPlan.amountKobo)} /{" "}
-								{formatInterval(selectedPlan.interval).toLowerCase()}
+								{formatNGN(selectedPlan.amount)} /{" "}
+								{selectedPlan.billingInterval}
 							</p>
 						</CardContent>
 					</Card>
 
-					<Card className="border border-(--line) bg-(--surface-1) shadow-none">
-						<CardContent className="flex flex-col gap-3 py-4">
-							<p className="island-kicker m-0">Proration preview</p>
-							<div className="grid grid-cols-2 gap-3 text-sm">
-								<div>
-									<p className="m-0 text-(--ink-3)">Credit</p>
-									<p className="m-0 mt-0.5 font-medium text-(--ink)">
-										{proration && proration.creditKobo > 0
-											? formatNGN(proration.creditKobo)
-											: "—"}
-									</p>
-								</div>
-								<div>
-									<p className="m-0 text-(--ink-3)">Charge</p>
-									<p className="m-0 mt-0.5 font-medium text-(--ink)">
-										{proration && proration.chargeKobo > 0
-											? formatNGN(proration.chargeKobo)
-											: "—"}
-									</p>
-								</div>
-								<div className="col-span-2">
-									<p className="m-0 text-(--ink-3)">Effective date</p>
-									<p className="m-0 mt-0.5 font-medium text-(--ink)">
-										{formatDate(new Date().toISOString())}
-									</p>
-								</div>
-							</div>
-							<p className="m-0 text-sm text-(--ink-2)">
-								{proration && proration.chargeKobo > 0
-									? `You'll be charged ${formatNGN(proration.chargeKobo)} today, reflecting the remaining days on your current plan.`
-									: proration && proration.creditKobo > 0
-										? `A credit of ${formatNGN(proration.creditKobo)} will be applied to your next invoice.`
-										: "No additional charge or credit for this change."}
-							</p>
-						</CardContent>
-					</Card>
+					<p className="m-0 text-sm text-(--ink-2)">
+						Any credit or additional charge for the switch will be calculated
+						when you confirm.
+					</p>
 
 					<div className="flex flex-col gap-3">
 						<Button
-							onClick={handleConfirm}
-							disabled={confirming}
+							onClick={() => changePlanMutation.mutate(selectedPlan.planId)}
+							disabled={changePlanMutation.isPending}
 							className="w-full border-0 bg-(--brand) text-(--brand-fg) hover:bg-(--brand)/90"
 						>
-							{confirming ? "Confirming…" : "Confirm change"}
+							{changePlanMutation.isPending ? (
+								<>
+									<Spinner data-icon="inline-start" />
+									Confirming…
+								</>
+							) : (
+								"Confirm change"
+							)}
 						</Button>
 						<div className="flex items-center justify-center gap-4 text-sm">
 							<button

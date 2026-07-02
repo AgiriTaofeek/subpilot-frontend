@@ -1,55 +1,23 @@
 # For the backend developer
 
-Two items that need a change on your side — one confirmed bug, one missing
-endpoint. Everything else found during this audit was either already fine
-or has been wired up on the frontend side.
+One item still needs a change on your side (a missing endpoint). Everything
+else found during this audit was either already fine or has been wired up
+on the frontend side.
 
-## Fix: Portal endpoints all return 500
+## RESOLVED: Portal endpoints all returned 500
 
 **File:** `src/main/java/co/subpilot/portal/controller/PortalController.java`
 
-**Symptom:** every request to any `/v1/portal/{subscriptionToken}/**` route
-returns `500 internal_error`, even with a valid, freshly-issued subscription
-token. Confirmed live on all six routes.
+The `@PathVariable` name mismatch (`{subscriptionToken}` in the class-level
+`@RequestMapping` vs. `@PathVariable String token` on every method) that was
+causing every `/v1/portal/{subscriptionToken}/**` route to 500 is fixed —
+re-verified live on 2026-07-02 against `GET /v1/portal/{id}`,
+`GET /v1/portal/{id}/invoices`, and `GET /v1/portal/{id}/available-plans`,
+all now returning proper `404 subscription_not_found` responses instead of
+`500 internal_error`. No further backend action needed here.
 
-**Root cause:** the class-level mapping declares the path variable as
-`subscriptionToken`:
-
-```java
-@RequestMapping("/v1/portal/{subscriptionToken}")
-public class PortalController {
-```
-
-but every method binds it with a differently-named, unqualified
-`@PathVariable`:
-
-```java
-@GetMapping
-public ResponseEntity<PortalDtos.PortalSubscriptionView> getSubscription(@PathVariable String token) { ... }
-```
-
-`token` doesn't match `subscriptionToken`, and there's no explicit
-`@PathVariable("subscriptionToken")` to bridge the mismatch, so Spring MVC
-can't resolve the argument and throws before the method body runs — on
-every single method in the class (`getSubscription`, `getInvoices`,
-`cancel`, `updateCard`, `getAvailablePlans`, `changePlan`).
-
-**Fix:** rename the parameter in all six methods, e.g.:
-
-```java
-@GetMapping
-public ResponseEntity<PortalDtos.PortalSubscriptionView> getSubscription(
-        @PathVariable String subscriptionToken) { ... }
-```
-
-(or keep the parameter named `token` and add the explicit
-`@PathVariable("subscriptionToken") String token` instead — either works,
-just pick one and apply it to all six methods consistently.)
-
-**No frontend changes needed once this lands** — the portal routes
-(`src/routes/portal.$token/*`) are currently on mock data specifically
-because of this bug, and are ready to be wired to the real endpoints the
-moment they work.
+**Frontend follow-up: done (2026-07-02).** `src/routes/portal.$token/*` is
+now wired to these endpoints and verified live end-to-end.
 
 ## Feature request: public endpoint to check subscription status after checkout
 
