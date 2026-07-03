@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import { backendRequest } from "#/lib/api/backend.ts";
+import { fetchAllPages } from "#/lib/api/pagination.ts";
 import type {
 	CustomerEntityDto,
 	PageResponse,
@@ -33,34 +34,38 @@ function mostRecentUpdate(subscriptions: SubscriptionEntityDto[]) {
 }
 
 async function fetchCustomersAndSubscriptions() {
-	const [customersPage, subscriptionsPage] = await Promise.all([
-		backendRequest<PageResponse<CustomerEntityDto>>({
-			path: "/v1/customers",
-			search: { page: 0, perPage: 100 },
-		}),
-		backendRequest<PageResponse<SubscriptionEntityDto>>({
-			path: "/v1/subscriptions",
-			search: { page: 0, size: 100 },
-		}),
+	const [customers, subscriptions] = await Promise.all([
+		fetchAllPages((page) =>
+			backendRequest<PageResponse<CustomerEntityDto>>({
+				path: "/v1/customers",
+				search: { page, perPage: 100 },
+			}),
+		),
+		fetchAllPages((page) =>
+			backendRequest<PageResponse<SubscriptionEntityDto>>({
+				path: "/v1/subscriptions",
+				search: { page, size: 100 },
+			}),
+		),
 	]);
 
 	const subscriptionsByCustomerId = new Map<string, SubscriptionEntityDto[]>();
-	for (const subscription of subscriptionsPage.content) {
+	for (const subscription of subscriptions) {
 		const list = subscriptionsByCustomerId.get(subscription.customerId) ?? [];
 		list.push(subscription);
 		subscriptionsByCustomerId.set(subscription.customerId, list);
 	}
 
-	return { customersPage, subscriptionsByCustomerId };
+	return { customers, subscriptionsByCustomerId };
 }
 
 export const listCustomerSummaries = createServerFn({
 	method: "GET",
 }).handler(async () => {
-	const { customersPage, subscriptionsByCustomerId } =
+	const { customers, subscriptionsByCustomerId } =
 		await fetchCustomersAndSubscriptions();
 
-	return customersPage.content.map((customer) => {
+	return customers.map((customer) => {
 		const customerSubscriptions =
 			subscriptionsByCustomerId.get(customer.id) ?? [];
 
@@ -82,22 +87,30 @@ export const listCustomerSummaries = createServerFn({
 export const getCustomerDetail = createServerFn({ method: "GET" })
 	.validator(customerIdSchema)
 	.handler(async ({ data }) => {
-		const [customer, subscriptionsPage, plansPage] = await Promise.all([
+		// Backend has no customerId filter on /v1/subscriptions, so finding one
+		// customer's subscriptions means walking every subscription page. Worth
+		// a backend filter param if this list grows large enough to make this
+		// expensive.
+		const [customer, allSubscriptions, allPlans] = await Promise.all([
 			backendRequest<CustomerEntityDto>({
 				path: `/v1/customers/${data.customerId}`,
 			}),
-			backendRequest<PageResponse<SubscriptionEntityDto>>({
-				path: "/v1/subscriptions",
-				search: { page: 0, size: 100 },
-			}),
-			backendRequest<PageResponse<PlanResponseDto>>({
-				path: "/v1/plans",
-				search: { page: 0, perPage: 100 },
-			}),
+			fetchAllPages((page) =>
+				backendRequest<PageResponse<SubscriptionEntityDto>>({
+					path: "/v1/subscriptions",
+					search: { page, size: 100 },
+				}),
+			),
+			fetchAllPages((page) =>
+				backendRequest<PageResponse<PlanResponseDto>>({
+					path: "/v1/plans",
+					search: { page, perPage: 100 },
+				}),
+			),
 		]);
 
-		const plansById = new Map(plansPage.content.map((plan) => [plan.id, plan]));
-		const subscriptions = subscriptionsPage.content
+		const plansById = new Map(allPlans.map((plan) => [plan.id, plan]));
+		const subscriptions = allSubscriptions
 			.filter((subscription) => subscription.customerId === data.customerId)
 			.map((subscription) => {
 				const plan = plansById.get(subscription.planId);

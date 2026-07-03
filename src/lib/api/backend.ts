@@ -1,3 +1,4 @@
+import { createServerOnlyFn } from "@tanstack/react-start";
 import type { BackendErrorShape } from "#/types/api.ts";
 
 const DEFAULT_ERROR_MESSAGE = "Something went wrong. Please try again.";
@@ -236,7 +237,17 @@ async function refreshMerchantSession(
 	);
 }
 
-export async function backendRequest<T>(input: {
+// backendRequest is a plain shared helper, not itself a createServerFn — it's
+// only ever called from inside createServerFn().handler(...) bodies. But
+// since it's imported into files that also get pulled into client-reachable
+// route modules (e.g. routes/auth.tsx -> lib/api/auth.ts -> here), its
+// dynamic `import("@tanstack/react-start/server")` was flagged by Start's
+// import-protection check as reachable from the client. createServerOnlyFn
+// marks it so the compiler strips/guards it correctly, without changing this
+// function's call signature at any of its call sites.
+export const backendRequest = createServerOnlyFn(async function backendRequest<
+	T,
+>(input: {
 	path: string;
 	method?: "DELETE" | "GET" | "PATCH" | "POST";
 	search?: Record<string, number | string | null | undefined>;
@@ -311,4 +322,4 @@ export async function backendRequest<T>(input: {
 	}
 
 	return parseJsonResponse<T>(response);
-}
+});

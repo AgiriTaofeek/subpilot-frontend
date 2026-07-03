@@ -6,4 +6,6 @@ export const apiKeysListQueryOptions = () =>
 	queryOptions({
 		queryKey: ["api-keys"],
 		queryFn: () => listApiKeys(),
+		// Configuration, not operational data — created/revoked rarely.
+		staleTime: 120_000,
 	});

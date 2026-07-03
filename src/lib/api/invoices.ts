@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import { backendRequest } from "#/lib/api/backend.ts";
+import { fetchAllPages } from "#/lib/api/pagination.ts";
 import type {
 	CustomerEntityDto,
 	InvoiceEntityDto,
@@ -48,27 +49,33 @@ function mapInvoiceSummary(
 }
 
 async function fetchInvoiceJoinData() {
-	const [customersPage, subscriptionsPage, plansPage] = await Promise.all([
-		backendRequest<PageResponse<CustomerEntityDto>>({
-			path: "/v1/customers",
-			search: { page: 0, perPage: 100 },
-		}),
-		backendRequest<PageResponse<SubscriptionEntityDto>>({
-			path: "/v1/subscriptions",
-			search: { page: 0, size: 100 },
-		}),
-		backendRequest<PageResponse<PlanResponseDto>>({
-			path: "/v1/plans",
-			search: { page: 0, perPage: 100 },
-		}),
+	const [customers, subscriptions, plans] = await Promise.all([
+		fetchAllPages((page) =>
+			backendRequest<PageResponse<CustomerEntityDto>>({
+				path: "/v1/customers",
+				search: { page, perPage: 100 },
+			}),
+		),
+		fetchAllPages((page) =>
+			backendRequest<PageResponse<SubscriptionEntityDto>>({
+				path: "/v1/subscriptions",
+				search: { page, size: 100 },
+			}),
+		),
+		fetchAllPages((page) =>
+			backendRequest<PageResponse<PlanResponseDto>>({
+				path: "/v1/plans",
+				search: { page, perPage: 100 },
+			}),
+		),
 	]);
 
 	const customersById = new Map(
-		customersPage.content.map((customer) => [customer.id, customer]),
+		customers.map((customer) => [customer.id, customer]),
 	);
-	const plansById = new Map(plansPage.content.map((plan) => [plan.id, plan]));
+	const plansById = new Map(plans.map((plan) => [plan.id, plan]));
 	const planNameBySubscriptionId = new Map(
-		subscriptionsPage.content.map((subscription) => [
+		subscriptions.map((subscription) => [
 			subscription.id,
 			plansById.get(subscription.planId)?.name ?? "Unknown plan",
 		]),
@@ -80,16 +87,18 @@ async function fetchInvoiceJoinData() {
 export const listInvoiceSummaries = createServerFn({
 	method: "GET",
 }).handler(async () => {
-	const [invoicesPage, { customersById, planNameBySubscriptionId }] =
+	const [invoices, { customersById, planNameBySubscriptionId }] =
 		await Promise.all([
-			backendRequest<PageResponse<InvoiceEntityDto>>({
-				path: "/v1/invoices",
-				search: { page: 0, size: 100 },
-			}),
+			fetchAllPages((page) =>
+				backendRequest<PageResponse<InvoiceEntityDto>>({
+					path: "/v1/invoices",
+					search: { page, size: 100 },
+				}),
+			),
 			fetchInvoiceJoinData(),
 		]);
 
-	return invoicesPage.content.map((invoice) =>
+	return invoices.map((invoice) =>
 		mapInvoiceSummary(invoice, customersById, planNameBySubscriptionId),
 	);
 });

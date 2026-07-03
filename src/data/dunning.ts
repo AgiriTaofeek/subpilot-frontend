@@ -10,6 +10,8 @@ export const dunningCampaignsQueryOptions = () =>
 	queryOptions({
 		queryKey: ["dunning-campaigns"],
 		queryFn: () => listDunningCampaigns(),
+		// Campaign/step configuration, not operational data.
+		staleTime: 120_000,
 	});
 
 export const dunningStepActionLabel: Record<DunningStepActionDto, string> = {

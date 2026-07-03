@@ -13,7 +13,11 @@ export function getRouter() {
 		context,
 		scrollRestoration: true,
 		defaultPreload: "intent",
-		defaultPreloadStaleTime: 0,
+		// Matches the QueryClient's default staleTime (see root-provider.tsx).
+		// At 0, a hover-triggered preload was considered stale again by the
+		// time the user actually clicked, so the intent-preload was mostly
+		// wasted — the route re-fetched on entry anyway.
+		defaultPreloadStaleTime: 30_000,
 		defaultErrorComponent: RootErrorFallback,
 		defaultPendingComponent: PageSkeleton,
 		defaultPendingMs: 300,

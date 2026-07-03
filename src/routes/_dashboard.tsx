@@ -10,13 +10,15 @@ import { DashboardSidebar } from "#/components/layout/dashboard-sidebar.tsx";
 import { RouteErrorFallback } from "#/components/layout/route-error-fallback.tsx";
 import { Button } from "#/components/ui/button.tsx";
 import { SidebarInset, SidebarProvider } from "#/components/ui/sidebar.tsx";
-import { getMerchantSession } from "#/lib/api/auth.ts";
+import { merchantSessionQueryOptions } from "#/data/auth.ts";
 import { isSessionError } from "#/lib/api/is-session-error.ts";
 
 export const Route = createFileRoute("/_dashboard")({
-	beforeLoad: async () => {
+	beforeLoad: async ({ context }) => {
 		try {
-			const merchantSession = await getMerchantSession();
+			const merchantSession = await context.queryClient.ensureQueryData(
+				merchantSessionQueryOptions(),
+			);
 			return { merchantSession };
 		} catch (error) {
 			// isUnauthenticatedBackendError (BackendApiError.status) only
@@ -30,6 +32,12 @@ export const Route = createFileRoute("/_dashboard")({
 			// useHandleMutationError already use) works in both cases.
 			const message = error instanceof Error ? error.message : String(error);
 			if (isSessionError(message)) {
+				// A different merchant could log into this same browser tab
+				// after this one's session expires. Without clearing here,
+				// every cached business-data query (customers, invoices,
+				// revenue, ...) would still be sitting in the QueryClient
+				// under static, account-unscoped keys for them to see.
+				context.queryClient.clear();
 				throw redirect({ to: "/auth/login" });
 			}
 

@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import { backendRequest } from "#/lib/api/backend.ts";
+import { fetchAllPages } from "#/lib/api/pagination.ts";
 import type {
 	PageResponse,
 	RegisterEndpointRequestDto,
@@ -54,10 +55,11 @@ export const deleteWebhookEndpoint = createServerFn({ method: "POST" })
 
 export const listWebhookDeliveries = createServerFn({ method: "GET" }).handler(
 	async () => {
-		const page = await backendRequest<PageResponse<WebhookDeliveryDto>>({
-			path: "/v1/webhooks/deliveries",
-			search: { page: 0, size: 200 },
-		});
-		return page.content;
+		return fetchAllPages((page) =>
+			backendRequest<PageResponse<WebhookDeliveryDto>>({
+				path: "/v1/webhooks/deliveries",
+				search: { page, size: 200 },
+			}),
+		);
 	},
 );

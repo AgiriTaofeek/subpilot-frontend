@@ -1,5 +1,6 @@
 import { EyeIcon, EyeSlashIcon } from "@phosphor-icons/react";
 import { useForm } from "@tanstack/react-form";
+import { useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -57,6 +58,7 @@ function passwordStrength(password: string): PasswordStrengthValue {
 
 function SignupPage() {
 	const navigate = useNavigate();
+	const queryClient = useQueryClient();
 	const [showPassword, setShowPassword] = useState(false);
 	const [emailTakenError, setEmailTakenError] = useState<string | null>(null);
 
@@ -87,6 +89,9 @@ function SignupPage() {
 				}
 				return;
 			}
+			// Guarantees a clean cache at the start of every session — see the
+			// identical call in login.tsx for why.
+			queryClient.clear();
 			// navigate + toast outside try/catch so routing errors propagate normally
 			await navigate({ to: "/overview" });
 			toast.success(

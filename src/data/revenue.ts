@@ -45,6 +45,10 @@ export const revenueSummaryQueryOptions = (window: RevenueWindow) =>
 				rate,
 			};
 		},
+		// Backend-aggregated fee/revenue totals, not per-second data — and this
+		// already fires 3 parallel backend calls per fetch, so avoiding
+		// redundant re-fetches matters more here than for a simple list.
+		staleTime: 60_000,
 	});
 
 export function ledgerInvoicesForWindow(

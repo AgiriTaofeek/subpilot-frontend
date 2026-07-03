@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import { backendRequest } from "#/lib/api/backend.ts";
+import { fetchAllPages } from "#/lib/api/pagination.ts";
 import type {
 	CheckoutInitResponseDto,
 	CreatePlanRequestDto,
@@ -55,10 +56,12 @@ const checkoutSchema = z.object({
 });
 
 export const listPlans = createServerFn({ method: "GET" }).handler(async () => {
-	return backendRequest<PageResponse<PlanResponseDto>>({
-		path: "/v1/plans",
-		search: { page: 0, perPage: 100 },
-	});
+	return fetchAllPages((page) =>
+		backendRequest<PageResponse<PlanResponseDto>>({
+			path: "/v1/plans",
+			search: { page, perPage: 100 },
+		}),
+	);
 });
 
 export const getPlan = createServerFn({ method: "GET" })

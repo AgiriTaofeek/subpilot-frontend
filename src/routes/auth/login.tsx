@@ -1,5 +1,6 @@
 import { EyeIcon, EyeSlashIcon } from "@phosphor-icons/react";
 import { useForm } from "@tanstack/react-form";
+import { useQueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
@@ -40,6 +41,7 @@ const schema = z.object({
 
 function LoginPage() {
 	const navigate = useNavigate();
+	const queryClient = useQueryClient();
 	const [showPassword, setShowPassword] = useState(false);
 	const [credentialError, setCredentialError] = useState<string | null>(null);
 
@@ -64,6 +66,12 @@ function LoginPage() {
 				}
 				return;
 			}
+			// Guarantees a clean cache at the start of every session regardless
+			// of how the previous one on this browser tab ended (explicit
+			// logout, silent expiry, closed tab without logging out, ...) —
+			// the QueryClient is a singleton that survives this SPA navigation,
+			// and cached query keys aren't scoped by account.
+			queryClient.clear();
 			// navigate outside try/catch so routing errors propagate normally
 			await navigate({ to: "/overview" });
 		},

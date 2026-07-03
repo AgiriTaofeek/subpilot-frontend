@@ -11,7 +11,9 @@ import {
 	SquaresFourIcon,
 	UsersIcon,
 } from "@phosphor-icons/react";
+import { useQueryClient } from "@tanstack/react-query";
 import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 import {
 	Sidebar,
@@ -24,7 +26,9 @@ import {
 	SidebarMenuButton,
 	SidebarMenuItem,
 	SidebarRail,
+	useSidebar,
 } from "#/components/ui/sidebar.tsx";
+import { Spinner } from "#/components/ui/spinner.tsx";
 import { logoutMerchant } from "#/lib/api/auth.ts";
 import type { AuthSessionDto } from "#/types/api.ts";
 
@@ -98,13 +102,38 @@ export function DashboardSidebar({
 }) {
 	const pathname = useRouterState({ select: (s) => s.location.pathname });
 	const navigate = useNavigate();
+	const queryClient = useQueryClient();
+	const [isLoggingOut, setIsLoggingOut] = useState(false);
+	const { isMobile, setOpenMobile } = useSidebar();
+
+	// The mobile sidebar renders as an overlay Sheet — without this, it stays
+	// open on top of the newly-navigated-to page until the user manually
+	// dismisses it, instead of closing the way a mobile nav drawer should the
+	// moment a destination is picked.
+	// biome-ignore lint/correctness/useExhaustiveDependencies: pathname is a deliberate re-trigger signal, not read in the effect body — the point is to re-run this on every navigation.
+	useEffect(() => {
+		if (isMobile) {
+			setOpenMobile(false);
+		}
+	}, [pathname, isMobile, setOpenMobile]);
 
 	async function handleLogout() {
+		setIsLoggingOut(true);
 		try {
 			await logoutMerchant();
+			// Every cached query (customers, invoices, revenue, API keys,
+			// webhook config, ...) lives under static, account-unscoped keys in
+			// the one QueryClient instance that persists across this SPA
+			// navigation. Removing only the session-check query would leave a
+			// different merchant who logs into this same tab able to see the
+			// previous merchant's business data straight from cache, with no
+			// backend request involved at all. Clearing everything is the only
+			// safe option here, not just the auth-gate query.
+			queryClient.clear();
 			toast.success("Logged out");
 			await navigate({ to: "/auth/login" });
 		} catch (error) {
+			setIsLoggingOut(false);
 			toast.error(
 				error instanceof Error ? error.message : "Couldn't log you out.",
 			);
@@ -183,11 +212,16 @@ export function DashboardSidebar({
 					<SidebarMenuItem>
 						<SidebarMenuButton
 							onClick={handleLogout}
+							disabled={isLoggingOut}
 							tooltip="Log out"
 							className="text-sidebar-foreground/60 hover:text-sidebar-foreground"
 						>
-							<SignOutIcon />
-							<span>Log out</span>
+							{isLoggingOut ? (
+								<Spinner data-icon="inline-start" />
+							) : (
+								<SignOutIcon />
+							)}
+							<span>{isLoggingOut ? "Logging out…" : "Log out"}</span>
 						</SidebarMenuButton>
 					</SidebarMenuItem>
 				</SidebarMenu>

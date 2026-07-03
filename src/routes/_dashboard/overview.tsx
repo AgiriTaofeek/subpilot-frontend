@@ -71,7 +71,7 @@ function OverviewPage() {
 		return (
 			<div className="flex flex-1 flex-col items-center justify-center p-10">
 				<div className="max-w-sm flex flex-col gap-4 text-center">
-					<div className="inline-flex size-12 items-center justify-center rounded-2xl border border-(--brand)/20 bg-(--brand)/10">
+					<div className="self-center inline-flex size-12 items-center justify-center rounded-2xl border border-(--brand)/20 bg-(--brand)/10">
 						<span className="size-4 rounded-full bg-(--brand)" />
 					</div>
 					<div className="flex flex-col gap-2">

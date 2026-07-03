@@ -54,7 +54,7 @@ import {
 	payloadPreview,
 	resourceTypeLabel,
 } from "#/data/events.ts";
-import { formatRelativeTime } from "#/lib/date.ts";
+import { formatDateTime, formatRelativeTime } from "#/lib/date.ts";
 
 const defaultEventsSearch = { q: "" };
 
@@ -321,7 +321,7 @@ function EventsPage() {
 									<p className="m-0">
 										Occurred at{" "}
 										<span className="font-heading text-xs text-(--ink)">
-											{selectedEvent.createdAt}
+											{formatDateTime(selectedEvent.createdAt)}
 										</span>
 									</p>
 								</div>

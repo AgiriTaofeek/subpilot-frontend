@@ -2,6 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import { backendRequest } from "#/lib/api/backend.ts";
+import { fetchAllPages } from "#/lib/api/pagination.ts";
 import type {
 	CancelSubscriptionRequestDto,
 	ChangePlanRequestDto,
@@ -30,27 +31,33 @@ const changePlanSchema = z.object({
 export const listSubscriptionSummaries = createServerFn({
 	method: "GET",
 }).handler(async () => {
-	const [subscriptionsPage, customersPage, plansPage] = await Promise.all([
-		backendRequest<PageResponse<SubscriptionEntityDto>>({
-			path: "/v1/subscriptions",
-			search: { page: 0, size: 100 },
-		}),
-		backendRequest<PageResponse<CustomerEntityDto>>({
-			path: "/v1/customers",
-			search: { page: 0, perPage: 100 },
-		}),
-		backendRequest<PageResponse<PlanResponseDto>>({
-			path: "/v1/plans",
-			search: { page: 0, perPage: 100 },
-		}),
+	const [subscriptions, customers, plans] = await Promise.all([
+		fetchAllPages((page) =>
+			backendRequest<PageResponse<SubscriptionEntityDto>>({
+				path: "/v1/subscriptions",
+				search: { page, size: 100 },
+			}),
+		),
+		fetchAllPages((page) =>
+			backendRequest<PageResponse<CustomerEntityDto>>({
+				path: "/v1/customers",
+				search: { page, perPage: 100 },
+			}),
+		),
+		fetchAllPages((page) =>
+			backendRequest<PageResponse<PlanResponseDto>>({
+				path: "/v1/plans",
+				search: { page, perPage: 100 },
+			}),
+		),
 	]);
 
 	const customersById = new Map(
-		customersPage.content.map((customer) => [customer.id, customer]),
+		customers.map((customer) => [customer.id, customer]),
 	);
-	const plansById = new Map(plansPage.content.map((plan) => [plan.id, plan]));
+	const plansById = new Map(plans.map((plan) => [plan.id, plan]));
 
-	return subscriptionsPage.content.map((subscription) => {
+	return subscriptions.map((subscription) => {
 		const customer = customersById.get(subscription.customerId);
 		const plan = plansById.get(subscription.planId);
 

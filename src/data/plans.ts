@@ -235,9 +235,13 @@ export const plansQueryOptions = () =>
 	queryOptions({
 		queryKey: ["plans"],
 		queryFn: async () => {
-			const page = await listPlansServerFn();
-			return page.content.map(mapPlanResponse);
+			const plans = await listPlansServerFn();
+			return plans.map(mapPlanResponse);
 		},
+		// Plan catalog, not operational data — mutations already invalidate
+		// this key directly, so a longer staleTime just avoids re-fetching on
+		// every incidental revisit.
+		staleTime: 120_000,
 	});
 
 export const planDetailQueryOptions = (planId: string) =>
@@ -245,6 +249,7 @@ export const planDetailQueryOptions = (planId: string) =>
 		queryKey: ["plans", planId],
 		queryFn: async () =>
 			mapPlanResponse(await getPlanServerFn({ data: { planId } })),
+		staleTime: 120_000,
 	});
 
 export const publicPlanQueryOptions = (
@@ -257,6 +262,9 @@ export const publicPlanQueryOptions = (
 			mapPublicPlanResponse(
 				await getPublicPlanServerFn({ data: { merchantSlug, planSlug } }),
 			),
+		// Anonymous checkout page for a single plan — effectively static for
+		// the duration of a checkout session.
+		staleTime: 120_000,
 	});
 
 export async function createPlan(input: {

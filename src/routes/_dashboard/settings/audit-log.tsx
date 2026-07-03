@@ -53,7 +53,7 @@ import {
 	auditLogsQueryOptions,
 	parseSnapshot,
 } from "#/data/audit-logs.ts";
-import { formatRelativeTime } from "#/lib/date.ts";
+import { formatDateTime, formatRelativeTime } from "#/lib/date.ts";
 
 const defaultAuditLogSearch = { q: "" };
 
@@ -327,7 +327,7 @@ function SettingsAuditLogPage() {
 									<p className="m-0">
 										Occurred at{" "}
 										<span className="font-heading text-xs text-(--ink)">
-											{selectedLog.createdAt}
+											{formatDateTime(selectedLog.createdAt)}
 										</span>
 									</p>
 								</div>

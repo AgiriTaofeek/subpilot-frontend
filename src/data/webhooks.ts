@@ -38,4 +38,7 @@ export const webhookEndpointsListQueryOptions = () =>
 	queryOptions({
 		queryKey: ["webhook-endpoints"],
 		queryFn: () => listWebhookEndpoints(),
+		// Endpoint configuration, not operational data — merchants set this up
+		// once and rarely touch it again.
+		staleTime: 120_000,
 	});
