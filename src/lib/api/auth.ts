@@ -18,6 +18,11 @@ const signupSchema = z.object({
 	password: z.string().min(8),
 });
 
+const changePasswordSchema = z.object({
+	currentPassword: z.string().min(1),
+	newPassword: z.string().min(8),
+});
+
 export async function loginMerchantRequest(data: z.infer<typeof loginSchema>) {
 	return backendRequest<AuthSessionDto>({
 		path: "/v1/auth/login",
@@ -40,6 +45,16 @@ export async function logoutMerchantRequest() {
 	return backendRequest<{ message: string }>({
 		path: "/v1/auth/logout",
 		method: "POST",
+	});
+}
+
+export async function changePasswordMerchantRequest(
+	data: z.infer<typeof changePasswordSchema>,
+) {
+	return backendRequest<{ message: string }>({
+		path: "/v1/auth/change-password",
+		method: "PATCH",
+		body: data,
 	});
 }
 
@@ -80,3 +95,7 @@ export const getOptionalMerchantSession = createServerFn({
 export const logoutMerchant = createServerFn({ method: "POST" }).handler(
 	async () => logoutMerchantRequest(),
 );
+
+export const changePasswordMerchant = createServerFn({ method: "POST" })
+	.validator(changePasswordSchema)
+	.handler(async ({ data }) => changePasswordMerchantRequest(data));

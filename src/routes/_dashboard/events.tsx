@@ -19,6 +19,14 @@ import {
 import { Input } from "#/components/ui/input.tsx";
 import { ListPageSkeleton } from "#/components/ui/page-skeleton.tsx";
 import {
+	Pagination,
+	PaginationContent,
+	PaginationItem,
+	PaginationLink,
+	PaginationNext,
+	PaginationPrevious,
+} from "#/components/ui/pagination.tsx";
+import {
 	Select,
 	SelectContent,
 	SelectGroup,
@@ -56,11 +64,12 @@ import {
 } from "#/data/events.ts";
 import { formatDateTime, formatRelativeTime } from "#/lib/date.ts";
 
-const defaultEventsSearch = { q: "" };
+const defaultEventsSearch = { q: "", page: 1 };
 
 const eventsSearchSchema = z.object({
 	eventType: z.string().optional().catch(undefined),
 	q: z.string().default(defaultEventsSearch.q),
+	page: z.number().default(defaultEventsSearch.page),
 });
 
 export const Route = createFileRoute("/_dashboard/events")({
@@ -75,6 +84,8 @@ export const Route = createFileRoute("/_dashboard/events")({
 	pendingComponent: () => <ListPageSkeleton columns={5} />,
 	head: () => ({ meta: [{ title: "Events | SubPilot" }] }),
 });
+
+const PAGE_SIZE = 10;
 
 async function copyText(text: string, label: string) {
 	try {
@@ -118,7 +129,7 @@ function TimestampCell({ iso }: { iso: string }) {
 }
 
 function EventsPage() {
-	const { eventType, q } = Route.useSearch();
+	const { eventType, q, page } = Route.useSearch();
 	const navigate = useNavigate({ from: Route.fullPath });
 	const [selectedId, setSelectedId] = useState<string | null>(null);
 	const { data: auditEvents } = useSuspenseQuery(eventsListQueryOptions());
@@ -128,6 +139,7 @@ function EventsPage() {
 			search: (prev) => ({
 				...prev,
 				eventType: value === "all" ? undefined : value,
+				page: 1,
 			}),
 			resetScroll: false,
 		});
@@ -135,7 +147,7 @@ function EventsPage() {
 
 	function handleSearchChange(value: string) {
 		navigate({
-			search: (prev) => ({ ...prev, q: value }),
+			search: (prev) => ({ ...prev, q: value, page: 1 }),
 			replace: true,
 			resetScroll: false,
 		});
@@ -158,6 +170,8 @@ function EventsPage() {
 
 	const hasAnyEvents = auditEvents.length > 0;
 	const selectedEvent = auditEvents.find((e) => e.id === selectedId) ?? null;
+	const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+	const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
 	return (
 		<div className="flex flex-1 flex-col gap-6 p-6">
@@ -233,7 +247,7 @@ function EventsPage() {
 								</TableRow>
 							</TableHeader>
 							<TableBody>
-								{filtered.map((event) => (
+								{paginated.map((event) => (
 									<TableRow
 										key={event.id}
 										onClick={() => setSelectedId(event.id)}
@@ -275,7 +289,7 @@ function EventsPage() {
 
 					{/* Mobile cards */}
 					<div className="flex flex-col gap-3 md:hidden">
-						{filtered.map((event) => (
+						{paginated.map((event) => (
 							<button
 								key={event.id}
 								type="button"
@@ -294,6 +308,55 @@ function EventsPage() {
 							</button>
 						))}
 					</div>
+
+					{pageCount > 1 && (
+						<Pagination>
+							<PaginationContent>
+								<PaginationItem>
+									<PaginationPrevious
+										from={Route.fullPath}
+										search={(prev) => ({
+											...prev,
+											page: Math.max(1, page - 1),
+										})}
+										resetScroll={false}
+										aria-disabled={page <= 1}
+										className={
+											page <= 1 ? "pointer-events-none opacity-50" : undefined
+										}
+									/>
+								</PaginationItem>
+								{Array.from({ length: pageCount }, (_, i) => i + 1).map((p) => (
+									<PaginationItem key={p}>
+										<PaginationLink
+											from={Route.fullPath}
+											search={(prev) => ({ ...prev, page: p })}
+											resetScroll={false}
+											isActive={p === page}
+										>
+											{p}
+										</PaginationLink>
+									</PaginationItem>
+								))}
+								<PaginationItem>
+									<PaginationNext
+										from={Route.fullPath}
+										search={(prev) => ({
+											...prev,
+											page: Math.min(pageCount, page + 1),
+										})}
+										resetScroll={false}
+										aria-disabled={page >= pageCount}
+										className={
+											page >= pageCount
+												? "pointer-events-none opacity-50"
+												: undefined
+										}
+									/>
+								</PaginationItem>
+							</PaginationContent>
+						</Pagination>
+					)}
 				</>
 			)}
 

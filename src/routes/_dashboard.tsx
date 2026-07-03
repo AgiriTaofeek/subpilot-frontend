@@ -4,22 +4,38 @@ import {
 	Outlet,
 	redirect,
 } from "@tanstack/react-router";
+import { createServerFn } from "@tanstack/react-start";
+import { getCookie } from "@tanstack/react-start/server";
 
 import { DashboardHeader } from "#/components/layout/dashboard-header.tsx";
 import { DashboardSidebar } from "#/components/layout/dashboard-sidebar.tsx";
 import { RouteErrorFallback } from "#/components/layout/route-error-fallback.tsx";
 import { Button } from "#/components/ui/button.tsx";
-import { SidebarInset, SidebarProvider } from "#/components/ui/sidebar.tsx";
+import {
+	SIDEBAR_COOKIE_NAME,
+	SidebarInset,
+	SidebarProvider,
+} from "#/components/ui/sidebar.tsx";
 import { merchantSessionQueryOptions } from "#/data/auth.ts";
 import { isSessionError } from "#/lib/api/is-session-error.ts";
+
+// Reads the cookie SidebarProvider's own toggle handler already writes
+// (components/ui/sidebar.tsx) so the server-rendered HTML reflects the
+// user's last choice from the first byte — a client-only cookie read can't
+// do this, since the server always paints first on a hard refresh, before
+// any client JS runs.
+const getSidebarOpen = createServerFn({ method: "GET" }).handler(
+	async () => getCookie(SIDEBAR_COOKIE_NAME) !== "false",
+);
 
 export const Route = createFileRoute("/_dashboard")({
 	beforeLoad: async ({ context }) => {
 		try {
-			const merchantSession = await context.queryClient.ensureQueryData(
-				merchantSessionQueryOptions(),
-			);
-			return { merchantSession };
+			const [merchantSession, sidebarOpen] = await Promise.all([
+				context.queryClient.ensureQueryData(merchantSessionQueryOptions()),
+				getSidebarOpen(),
+			]);
+			return { merchantSession, sidebarOpen };
 		} catch (error) {
 			// isUnauthenticatedBackendError (BackendApiError.status) only
 			// works when this beforeLoad runs server-side during SSR — the
@@ -86,10 +102,10 @@ function DashboardErrorFallback({
 }
 
 function DashboardLayout() {
-	const { merchantSession } = Route.useRouteContext();
+	const { merchantSession, sidebarOpen } = Route.useRouteContext();
 
 	return (
-		<SidebarProvider>
+		<SidebarProvider defaultOpen={sidebarOpen}>
 			<DashboardSidebar merchantSession={merchantSession} />
 			<SidebarInset>
 				<DashboardHeader />

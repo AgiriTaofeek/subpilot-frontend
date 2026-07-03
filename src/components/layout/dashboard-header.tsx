@@ -66,9 +66,7 @@ export function DashboardHeader() {
 					{rest && (
 						<>
 							<span className="text-(--ink-3)">/</span>
-							<span className="truncate font-heading text-xs text-(--ink-3)">
-								{rest}
-							</span>
+							<span className="truncate text-(--ink-3)">{rest}</span>
 						</>
 					)}
 				</div>

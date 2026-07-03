@@ -18,6 +18,14 @@ import {
 } from "#/components/ui/empty.tsx";
 import { Input } from "#/components/ui/input.tsx";
 import {
+	Pagination,
+	PaginationContent,
+	PaginationItem,
+	PaginationLink,
+	PaginationNext,
+	PaginationPrevious,
+} from "#/components/ui/pagination.tsx";
+import {
 	Select,
 	SelectContent,
 	SelectGroup,
@@ -55,11 +63,12 @@ import {
 } from "#/data/audit-logs.ts";
 import { formatDateTime, formatRelativeTime } from "#/lib/date.ts";
 
-const defaultAuditLogSearch = { q: "" };
+const defaultAuditLogSearch = { q: "", page: 1 };
 
 const auditLogSearchSchema = z.object({
 	action: z.string().optional().catch(undefined),
 	q: z.string().default(defaultAuditLogSearch.q),
+	page: z.number().default(defaultAuditLogSearch.page),
 });
 
 export const Route = createFileRoute("/_dashboard/settings/audit-log")({
@@ -73,6 +82,8 @@ export const Route = createFileRoute("/_dashboard/settings/audit-log")({
 	component: SettingsAuditLogPage,
 	head: () => ({ meta: [{ title: "Audit log | SubPilot" }] }),
 });
+
+const PAGE_SIZE = 10;
 
 async function copyText(text: string, label: string) {
 	try {
@@ -116,7 +127,7 @@ function TimestampCell({ iso }: { iso: string }) {
 }
 
 function SettingsAuditLogPage() {
-	const { action, q } = Route.useSearch();
+	const { action, q, page } = Route.useSearch();
 	const navigate = useNavigate({ from: Route.fullPath });
 	const [selectedId, setSelectedId] = useState<string | null>(null);
 	const { data: logs } = useSuspenseQuery(auditLogsQueryOptions());
@@ -126,6 +137,7 @@ function SettingsAuditLogPage() {
 			search: (prev) => ({
 				...prev,
 				action: value === "all" ? undefined : value,
+				page: 1,
 			}),
 			resetScroll: false,
 		});
@@ -133,7 +145,7 @@ function SettingsAuditLogPage() {
 
 	function handleSearchChange(value: string) {
 		navigate({
-			search: (prev) => ({ ...prev, q: value }),
+			search: (prev) => ({ ...prev, q: value, page: 1 }),
 			replace: true,
 			resetScroll: false,
 		});
@@ -156,6 +168,8 @@ function SettingsAuditLogPage() {
 
 	const hasAnyLogs = logs.length > 0;
 	const selectedLog = logs.find((log) => log.id === selectedId) ?? null;
+	const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
+	const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
 
 	return (
 		<div className="flex flex-1 flex-col gap-6 p-6">
@@ -229,7 +243,7 @@ function SettingsAuditLogPage() {
 								</TableRow>
 							</TableHeader>
 							<TableBody>
-								{filtered.map((log) => (
+								{paginated.map((log) => (
 									<TableRow
 										key={log.id}
 										onClick={() => setSelectedId(log.id)}
@@ -276,7 +290,7 @@ function SettingsAuditLogPage() {
 
 					{/* Mobile cards */}
 					<div className="flex flex-col gap-3 md:hidden">
-						{filtered.map((log) => (
+						{paginated.map((log) => (
 							<button
 								key={log.id}
 								type="button"
@@ -295,6 +309,55 @@ function SettingsAuditLogPage() {
 							</button>
 						))}
 					</div>
+
+					{pageCount > 1 && (
+						<Pagination>
+							<PaginationContent>
+								<PaginationItem>
+									<PaginationPrevious
+										from={Route.fullPath}
+										search={(prev) => ({
+											...prev,
+											page: Math.max(1, page - 1),
+										})}
+										resetScroll={false}
+										aria-disabled={page <= 1}
+										className={
+											page <= 1 ? "pointer-events-none opacity-50" : undefined
+										}
+									/>
+								</PaginationItem>
+								{Array.from({ length: pageCount }, (_, i) => i + 1).map((p) => (
+									<PaginationItem key={p}>
+										<PaginationLink
+											from={Route.fullPath}
+											search={(prev) => ({ ...prev, page: p })}
+											resetScroll={false}
+											isActive={p === page}
+										>
+											{p}
+										</PaginationLink>
+									</PaginationItem>
+								))}
+								<PaginationItem>
+									<PaginationNext
+										from={Route.fullPath}
+										search={(prev) => ({
+											...prev,
+											page: Math.min(pageCount, page + 1),
+										})}
+										resetScroll={false}
+										aria-disabled={page >= pageCount}
+										className={
+											page >= pageCount
+												? "pointer-events-none opacity-50"
+												: undefined
+										}
+									/>
+								</PaginationItem>
+							</PaginationContent>
+						</Pagination>
+					)}
 				</>
 			)}
 
