@@ -1,5 +1,7 @@
 import { WarningCircleIcon } from "@phosphor-icons/react";
+import { Link } from "@tanstack/react-router";
 
+import { Button } from "#/components/ui/button.tsx";
 import {
 	Empty,
 	EmptyContent,
@@ -8,6 +10,23 @@ import {
 	EmptyMedia,
 	EmptyTitle,
 } from "#/components/ui/empty.tsx";
+
+export function SessionExpiredFallback() {
+	return (
+		<RouteErrorFallback
+			title="Your session has expired"
+			description="Please log in again to continue."
+			action={
+				<Button
+					asChild
+					className="border-0 bg-(--brand) text-(--brand-fg) hover:bg-(--brand)/90"
+				>
+					<Link to="/auth/login">Log in</Link>
+				</Button>
+			}
+		/>
+	);
+}
 
 export function RouteErrorFallback({
 	title,

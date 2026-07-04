@@ -1,15 +1,13 @@
-import {
-	createFileRoute,
-	Link,
-	Outlet,
-	redirect,
-} from "@tanstack/react-router";
+import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 import { createServerFn } from "@tanstack/react-start";
 import { getCookie } from "@tanstack/react-start/server";
 
 import { DashboardHeader } from "#/components/layout/dashboard-header.tsx";
 import { DashboardSidebar } from "#/components/layout/dashboard-sidebar.tsx";
-import { RouteErrorFallback } from "#/components/layout/route-error-fallback.tsx";
+import {
+	RouteErrorFallback,
+	SessionExpiredFallback,
+} from "#/components/layout/route-error-fallback.tsx";
 import { Button } from "#/components/ui/button.tsx";
 import {
 	SIDEBAR_COOKIE_NAME,
@@ -72,20 +70,7 @@ function DashboardErrorFallback({
 	reset: () => void;
 }) {
 	if (isSessionError(error.message)) {
-		return (
-			<RouteErrorFallback
-				title="Your session has expired"
-				description="Please log in again to continue."
-				action={
-					<Button
-						asChild
-						className="border-0 bg-(--brand) text-(--brand-fg) hover:bg-(--brand)/90"
-					>
-						<Link to="/auth/login">Log in</Link>
-					</Button>
-				}
-			/>
-		);
+		return <SessionExpiredFallback />;
 	}
 
 	return (

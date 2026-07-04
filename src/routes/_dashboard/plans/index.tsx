@@ -45,6 +45,7 @@ import {
 	EmptyTitle,
 } from "#/components/ui/empty.tsx";
 import { Input } from "#/components/ui/input.tsx";
+import { ListPageSkeleton } from "#/components/ui/page-skeleton.tsx";
 import {
 	Pagination,
 	PaginationContent,
@@ -106,6 +107,7 @@ export const Route = createFileRoute("/_dashboard/plans/")({
 		await context.queryClient.ensureQueryData(plansQueryOptions());
 	},
 	component: PlansListPage,
+	pendingComponent: () => <ListPageSkeleton columns={7} />,
 	head: () => ({ meta: [{ title: "Plans | SubPilot" }] }),
 });
 

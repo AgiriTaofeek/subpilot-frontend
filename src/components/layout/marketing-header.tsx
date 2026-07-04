@@ -83,7 +83,7 @@ export default function MarketingHeader() {
 	return (
 		<header
 			className={[
-				"sticky top-0 z-50 px-6 transition-all duration-200",
+				"sticky top-0 z-50 px-6 transition-colors duration-200",
 				scrolled
 					? "border-b border-(--line) bg-(--surface-1)/90 backdrop-blur-xl"
 					: "bg-transparent",
@@ -119,7 +119,7 @@ export default function MarketingHeader() {
 								size="icon-sm"
 								aria-label="Open navigation menu"
 							>
-								<ListIcon className="size-4" />
+								<ListIcon />
 							</Button>
 						</SheetTrigger>
 						<SheetContent

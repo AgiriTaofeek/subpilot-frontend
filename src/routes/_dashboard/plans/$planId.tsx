@@ -4,10 +4,14 @@ import {
 	useQueryClient,
 	useSuspenseQuery,
 } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import {
+	RouteErrorFallback,
+	SessionExpiredFallback,
+} from "#/components/layout/route-error-fallback.tsx";
 import { Button } from "#/components/ui/button.tsx";
 import {
 	Card,
@@ -46,6 +50,8 @@ import {
 	updatePlan,
 } from "#/data/plans.ts";
 import { useHandleMutationError } from "#/hooks/use-handle-mutation-error.ts";
+import { classifyError } from "#/lib/api/classify-error.ts";
+import { isSessionError } from "#/lib/api/is-session-error.ts";
 import { formatNGN } from "#/lib/currency.ts";
 
 export const Route = createFileRoute("/_dashboard/plans/$planId")({
@@ -55,8 +61,47 @@ export const Route = createFileRoute("/_dashboard/plans/$planId")({
 		);
 	},
 	component: PlanDetailPage,
+	errorComponent: PlanDetailErrorFallback,
 	head: () => ({ meta: [{ title: "Plan | SubPilot" }] }),
 });
+
+function PlanDetailErrorFallback({
+	error,
+	reset,
+}: {
+	error: Error;
+	reset: () => void;
+}) {
+	if (isSessionError(error.message)) {
+		return <SessionExpiredFallback />;
+	}
+
+	if (classifyError(error.message) === "not_found") {
+		return (
+			<RouteErrorFallback
+				title="Plan not found"
+				description="This plan may have been removed."
+				action={
+					<Button asChild variant="outline" className="border-(--line)">
+						<Link to="/plans">Back to plans</Link>
+					</Button>
+				}
+			/>
+		);
+	}
+
+	return (
+		<RouteErrorFallback
+			title="Something went wrong"
+			description="We couldn't load this plan. Try again in a moment."
+			action={
+				<Button variant="outline" onClick={reset} className="border-(--line)">
+					Try again
+				</Button>
+			}
+		/>
+	);
+}
 
 function PlanDetailPage() {
 	const { planId } = Route.useParams();

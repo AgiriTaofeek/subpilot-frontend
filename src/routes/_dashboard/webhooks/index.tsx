@@ -46,6 +46,7 @@ import {
 	FieldLabel,
 } from "#/components/ui/field.tsx";
 import { Input } from "#/components/ui/input.tsx";
+import { ListPageSkeleton } from "#/components/ui/page-skeleton.tsx";
 import { Separator } from "#/components/ui/separator.tsx";
 import {
 	Sheet,
@@ -84,6 +85,7 @@ export const Route = createFileRoute("/_dashboard/webhooks/")({
 		);
 	},
 	component: WebhookEndpointsPage,
+	pendingComponent: () => <ListPageSkeleton columns={6} />,
 	head: () => ({ meta: [{ title: "Webhooks | SubPilot" }] }),
 });
 
@@ -305,6 +307,7 @@ function WebhookEndpointsPage() {
 																>
 																	<Field orientation="horizontal">
 																		<Checkbox
+																			id={`group-${group.group}`}
 																			checked={
 																				allChecked
 																					? true
@@ -331,9 +334,12 @@ function WebhookEndpointsPage() {
 																			}}
 																		/>
 																		<FieldContent>
-																			<span className="text-sm font-semibold text-(--ink)">
+																			<FieldLabel
+																				htmlFor={`group-${group.group}`}
+																				className="text-sm font-semibold text-(--ink)"
+																			>
 																				{group.group}
-																			</span>
+																			</FieldLabel>
 																		</FieldContent>
 																	</Field>
 																	<Separator className="bg-(--line)" />

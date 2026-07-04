@@ -46,9 +46,9 @@ function PasswordStrengthBar({
 	const { strength } = usePasswordStrength();
 
 	const fillClass: Record<PasswordStrengthValue, string> = {
-		Weak: "w-1/3 bg-red-500",
-		OK: "w-2/3 bg-yellow-500",
-		Strong: "w-full bg-green-500",
+		Weak: "w-1/3 bg-(--danger)",
+		OK: "w-2/3 bg-(--warning)",
+		Strong: "w-full bg-(--success)",
 	};
 
 	return (
@@ -78,9 +78,9 @@ function PasswordStrengthLabel({
 	const { strength } = usePasswordStrength();
 
 	const colorClass: Record<PasswordStrengthValue, string> = {
-		Weak: "text-red-500",
-		OK: "text-yellow-600",
-		Strong: "text-green-600",
+		Weak: "text-(--danger)",
+		OK: "text-(--warning)",
+		Strong: "text-(--success)",
 	};
 
 	return (

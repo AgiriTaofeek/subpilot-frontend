@@ -17,6 +17,7 @@ import {
 	EmptyTitle,
 } from "#/components/ui/empty.tsx";
 import { Input } from "#/components/ui/input.tsx";
+import { ListPageSkeleton } from "#/components/ui/page-skeleton.tsx";
 import {
 	Pagination,
 	PaginationContent,
@@ -80,6 +81,7 @@ export const Route = createFileRoute("/_dashboard/settings/audit-log")({
 		await context.queryClient.ensureQueryData(auditLogsQueryOptions());
 	},
 	component: SettingsAuditLogPage,
+	pendingComponent: () => <ListPageSkeleton columns={5} />,
 	head: () => ({ meta: [{ title: "Audit log | SubPilot" }] }),
 });
 

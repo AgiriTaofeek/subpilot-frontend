@@ -7,6 +7,10 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import {
+	RouteErrorFallback,
+	SessionExpiredFallback,
+} from "#/components/layout/route-error-fallback.tsx";
 import { Button } from "#/components/ui/button.tsx";
 import { Card, CardContent } from "#/components/ui/card.tsx";
 import {
@@ -30,7 +34,9 @@ import {
 	invoiceStatusTone,
 } from "#/data/invoices.ts";
 import { useHandleMutationError } from "#/hooks/use-handle-mutation-error.ts";
+import { classifyError } from "#/lib/api/classify-error.ts";
 import { voidInvoice } from "#/lib/api/invoices.ts";
+import { isSessionError } from "#/lib/api/is-session-error.ts";
 import { formatNGN } from "#/lib/currency.ts";
 import { formatDate } from "#/lib/date.ts";
 import type { InvoiceStatusDto } from "#/types/api.ts";
@@ -42,8 +48,47 @@ export const Route = createFileRoute("/_dashboard/invoices/$invoiceId")({
 		);
 	},
 	component: InvoiceDetailPage,
+	errorComponent: InvoiceDetailErrorFallback,
 	head: () => ({ meta: [{ title: "Invoice | SubPilot" }] }),
 });
+
+function InvoiceDetailErrorFallback({
+	error,
+	reset,
+}: {
+	error: Error;
+	reset: () => void;
+}) {
+	if (isSessionError(error.message)) {
+		return <SessionExpiredFallback />;
+	}
+
+	if (classifyError(error.message) === "not_found") {
+		return (
+			<RouteErrorFallback
+				title="Invoice not found"
+				description="This invoice may have been removed."
+				action={
+					<Button asChild variant="outline" className="border-(--line)">
+						<Link to="/invoices">Back to invoices</Link>
+					</Button>
+				}
+			/>
+		);
+	}
+
+	return (
+		<RouteErrorFallback
+			title="Something went wrong"
+			description="We couldn't load this invoice. Try again in a moment."
+			action={
+				<Button variant="outline" onClick={reset} className="border-(--line)">
+					Try again
+				</Button>
+			}
+		/>
+	);
+}
 
 function formatPeriod(startIso: string, endIso: string): string {
 	const start = new Date(startIso);

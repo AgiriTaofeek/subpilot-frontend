@@ -8,6 +8,10 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import {
+	RouteErrorFallback,
+	SessionExpiredFallback,
+} from "#/components/layout/route-error-fallback.tsx";
 import { Button } from "#/components/ui/button.tsx";
 import {
 	Card,
@@ -66,6 +70,8 @@ import {
 	subscriptionStatusTone,
 } from "#/data/subscriptions.ts";
 import { useHandleMutationError } from "#/hooks/use-handle-mutation-error.ts";
+import { classifyError } from "#/lib/api/classify-error.ts";
+import { isSessionError } from "#/lib/api/is-session-error.ts";
 import {
 	cancelSubscription,
 	changePlanSubscription,
@@ -90,8 +96,47 @@ export const Route = createFileRoute(
 		]);
 	},
 	component: SubscriptionDetailPage,
+	errorComponent: SubscriptionDetailErrorFallback,
 	head: () => ({ meta: [{ title: "Subscription | SubPilot" }] }),
 });
+
+function SubscriptionDetailErrorFallback({
+	error,
+	reset,
+}: {
+	error: Error;
+	reset: () => void;
+}) {
+	if (isSessionError(error.message)) {
+		return <SessionExpiredFallback />;
+	}
+
+	if (classifyError(error.message) === "not_found") {
+		return (
+			<RouteErrorFallback
+				title="Subscription not found"
+				description="This subscription may have been removed."
+				action={
+					<Button asChild variant="outline" className="border-(--line)">
+						<Link to="/subscriptions">Back to subscriptions</Link>
+					</Button>
+				}
+			/>
+		);
+	}
+
+	return (
+		<RouteErrorFallback
+			title="Something went wrong"
+			description="We couldn't load this subscription. Try again in a moment."
+			action={
+				<Button variant="outline" onClick={reset} className="border-(--line)">
+					Try again
+				</Button>
+			}
+		/>
+	);
+}
 
 const transitions: Record<SubscriptionStatus, SubscriptionStatus[]> = {
 	trialing: ["active", "cancelled"],

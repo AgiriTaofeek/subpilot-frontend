@@ -1,6 +1,10 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 
+import {
+	RouteErrorFallback,
+	SessionExpiredFallback,
+} from "#/components/layout/route-error-fallback.tsx";
 import { Button } from "#/components/ui/button.tsx";
 import {
 	Card,
@@ -23,6 +27,8 @@ import {
 	subscriptionStatusLabel,
 	subscriptionStatusTone,
 } from "#/data/subscriptions.ts";
+import { classifyError } from "#/lib/api/classify-error.ts";
+import { isSessionError } from "#/lib/api/is-session-error.ts";
 import { formatNGN } from "#/lib/currency.ts";
 
 export const Route = createFileRoute("/_dashboard/customers/$customerId")({
@@ -32,8 +38,47 @@ export const Route = createFileRoute("/_dashboard/customers/$customerId")({
 		);
 	},
 	component: CustomerDetailPage,
+	errorComponent: CustomerDetailErrorFallback,
 	head: () => ({ meta: [{ title: "Customer | SubPilot" }] }),
 });
+
+function CustomerDetailErrorFallback({
+	error,
+	reset,
+}: {
+	error: Error;
+	reset: () => void;
+}) {
+	if (isSessionError(error.message)) {
+		return <SessionExpiredFallback />;
+	}
+
+	if (classifyError(error.message) === "not_found") {
+		return (
+			<RouteErrorFallback
+				title="Customer not found"
+				description="This customer may have been removed."
+				action={
+					<Button asChild variant="outline" className="border-(--line)">
+						<Link to="/customers">Back to customers</Link>
+					</Button>
+				}
+			/>
+		);
+	}
+
+	return (
+		<RouteErrorFallback
+			title="Something went wrong"
+			description="We couldn't load this customer. Try again in a moment."
+			action={
+				<Button variant="outline" onClick={reset} className="border-(--line)">
+					Try again
+				</Button>
+			}
+		/>
+	);
+}
 
 function CustomerDetailPage() {
 	const { customerId } = Route.useParams();
