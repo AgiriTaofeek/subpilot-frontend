@@ -13,7 +13,7 @@ export default function Footer() {
 				<a
 					href="https://x.com/tan_stack"
 					target="_blank"
-					rel="noreferrer"
+					rel="noreferrer noopener"
 					className="rounded-xl p-2 text-[var(--sea-ink-soft)] transition hover:bg-[var(--link-bg-hover)] hover:text-[var(--sea-ink)]"
 				>
 					<span className="sr-only">Follow TanStack on X</span>
@@ -27,7 +27,7 @@ export default function Footer() {
 				<a
 					href="https://github.com/TanStack"
 					target="_blank"
-					rel="noreferrer"
+					rel="noreferrer noopener"
 					className="rounded-xl p-2 text-[var(--sea-ink-soft)] transition hover:bg-[var(--link-bg-hover)] hover:text-[var(--sea-ink)]"
 				>
 					<span className="sr-only">Go to TanStack GitHub</span>

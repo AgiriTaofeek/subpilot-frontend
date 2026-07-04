@@ -43,7 +43,13 @@ export const Route = createFileRoute("/auth/signup")({
 const schema = z.object({
 	businessName: z.string().min(2, "Enter your business name."),
 	email: z.email("Enter a valid email."),
-	password: z.string().min(8, "Password must be at least 8 characters."),
+	password: z
+		.string()
+		.min(8, "Password must be at least 8 characters.")
+		.max(100, "Password must be 100 characters or fewer.")
+		.regex(/[a-z]/, "Password must include a lowercase letter.")
+		.regex(/[A-Z]/, "Password must include an uppercase letter.")
+		.regex(/\d/, "Password must include a number."),
 	phone: z.string(),
 });
 

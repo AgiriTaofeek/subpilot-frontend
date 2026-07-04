@@ -30,7 +30,16 @@ export const eventTypeGroups: Array<{ group: string; events: string[] }> = [
 	},
 	{
 		group: "Refund",
-		events: ["refund.created", "refund.succeeded", "refund.failed"],
+		events: [
+			"refund.created",
+			"refund.succeeded",
+			"refund.failed",
+			"refund.rejected",
+		],
+	},
+	{
+		group: "Payout",
+		events: ["payout.triggered", "payout.succeeded", "payout.failed"],
 	},
 ];
 

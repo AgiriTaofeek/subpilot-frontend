@@ -24,6 +24,7 @@ import { Route as PortalTokenIndexRouteImport } from './routes/portal.$token/ind
 import { Route as DashboardWebhooksIndexRouteImport } from './routes/_dashboard/webhooks/index'
 import { Route as DashboardSubscriptionsIndexRouteImport } from './routes/_dashboard/subscriptions/index'
 import { Route as DashboardPlansIndexRouteImport } from './routes/_dashboard/plans/index'
+import { Route as DashboardPayoutsIndexRouteImport } from './routes/_dashboard/payouts/index'
 import { Route as DashboardInvoicesIndexRouteImport } from './routes/_dashboard/invoices/index'
 import { Route as DashboardCustomersIndexRouteImport } from './routes/_dashboard/customers/index'
 import { Route as PortalTokenPlansRouteImport } from './routes/portal.$token/plans'
@@ -114,6 +115,11 @@ const DashboardSubscriptionsIndexRoute =
 const DashboardPlansIndexRoute = DashboardPlansIndexRouteImport.update({
   id: '/plans/',
   path: '/plans/',
+  getParentRoute: () => DashboardRoute,
+} as any)
+const DashboardPayoutsIndexRoute = DashboardPayoutsIndexRouteImport.update({
+  id: '/payouts/',
+  path: '/payouts/',
   getParentRoute: () => DashboardRoute,
 } as any)
 const DashboardInvoicesIndexRoute = DashboardInvoicesIndexRouteImport.update({
@@ -237,6 +243,7 @@ export interface FileRoutesByFullPath {
   '/portal/$token/plans': typeof PortalTokenPlansRoute
   '/customers/': typeof DashboardCustomersIndexRoute
   '/invoices/': typeof DashboardInvoicesIndexRoute
+  '/payouts/': typeof DashboardPayoutsIndexRoute
   '/plans/': typeof DashboardPlansIndexRoute
   '/subscriptions/': typeof DashboardSubscriptionsIndexRoute
   '/webhooks/': typeof DashboardWebhooksIndexRoute
@@ -268,6 +275,7 @@ export interface FileRoutesByTo {
   '/portal/$token/plans': typeof PortalTokenPlansRoute
   '/customers': typeof DashboardCustomersIndexRoute
   '/invoices': typeof DashboardInvoicesIndexRoute
+  '/payouts': typeof DashboardPayoutsIndexRoute
   '/plans': typeof DashboardPlansIndexRoute
   '/subscriptions': typeof DashboardSubscriptionsIndexRoute
   '/webhooks': typeof DashboardWebhooksIndexRoute
@@ -303,6 +311,7 @@ export interface FileRoutesById {
   '/portal/$token/plans': typeof PortalTokenPlansRoute
   '/_dashboard/customers/': typeof DashboardCustomersIndexRoute
   '/_dashboard/invoices/': typeof DashboardInvoicesIndexRoute
+  '/_dashboard/payouts/': typeof DashboardPayoutsIndexRoute
   '/_dashboard/plans/': typeof DashboardPlansIndexRoute
   '/_dashboard/subscriptions/': typeof DashboardSubscriptionsIndexRoute
   '/_dashboard/webhooks/': typeof DashboardWebhooksIndexRoute
@@ -337,6 +346,7 @@ export interface FileRouteTypes {
     | '/portal/$token/plans'
     | '/customers/'
     | '/invoices/'
+    | '/payouts/'
     | '/plans/'
     | '/subscriptions/'
     | '/webhooks/'
@@ -368,6 +378,7 @@ export interface FileRouteTypes {
     | '/portal/$token/plans'
     | '/customers'
     | '/invoices'
+    | '/payouts'
     | '/plans'
     | '/subscriptions'
     | '/webhooks'
@@ -402,6 +413,7 @@ export interface FileRouteTypes {
     | '/portal/$token/plans'
     | '/_dashboard/customers/'
     | '/_dashboard/invoices/'
+    | '/_dashboard/payouts/'
     | '/_dashboard/plans/'
     | '/_dashboard/subscriptions/'
     | '/_dashboard/webhooks/'
@@ -523,6 +535,13 @@ declare module '@tanstack/react-router' {
       path: '/plans'
       fullPath: '/plans/'
       preLoaderRoute: typeof DashboardPlansIndexRouteImport
+      parentRoute: typeof DashboardRoute
+    }
+    '/_dashboard/payouts/': {
+      id: '/_dashboard/payouts/'
+      path: '/payouts'
+      fullPath: '/payouts/'
+      preLoaderRoute: typeof DashboardPayoutsIndexRouteImport
       parentRoute: typeof DashboardRoute
     }
     '/_dashboard/invoices/': {
@@ -664,6 +683,7 @@ interface DashboardRouteChildren {
   DashboardWebhooksDeliveriesRoute: typeof DashboardWebhooksDeliveriesRoute
   DashboardCustomersIndexRoute: typeof DashboardCustomersIndexRoute
   DashboardInvoicesIndexRoute: typeof DashboardInvoicesIndexRoute
+  DashboardPayoutsIndexRoute: typeof DashboardPayoutsIndexRoute
   DashboardPlansIndexRoute: typeof DashboardPlansIndexRoute
   DashboardSubscriptionsIndexRoute: typeof DashboardSubscriptionsIndexRoute
   DashboardWebhooksIndexRoute: typeof DashboardWebhooksIndexRoute
@@ -687,6 +707,7 @@ const DashboardRouteChildren: DashboardRouteChildren = {
   DashboardWebhooksDeliveriesRoute: DashboardWebhooksDeliveriesRoute,
   DashboardCustomersIndexRoute: DashboardCustomersIndexRoute,
   DashboardInvoicesIndexRoute: DashboardInvoicesIndexRoute,
+  DashboardPayoutsIndexRoute: DashboardPayoutsIndexRoute,
   DashboardPlansIndexRoute: DashboardPlansIndexRoute,
   DashboardSubscriptionsIndexRoute: DashboardSubscriptionsIndexRoute,
   DashboardWebhooksIndexRoute: DashboardWebhooksIndexRoute,

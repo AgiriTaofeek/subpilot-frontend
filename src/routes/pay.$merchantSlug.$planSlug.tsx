@@ -39,9 +39,17 @@ export const Route = createFileRoute("/pay/$merchantSlug/$planSlug")({
 });
 
 const checkoutSchema = z.object({
-	fullName: z.string().min(2, "Enter your full name."),
-	email: z.email("Enter a valid email."),
-	phone: z.string().min(7, "Enter a valid phone number."),
+	fullName: z
+		.string()
+		.min(2, "Enter your full name.")
+		.max(100, "Full name must be 100 characters or fewer."),
+	email: z.email("Enter a valid email.").max(255, "Email is too long."),
+	phone: z
+		.string()
+		.regex(
+			/^[+\d\s()-]{8,20}$/,
+			"Enter a valid phone number (8-20 digits, spaces, +, (), or -).",
+		),
 });
 
 function PublicCheckoutPage() {

@@ -1,5 +1,6 @@
 import {
 	ArrowsClockwiseIcon,
+	BankIcon,
 	ChartBarIcon,
 	ChartLineUpIcon,
 	ClipboardTextIcon,
@@ -74,6 +75,12 @@ const navItems = [
 		href: "/revenue",
 		icon: ChartLineUpIcon,
 		activePrefix: "/revenue",
+	},
+	{
+		label: "Payouts",
+		href: "/payouts",
+		icon: BankIcon,
+		activePrefix: "/payouts",
 	},
 	{
 		label: "Webhooks",

@@ -256,6 +256,34 @@ export interface MerchantFeeRateDto {
 	isOverride: boolean;
 }
 
+export interface PayoutBankDto {
+	name: string;
+	bankCode: string;
+}
+
+export interface PayoutBankLookupResultDto {
+	found: boolean;
+	accountNumber: string | null;
+	accountName: string | null;
+	failureReason: string | null;
+}
+
+export type DisbursementStatusDto = "pending" | "succeeded" | "failed";
+
+export interface DisbursementDto {
+	id: string;
+	amount: number;
+	currency: string;
+	status: DisbursementStatusDto;
+	invoiceCount: number;
+	periodStart: string | null;
+	periodEnd: string;
+	nombaTransferReference: string | null;
+	failureReason: string | null;
+	createdAt: string | null;
+	resolvedAt: string | null;
+}
+
 export interface ApiKeyResponseDto {
 	id: string;
 	label: string;
