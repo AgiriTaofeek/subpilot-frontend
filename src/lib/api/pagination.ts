@@ -7,8 +7,20 @@ import type { PageResponse } from "#/types/api.ts";
 // until the backend reports `last: true`.
 const MAX_PAGES = 50;
 
+// Overload kept id-constrained for the common case (compile-time safety, no
+// key selector needed); the second overload covers DTOs whose identifier
+// field isn't literally named `id` (e.g. `merchantId`) without callers having
+// to reimplement this same dedupe loop.
 export async function fetchAllPages<T extends { id: string }>(
 	fetchPage: (page: number) => Promise<PageResponse<T>>,
+): Promise<T[]>;
+export async function fetchAllPages<T>(
+	fetchPage: (page: number) => Promise<PageResponse<T>>,
+	getId: (item: T) => string,
+): Promise<T[]>;
+export async function fetchAllPages<T>(
+	fetchPage: (page: number) => Promise<PageResponse<T>>,
+	getId: (item: T) => string = (item) => (item as { id: string }).id,
 ): Promise<T[]> {
 	// Offset pagination drifts when records are created/removed between page
 	// fetches, which can surface the same id on two consecutive pages — dedupe
@@ -20,7 +32,7 @@ export async function fetchAllPages<T extends { id: string }>(
 	do {
 		result = await fetchPage(page);
 		for (const item of result.content) {
-			byId.set(item.id, item);
+			byId.set(getId(item), item);
 		}
 		page += 1;
 	} while (!result.last && page < MAX_PAGES);

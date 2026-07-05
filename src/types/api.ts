@@ -482,3 +482,114 @@ export interface PortalUpdateCardResponseDto {
 	checkoutUrl: string;
 	reference: string;
 }
+
+export type InternalAdminRoleDto = "super_admin" | "ops_admin";
+
+export interface InternalAdminSessionDto {
+	adminId: string;
+	email: string;
+	role: InternalAdminRoleDto;
+	displayName: string;
+}
+
+export interface InternalLoginRequestDto {
+	email: string;
+	password: string;
+}
+
+export type MerchantStatusDto = "active" | "under_review" | "suspended";
+
+export interface InternalMerchantListItemDto {
+	merchantId: string;
+	businessName: string;
+	email: string;
+	slug: string;
+	status: MerchantStatusDto;
+	feeSource: string;
+	createdAt: string;
+	updatedAt: string;
+}
+
+export interface InternalMerchantDetailDto {
+	merchantId: string;
+	businessName: string;
+	email: string;
+	slug: string;
+	status: MerchantStatusDto;
+	feeSource: string;
+	effectiveFeeBps: number;
+	effectiveFixedFeeMinor: number;
+	overrideFeeBps: number | null;
+	overrideFixedFeeMinor: number | null;
+	createdAt: string;
+	updatedAt: string;
+}
+
+export interface UpdateMerchantStatusRequestDto {
+	status: MerchantStatusDto;
+	reason: string;
+}
+
+export interface InternalMerchantFeeResponseDto {
+	feeSource: string;
+	platformDefaultFeeBps: number;
+	platformDefaultFixedFeeMinor: number;
+	overrideFeeBps: number | null;
+	overrideFixedFeeMinor: number | null;
+	effectiveFeeBps: number;
+	effectiveFixedFeeMinor: number;
+}
+
+export interface SetMerchantFeeOverrideRequestDto {
+	overrideFeeBps: number;
+	overrideFixedFeeMinor: number;
+	reason: string;
+}
+
+export interface RemoveMerchantFeeOverrideRequestDto {
+	reason: string;
+}
+
+export interface InternalDefaultFeeResponseDto {
+	feeBps: number;
+	fixedFeeMinor: number;
+	updatedAt: string;
+	updatedByAdminId: string;
+}
+
+export interface UpdatePlatformFeeRequestDto {
+	feeBps: number;
+	fixedFeeMinor: number;
+	reason: string;
+}
+
+// The internal audit log's before/after values are arbitrary parsed JSON from
+// the backend (unlike the merchant audit log's beforeSnapshot/afterSnapshot,
+// which stay JSON-*strings* specifically to sidestep this) — `unknown`
+// doesn't satisfy Start's serializability check anywhere in the shape, so
+// this spells out the recursive JSON type instead.
+export type JsonValue =
+	| string
+	| number
+	| boolean
+	| null
+	| JsonValue[]
+	| { [key: string]: JsonValue };
+
+export interface InternalAuditLogDto {
+	auditId: string;
+	actorAdminId: string;
+	actorEmail: string;
+	targetType: string;
+	targetId: string;
+	actionType: string;
+	oldValue: JsonValue | null;
+	newValue: JsonValue | null;
+	reason: string | null;
+	createdAt: string;
+}
+
+export interface InternalDashboardSummaryDto {
+	pendingMerchantActivations: number;
+	pendingRefundApprovals: number;
+}

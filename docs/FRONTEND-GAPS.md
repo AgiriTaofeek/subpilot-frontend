@@ -21,17 +21,22 @@ against the frontend's current `src/types/api.ts` and `src/lib/api/*.ts`.
 ## Current state, in one line
 
 The backend is essentially complete for everything the merchant dashboard, public
-checkout, and customer portal currently do. The frontend's existing contract types
-already match it closely — pagination params, error envelope shape, and enum values
-are correct per-endpoint, including non-obvious ones (see "Already correct" below).
-The real gaps are: two genuinely missing features, one separate application that
-was never started, and one small type-safety bug.
+checkout, customer portal, and internal admin panel now do. The frontend's existing
+contract types already match it closely — pagination params, error envelope shape,
+and enum values are correct per-endpoint, including non-obvious ones (see "Already
+correct" below). Invoice refunds and the internal admin panel (both originally listed
+below as gaps) are now built, and the one type-safety bug found is fixed. Fee ledger
+remains genuinely optional (see below) — the only open item left in this file.
 
 ---
 
-## Missing feature 1 — Invoice refunds
+## Done — Invoice refunds
 
-The backend fully supports this; the frontend has nothing.
+Built: `RefundResponseDto`/`CreateRefundRequestDto` in `src/types/api.ts`,
+`createInvoiceRefund`/`listInvoiceRefunds` in `src/lib/api/invoices.ts`, a refund
+action + history list on
+[src/routes/_dashboard/invoices/$invoiceId.tsx](../src/routes/_dashboard/invoices/$invoiceId.tsx).
+Kept for reference — the backend contract this was built against:
 
 - `POST /v1/invoices/{invoiceId}/refund` — body `{ amount?: number, reason?: string }`
   (amount omitted = full refund). Requires merchant session + CSRF header (mutating,
@@ -67,12 +72,32 @@ The backend fully supports this; the frontend has nothing.
 
 ---
 
-## Missing feature 2 — Internal admin panel (a separate application, not a page)
+## Done — Internal admin panel (a separate application, not a page)
 
 `/v1/internal/**` is a structurally distinct system from the merchant-facing API —
-its own auth, its own cookie, its own roles. Nothing under this exists in the
-frontend today. Treat this as its own project, not an add-on to the merchant
-dashboard.
+its own auth, its own cookie, its own roles. Built as its own route tree under
+`/internal/*` in the same app (forced by the backend's fixed CORS allowlist, not
+preference — see `docs/tanstack-start-request-lifecycle.md` for why a separate
+deployment wasn't viable):
+
+- Auth: `src/lib/api/internal-backend.ts` (leaner sibling of `backend.ts`, no
+  refresh-retry since `InternalAuthController` has none), `internal-auth.ts`,
+  entry at `src/routes/internal.login.tsx` (unguarded, visually distinct — red
+  accent, "SubPilot Internal" branding), guard at `src/routes/_internalGate.tsx`
+  (redirects to `/internal/login` on session failure, independent of the merchant
+  `_dashboard.tsx` guard — verified neither cross-redirects into the other).
+- Dashboard summary (`/internal`), merchants list/detail with status-change and
+  fee-override actions (`/internal/merchants`), refund approval queue restricted to
+  `super_admin` (`/internal/refunds` — hidden from nav and pre-empted before the
+  request even fires for `ops_admin`, not just 403-and-toast), platform default fee
+  (`/internal/fees`), internal audit log (`/internal/audit-log`).
+- Open item, not yet verified against the live backend: whether internal-admin
+  login issues a `_subpilot_csrf` cookie the same way merchant login does.
+  `internalBackendRequest` attaches the CSRF header if that cookie is present,
+  same as the merchant client — harmless if unneeded, correct if it turns out to
+  be required. Confirm once real internal-admin credentials are available.
+
+Backend contract this was built against, kept for reference:
 
 **Auth mechanics** (`co.subpilot.internal.admin.security`):
 - Separate cookie: `_subpilot_internal_session` (vs. merchant's `_subpilot_session`)
@@ -126,14 +151,11 @@ actual request for it.
 
 ---
 
-## Contract bug to fix
+## Done — contract bug
 
-`PortalSubscriptionViewDto.nextBillingDate` in
-[src/types/api.ts](../src/types/api.ts) is typed as `string`, but the backend's
-`PortalSubscriptionView.nextBillingDate` is nullable (a paused or cancelled
-subscription has none). Should be `string | null`, matching how `trialEndsAt` is
-already typed on the same interface. Small, mechanical fix — no known runtime bug
-observed yet, just a type that will eventually lie.
+`PortalSubscriptionViewDto.nextBillingDate` in [src/types/api.ts](../src/types/api.ts)
+is now `string | null`, matching the backend's actual nullability and how
+`trialEndsAt` was already typed on the same interface.
 
 ---
 

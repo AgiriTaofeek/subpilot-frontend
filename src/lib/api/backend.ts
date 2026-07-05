@@ -94,7 +94,7 @@ function buildUrl(
 	return url;
 }
 
-async function parseBackendError(response: Response) {
+export async function parseBackendError(response: Response) {
 	let payload: BackendErrorShape | null = null;
 
 	try {
@@ -116,7 +116,7 @@ async function parseBackendError(response: Response) {
 	});
 }
 
-async function parseJsonResponse<T>(response: Response) {
+export async function parseJsonResponse<T>(response: Response) {
 	if (response.status === 204) {
 		return undefined as T;
 	}
@@ -179,7 +179,7 @@ function getResponseSetCookies(response: Response) {
 	return setCookie ? [setCookie] : [];
 }
 
-async function forwardResponseCookies(
+export async function forwardResponseCookies(
 	response: Response,
 	serverHeaders: typeof import("@tanstack/react-start/server"),
 ) {
@@ -198,7 +198,7 @@ async function forwardResponseCookies(
 	}
 }
 
-function attachCsrfHeader(
+export function attachCsrfHeader(
 	headers: Headers,
 	method: "DELETE" | "GET" | "PATCH" | "POST",
 	cookieHeader: string | null | undefined,
@@ -211,7 +211,7 @@ function attachCsrfHeader(
 	}
 }
 
-async function makeBackendFetch(
+export async function makeBackendFetch(
 	input: {
 		path: string;
 		method: "DELETE" | "GET" | "PATCH" | "POST";
