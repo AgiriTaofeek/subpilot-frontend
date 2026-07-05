@@ -68,6 +68,8 @@ import {
 	subscriptionDetailQueryOptions,
 	subscriptionStatusLabel,
 	subscriptionStatusTone,
+	subscriptionTransitionLabels,
+	subscriptionTransitions,
 } from "#/data/subscriptions.ts";
 import { useHandleMutationError } from "#/hooks/use-handle-mutation-error.ts";
 import { classifyError } from "#/lib/api/classify-error.ts";
@@ -138,33 +140,8 @@ function SubscriptionDetailErrorFallback({
 	);
 }
 
-const transitions: Record<SubscriptionStatus, SubscriptionStatus[]> = {
-	trialing: ["active", "cancelled"],
-	active: ["past_due", "paused", "cancelled"],
-	past_due: ["active", "cancelled", "expired"],
-	suspended: ["active", "cancelled"],
-	paused: ["active", "cancelled"],
-	cancelled: [],
-	expired: [],
-};
-
-const transitionLabels: Record<string, string> = {
-	"trialing->active": "trial ends",
-	"trialing->cancelled": "cancel",
-	"active->past_due": "payment fails",
-	"active->paused": "pause",
-	"active->cancelled": "cancel",
-	"past_due->active": "payment recovers",
-	"past_due->cancelled": "dunning exhausted",
-	"past_due->expired": "retries exhausted",
-	"suspended->active": "resume",
-	"suspended->cancelled": "cancel",
-	"paused->active": "resume",
-	"paused->cancelled": "cancel",
-};
-
 function StateMachineDiagram({ current }: { current: SubscriptionStatus }) {
-	const reachable = transitions[current];
+	const reachable = subscriptionTransitions[current];
 	return (
 		<div className="flex flex-wrap items-center gap-3">
 			<div className="flex flex-col items-center gap-1.5">
@@ -180,7 +157,7 @@ function StateMachineDiagram({ current }: { current: SubscriptionStatus }) {
 					<div className="flex flex-col items-center gap-1">
 						<CaretRightIcon className="size-3.5 text-(--ink-3)" />
 						<span className="text-[0.55rem] text-(--ink-3)">
-							{transitionLabels[`${current}->${next}`]}
+							{subscriptionTransitionLabels[`${current}->${next}`]}
 						</span>
 					</div>
 					<div className="flex flex-col items-center gap-1.5">

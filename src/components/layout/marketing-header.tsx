@@ -1,5 +1,5 @@
 import { ListIcon } from "@phosphor-icons/react";
-import { Link } from "@tanstack/react-router";
+import { Link, useLocation } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 
 import ThemeToggle from "#/components/ThemeToggle.tsx";
@@ -24,8 +24,6 @@ const marketingLinks = [
 	{ label: "Product", href: "#product" },
 	{ label: "How it works", href: "#how-it-works" },
 	{ label: "Webhooks", href: "#webhooks" },
-	{ label: "Portal", href: "#portal" },
-	{ label: "Built for Nomba", href: "#proof" },
 ] as const;
 
 function Wordmark() {
@@ -72,6 +70,9 @@ function HeaderCtas() {
 
 export default function MarketingHeader() {
 	const [scrolled, setScrolled] = useState(false);
+	const isHome = useLocation({
+		select: (location) => location.pathname === "/",
+	});
 
 	useEffect(() => {
 		const onScroll = () => setScrolled(window.scrollY > 20);
@@ -95,16 +96,26 @@ export default function MarketingHeader() {
 				<div className="ml-auto hidden items-center gap-4 lg:flex">
 					<NavigationMenu viewport={false}>
 						<NavigationMenuList className="gap-1">
-							{marketingLinks.map((link) => (
-								<NavigationMenuItem key={link.label}>
-									<NavigationMenuLink
-										href={link.href}
-										className="rounded-full px-3 py-2 text-sm text-(--ink-2) hover:bg-(--surface-2) hover:text-(--ink)"
-									>
-										{link.label}
-									</NavigationMenuLink>
-								</NavigationMenuItem>
-							))}
+							{isHome
+								? marketingLinks.map((link) => (
+										<NavigationMenuItem key={link.label}>
+											<NavigationMenuLink
+												href={link.href}
+												className="rounded-full px-3 py-2 text-sm text-(--ink-2) hover:bg-(--surface-2) hover:text-(--ink)"
+											>
+												{link.label}
+											</NavigationMenuLink>
+										</NavigationMenuItem>
+									))
+								: null}
+							<NavigationMenuItem>
+								<NavigationMenuLink
+									asChild
+									className="rounded-full px-3 py-2 text-sm text-(--ink-2) hover:bg-(--surface-2) hover:text-(--ink)"
+								>
+									<Link to="/docs">API docs</Link>
+								</NavigationMenuLink>
+							</NavigationMenuItem>
 						</NavigationMenuList>
 					</NavigationMenu>
 					<HeaderCtas />
@@ -136,16 +147,26 @@ export default function MarketingHeader() {
 								</SheetDescription>
 							</SheetHeader>
 							<div className="flex flex-1 flex-col gap-2 px-8 pb-8">
-								{marketingLinks.map((link) => (
-									<SheetClose key={link.label} asChild>
-										<a
-											href={link.href}
-											className="rounded-2xl border border-(--line) bg-(--surface-2) px-4 py-3 text-sm font-medium text-(--ink) no-underline"
-										>
-											{link.label}
-										</a>
-									</SheetClose>
-								))}
+								{isHome
+									? marketingLinks.map((link) => (
+											<SheetClose key={link.label} asChild>
+												<a
+													href={link.href}
+													className="rounded-2xl border border-(--line) bg-(--surface-2) px-4 py-3 text-sm font-medium text-(--ink) no-underline"
+												>
+													{link.label}
+												</a>
+											</SheetClose>
+										))
+									: null}
+								<SheetClose asChild>
+									<Link
+										to="/docs"
+										className="rounded-2xl border border-(--line) bg-(--surface-2) px-4 py-3 text-sm font-medium text-(--ink) no-underline"
+									>
+										API docs
+									</Link>
+								</SheetClose>
 								<div className="mt-4 grid gap-2">
 									<SheetClose asChild>
 										<Button

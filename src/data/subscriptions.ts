@@ -59,6 +59,34 @@ export const subscriptionStatusLabel: Record<SubscriptionStatus, string> = {
 	expired: "Expired",
 };
 
+export const subscriptionTransitions: Record<
+	SubscriptionStatus,
+	SubscriptionStatus[]
+> = {
+	trialing: ["active", "cancelled"],
+	active: ["past_due", "paused", "cancelled"],
+	past_due: ["active", "cancelled", "expired"],
+	suspended: ["active", "cancelled"],
+	paused: ["active", "cancelled"],
+	cancelled: [],
+	expired: [],
+};
+
+export const subscriptionTransitionLabels: Record<string, string> = {
+	"trialing->active": "trial ends",
+	"trialing->cancelled": "cancel",
+	"active->past_due": "payment fails",
+	"active->paused": "pause",
+	"active->cancelled": "cancel",
+	"past_due->active": "payment recovers",
+	"past_due->cancelled": "dunning exhausted",
+	"past_due->expired": "retries exhausted",
+	"suspended->active": "resume",
+	"suspended->cancelled": "cancel",
+	"paused->active": "resume",
+	"paused->cancelled": "cancel",
+};
+
 export function formatRelativeBillingDate(iso: string | null): string {
 	if (!iso) return "—";
 	const target = new Date(iso);

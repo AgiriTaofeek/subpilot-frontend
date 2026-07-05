@@ -16,7 +16,7 @@
     "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "test": "vitest run",
-    "check:ci": "biome check .github package.json vite.config.ts vitest.config.ts src/data src/lib src/routes src/components/layout src/types",
+    "check:ci": "biome check .github package.json vite.config.ts vitest.config.ts src/data src/lib src/routes src/components/layout src/components/marketing src/components/docs src/hooks src/types",
     "format": "biome format",
     "lint": "biome lint",
     "check": "biome check"
@@ -42,6 +42,7 @@
     "@tanstack/store": "latest",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "motion": "^12.42.2",
     "nitro": "npm:nitro-nightly@latest",
     "radix-ui": "^1.6.0",
     "react": "^19.2.0",

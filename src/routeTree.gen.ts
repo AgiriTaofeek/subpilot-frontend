@@ -18,6 +18,7 @@ import { Route as PortalTokenRouteImport } from './routes/portal.$token'
 import { Route as InternalLoginRouteImport } from './routes/internal.login'
 import { Route as AuthSignupRouteImport } from './routes/auth/signup'
 import { Route as AuthLoginRouteImport } from './routes/auth/login'
+import { Route as MarketingDocsRouteImport } from './routes/_marketing/docs'
 import { Route as DashboardRevenueRouteImport } from './routes/_dashboard/revenue'
 import { Route as DashboardOverviewRouteImport } from './routes/_dashboard/overview'
 import { Route as DashboardEventsRouteImport } from './routes/_dashboard/events'
@@ -92,6 +93,11 @@ const AuthLoginRoute = AuthLoginRouteImport.update({
   id: '/login',
   path: '/login',
   getParentRoute: () => AuthRoute,
+} as any)
+const MarketingDocsRoute = MarketingDocsRouteImport.update({
+  id: '/docs',
+  path: '/docs',
+  getParentRoute: () => MarketingRoute,
 } as any)
 const DashboardRevenueRoute = DashboardRevenueRouteImport.update({
   id: '/revenue',
@@ -277,6 +283,7 @@ export interface FileRoutesByFullPath {
   '/events': typeof DashboardEventsRoute
   '/overview': typeof DashboardOverviewRoute
   '/revenue': typeof DashboardRevenueRoute
+  '/docs': typeof MarketingDocsRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/signup': typeof AuthSignupRoute
   '/internal/login': typeof InternalLoginRoute
@@ -317,6 +324,7 @@ export interface FileRoutesByTo {
   '/events': typeof DashboardEventsRoute
   '/overview': typeof DashboardOverviewRoute
   '/revenue': typeof DashboardRevenueRoute
+  '/docs': typeof MarketingDocsRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/signup': typeof AuthSignupRoute
   '/internal/login': typeof InternalLoginRoute
@@ -359,6 +367,7 @@ export interface FileRoutesById {
   '/_dashboard/events': typeof DashboardEventsRoute
   '/_dashboard/overview': typeof DashboardOverviewRoute
   '/_dashboard/revenue': typeof DashboardRevenueRoute
+  '/_marketing/docs': typeof MarketingDocsRoute
   '/auth/login': typeof AuthLoginRoute
   '/auth/signup': typeof AuthSignupRoute
   '/internal/login': typeof InternalLoginRoute
@@ -402,6 +411,7 @@ export interface FileRouteTypes {
     | '/events'
     | '/overview'
     | '/revenue'
+    | '/docs'
     | '/auth/login'
     | '/auth/signup'
     | '/internal/login'
@@ -442,6 +452,7 @@ export interface FileRouteTypes {
     | '/events'
     | '/overview'
     | '/revenue'
+    | '/docs'
     | '/auth/login'
     | '/auth/signup'
     | '/internal/login'
@@ -483,6 +494,7 @@ export interface FileRouteTypes {
     | '/_dashboard/events'
     | '/_dashboard/overview'
     | '/_dashboard/revenue'
+    | '/_marketing/docs'
     | '/auth/login'
     | '/auth/signup'
     | '/internal/login'
@@ -593,6 +605,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/auth/login'
       preLoaderRoute: typeof AuthLoginRouteImport
       parentRoute: typeof AuthRoute
+    }
+    '/_marketing/docs': {
+      id: '/_marketing/docs'
+      path: '/docs'
+      fullPath: '/docs'
+      preLoaderRoute: typeof MarketingDocsRouteImport
+      parentRoute: typeof MarketingRoute
     }
     '/_dashboard/revenue': {
       id: '/_dashboard/revenue'
@@ -897,10 +916,12 @@ const InternalGateRouteWithChildren = InternalGateRoute._addFileChildren(
 )
 
 interface MarketingRouteChildren {
+  MarketingDocsRoute: typeof MarketingDocsRoute
   MarketingIndexRoute: typeof MarketingIndexRoute
 }
 
 const MarketingRouteChildren: MarketingRouteChildren = {
+  MarketingDocsRoute: MarketingDocsRoute,
   MarketingIndexRoute: MarketingIndexRoute,
 }
 
