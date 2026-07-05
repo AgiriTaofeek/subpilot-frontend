@@ -1,7 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
-import { backendRequest } from "#/lib/api/backend.ts";
+import {
+	backendRequest,
+	requireSessionCookieMiddleware,
+} from "#/lib/api/backend.ts";
 import { fetchAllPages } from "#/lib/api/pagination.ts";
 import type {
 	CustomerEntityDto,
@@ -16,6 +19,7 @@ const invoiceIdSchema = z.object({
 });
 
 export const voidInvoice = createServerFn({ method: "POST" })
+	.middleware([requireSessionCookieMiddleware])
 	.validator(invoiceIdSchema)
 	.handler(async ({ data }) => {
 		return backendRequest<InvoiceEntityDto>({
@@ -86,7 +90,9 @@ async function fetchInvoiceJoinData() {
 
 export const listInvoiceSummaries = createServerFn({
 	method: "GET",
-}).handler(async () => {
+})
+	.middleware([requireSessionCookieMiddleware])
+	.handler(async () => {
 	const [invoices, { customersById, planNameBySubscriptionId }] =
 		await Promise.all([
 			fetchAllPages((page) =>
@@ -104,6 +110,7 @@ export const listInvoiceSummaries = createServerFn({
 });
 
 export const getInvoiceSummary = createServerFn({ method: "GET" })
+	.middleware([requireSessionCookieMiddleware])
 	.validator(invoiceIdSchema)
 	.handler(async ({ data }) => {
 		const [invoice, { customersById, planNameBySubscriptionId }] =
@@ -120,6 +127,7 @@ export const getInvoiceSummary = createServerFn({ method: "GET" })
 export const listInvoiceSummariesForSubscription = createServerFn({
 	method: "GET",
 })
+	.middleware([requireSessionCookieMiddleware])
 	.validator(z.object({ subscriptionId: z.string().min(1) }))
 	.handler(async ({ data }) => {
 		const [invoicesPage, { customersById, planNameBySubscriptionId }] =

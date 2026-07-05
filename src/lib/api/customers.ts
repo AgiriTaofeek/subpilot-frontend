@@ -1,7 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
-import { backendRequest } from "#/lib/api/backend.ts";
+import {
+	backendRequest,
+	requireSessionCookieMiddleware,
+} from "#/lib/api/backend.ts";
 import { fetchAllPages } from "#/lib/api/pagination.ts";
 import type {
 	CustomerEntityDto,
@@ -61,7 +64,9 @@ async function fetchCustomersAndSubscriptions() {
 
 export const listCustomerSummaries = createServerFn({
 	method: "GET",
-}).handler(async () => {
+})
+	.middleware([requireSessionCookieMiddleware])
+	.handler(async () => {
 	const { customers, subscriptionsByCustomerId } =
 		await fetchCustomersAndSubscriptions();
 
@@ -85,6 +90,7 @@ export const listCustomerSummaries = createServerFn({
 });
 
 export const getCustomerDetail = createServerFn({ method: "GET" })
+	.middleware([requireSessionCookieMiddleware])
 	.validator(customerIdSchema)
 	.handler(async ({ data }) => {
 		// Backend has no customerId filter on /v1/subscriptions, so finding one

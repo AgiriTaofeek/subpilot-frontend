@@ -1,7 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
-import { backendRequest } from "#/lib/api/backend.ts";
+import {
+	backendRequest,
+	requireSessionCookieMiddleware,
+} from "#/lib/api/backend.ts";
 import type {
 	CreateDunningStepRequestDto,
 	DunningCampaignDto,
@@ -10,13 +13,13 @@ import type {
 	UpdateDunningStepRequestDto,
 } from "#/types/api.ts";
 
-export const listDunningCampaigns = createServerFn({ method: "GET" }).handler(
-	async () => {
+export const listDunningCampaigns = createServerFn({ method: "GET" })
+	.middleware([requireSessionCookieMiddleware])
+	.handler(async () => {
 		return backendRequest<DunningCampaignDto[]>({
 			path: "/v1/dunning/campaigns",
 		});
-	},
-);
+	});
 
 const updateCampaignSchema = z.object({
 	campaignId: z.string().min(1),
@@ -27,6 +30,7 @@ const updateCampaignSchema = z.object({
 });
 
 export const updateDunningCampaign = createServerFn({ method: "POST" })
+	.middleware([requireSessionCookieMiddleware])
 	.validator(updateCampaignSchema)
 	.handler(async ({ data }) => {
 		const { campaignId, ...body } = data;
@@ -47,6 +51,7 @@ const addStepSchema = z.object({
 });
 
 export const addDunningStep = createServerFn({ method: "POST" })
+	.middleware([requireSessionCookieMiddleware])
 	.validator(addStepSchema)
 	.handler(async ({ data }) => {
 		const { campaignId, ...body } = data;
@@ -69,6 +74,7 @@ const updateStepSchema = z.object({
 });
 
 export const updateDunningStep = createServerFn({ method: "POST" })
+	.middleware([requireSessionCookieMiddleware])
 	.validator(updateStepSchema)
 	.handler(async ({ data }) => {
 		const { campaignId, stepId, ...body } = data;
@@ -85,6 +91,7 @@ const deleteStepSchema = z.object({
 });
 
 export const deleteDunningStep = createServerFn({ method: "POST" })
+	.middleware([requireSessionCookieMiddleware])
 	.validator(deleteStepSchema)
 	.handler(async ({ data }) => {
 		return backendRequest<{ message: string }>({

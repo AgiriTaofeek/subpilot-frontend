@@ -1,7 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
-import { backendRequest } from "#/lib/api/backend.ts";
+import {
+	backendRequest,
+	requireSessionCookieMiddleware,
+} from "#/lib/api/backend.ts";
 import { fetchAllPages } from "#/lib/api/pagination.ts";
 import type {
 	CancelSubscriptionRequestDto,
@@ -30,7 +33,9 @@ const changePlanSchema = z.object({
 
 export const listSubscriptionSummaries = createServerFn({
 	method: "GET",
-}).handler(async () => {
+})
+	.middleware([requireSessionCookieMiddleware])
+	.handler(async () => {
 	const [subscriptions, customers, plans] = await Promise.all([
 		fetchAllPages((page) =>
 			backendRequest<PageResponse<SubscriptionEntityDto>>({
@@ -84,6 +89,7 @@ export const listSubscriptionSummaries = createServerFn({
 });
 
 export const getSubscriptionDetail = createServerFn({ method: "GET" })
+	.middleware([requireSessionCookieMiddleware])
 	.validator(subscriptionIdSchema)
 	.handler(async ({ data }) => {
 		const subscription = await backendRequest<SubscriptionEntityDto>({
@@ -103,6 +109,7 @@ export const getSubscriptionDetail = createServerFn({ method: "GET" })
 	});
 
 export const cancelSubscription = createServerFn({ method: "POST" })
+	.middleware([requireSessionCookieMiddleware])
 	.validator(cancelSchema)
 	.handler(async ({ data }) => {
 		return backendRequest<SubscriptionEntityDto>({
@@ -116,6 +123,7 @@ export const cancelSubscription = createServerFn({ method: "POST" })
 	});
 
 export const pauseSubscription = createServerFn({ method: "POST" })
+	.middleware([requireSessionCookieMiddleware])
 	.validator(subscriptionIdSchema)
 	.handler(async ({ data }) => {
 		return backendRequest<SubscriptionEntityDto>({
@@ -125,6 +133,7 @@ export const pauseSubscription = createServerFn({ method: "POST" })
 	});
 
 export const resumeSubscription = createServerFn({ method: "POST" })
+	.middleware([requireSessionCookieMiddleware])
 	.validator(subscriptionIdSchema)
 	.handler(async ({ data }) => {
 		return backendRequest<SubscriptionEntityDto>({
@@ -134,6 +143,7 @@ export const resumeSubscription = createServerFn({ method: "POST" })
 	});
 
 export const changePlanSubscription = createServerFn({ method: "POST" })
+	.middleware([requireSessionCookieMiddleware])
 	.validator(changePlanSchema)
 	.handler(async ({ data }) => {
 		return backendRequest<ChangePlanResponseDto>({

@@ -1,4 +1,5 @@
-import { createServerOnlyFn } from "@tanstack/react-start";
+import { createMiddleware, createServerOnlyFn } from "@tanstack/react-start";
+import { getRequestHeader } from "@tanstack/react-start/server";
 import type { BackendErrorShape } from "#/types/api.ts";
 
 const DEFAULT_ERROR_MESSAGE = "Something went wrong. Please try again.";
@@ -45,6 +46,27 @@ export function isUnauthenticatedBackendError(
 		error instanceof BackendApiError && isUnauthenticatedStatus(error.status)
 	);
 }
+
+// Fast-fail for server functions that only make sense with an existing
+// merchant session. Spring is still the real authority — this only saves
+// the network round trip for requests that arrive with no cookie at all
+// (e.g. a stale bookmark, a bot, a direct RPC call with no browser
+// session). It must NOT be applied to login/signup (no session exists yet
+// by definition), getOptionalMerchantSession (absence of a cookie is a
+// valid "logged out" result, not an error), or anything that authenticates
+// via a portal/checkout token instead of the merchant session cookie.
+export const requireSessionCookieMiddleware = createMiddleware({
+	type: "function",
+}).server(async ({ next }) => {
+	if (!getRequestHeader("cookie")) {
+		throw new BackendApiError({
+			message: STATUS_FALLBACK_MESSAGE[401] ?? "Unauthorized",
+			status: 401,
+		});
+	}
+
+	return next();
+});
 
 function getApiBaseUrl() {
 	const baseUrl = process.env.VITE_API_BASE_URL?.trim();

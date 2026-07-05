@@ -4,6 +4,7 @@ import { z } from "zod";
 import {
 	backendRequest,
 	isUnauthenticatedBackendError,
+	requireSessionCookieMiddleware,
 } from "#/lib/api/backend.ts";
 import type { AuthSessionDto } from "#/types/api.ts";
 
@@ -84,18 +85,19 @@ export const signupMerchant = createServerFn({ method: "POST" })
 	.validator(signupSchema)
 	.handler(async ({ data }) => signupMerchantRequest(data));
 
-export const getMerchantSession = createServerFn({ method: "GET" }).handler(
-	async () => getMerchantSessionRequest(),
-);
+export const getMerchantSession = createServerFn({ method: "GET" })
+	.middleware([requireSessionCookieMiddleware])
+	.handler(async () => getMerchantSessionRequest());
 
 export const getOptionalMerchantSession = createServerFn({
 	method: "GET",
 }).handler(async () => getOptionalMerchantSessionRequest());
 
-export const logoutMerchant = createServerFn({ method: "POST" }).handler(
-	async () => logoutMerchantRequest(),
-);
+export const logoutMerchant = createServerFn({ method: "POST" })
+	.middleware([requireSessionCookieMiddleware])
+	.handler(async () => logoutMerchantRequest());
 
 export const changePasswordMerchant = createServerFn({ method: "POST" })
+	.middleware([requireSessionCookieMiddleware])
 	.validator(changePasswordSchema)
 	.handler(async ({ data }) => changePasswordMerchantRequest(data));

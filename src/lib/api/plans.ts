@@ -1,7 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
-import { backendRequest } from "#/lib/api/backend.ts";
+import {
+	backendRequest,
+	requireSessionCookieMiddleware,
+} from "#/lib/api/backend.ts";
 import { fetchAllPages } from "#/lib/api/pagination.ts";
 import type {
 	CheckoutInitResponseDto,
@@ -55,16 +58,19 @@ const checkoutSchema = z.object({
 	phone: z.string().min(1),
 });
 
-export const listPlans = createServerFn({ method: "GET" }).handler(async () => {
-	return fetchAllPages((page) =>
-		backendRequest<PageResponse<PlanResponseDto>>({
-			path: "/v1/plans",
-			search: { page, perPage: 100 },
-		}),
-	);
-});
+export const listPlans = createServerFn({ method: "GET" })
+	.middleware([requireSessionCookieMiddleware])
+	.handler(async () => {
+		return fetchAllPages((page) =>
+			backendRequest<PageResponse<PlanResponseDto>>({
+				path: "/v1/plans",
+				search: { page, perPage: 100 },
+			}),
+		);
+	});
 
 export const getPlan = createServerFn({ method: "GET" })
+	.middleware([requireSessionCookieMiddleware])
 	.validator(planIdSchema)
 	.handler(async ({ data }) => {
 		return backendRequest<PlanResponseDto>({
@@ -73,6 +79,7 @@ export const getPlan = createServerFn({ method: "GET" })
 	});
 
 export const createPlan = createServerFn({ method: "POST" })
+	.middleware([requireSessionCookieMiddleware])
 	.validator(createPlanSchema)
 	.handler(async ({ data }) => {
 		return backendRequest<PlanResponseDto>({
@@ -83,6 +90,7 @@ export const createPlan = createServerFn({ method: "POST" })
 	});
 
 export const updatePlan = createServerFn({ method: "POST" })
+	.middleware([requireSessionCookieMiddleware])
 	.validator(updatePlanSchema)
 	.handler(async ({ data }) => {
 		const request: UpdatePlanRequestDto = {};
@@ -99,6 +107,7 @@ export const updatePlan = createServerFn({ method: "POST" })
 	});
 
 export const publishPlan = createServerFn({ method: "POST" })
+	.middleware([requireSessionCookieMiddleware])
 	.validator(planIdSchema)
 	.handler(async ({ data }) => {
 		return backendRequest<PlanResponseDto>({
@@ -108,6 +117,7 @@ export const publishPlan = createServerFn({ method: "POST" })
 	});
 
 export const archivePlan = createServerFn({ method: "POST" })
+	.middleware([requireSessionCookieMiddleware])
 	.validator(planIdSchema)
 	.handler(async ({ data }) => {
 		return backendRequest<PlanResponseDto>({

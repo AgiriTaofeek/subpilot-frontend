@@ -1,7 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
-import { backendRequest } from "#/lib/api/backend.ts";
+import {
+	backendRequest,
+	requireSessionCookieMiddleware,
+} from "#/lib/api/backend.ts";
 import { fetchAllPages } from "#/lib/api/pagination.ts";
 import type {
 	PageResponse,
@@ -10,15 +13,15 @@ import type {
 	WebhookEndpointDto,
 } from "#/types/api.ts";
 
-export const listWebhookEndpoints = createServerFn({ method: "GET" }).handler(
-	async () => {
+export const listWebhookEndpoints = createServerFn({ method: "GET" })
+	.middleware([requireSessionCookieMiddleware])
+	.handler(async () => {
 		const page = await backendRequest<PageResponse<WebhookEndpointDto>>({
 			path: "/v1/webhooks/endpoints",
 			search: { page: 0, size: 100 },
 		});
 		return page.content;
-	},
-);
+	});
 
 const registerSchema = z.object({
 	url: z.string().min(1),
@@ -27,6 +30,7 @@ const registerSchema = z.object({
 });
 
 export const registerWebhookEndpoint = createServerFn({ method: "POST" })
+	.middleware([requireSessionCookieMiddleware])
 	.validator(registerSchema)
 	.handler(async ({ data }) => {
 		return backendRequest<WebhookEndpointDto>({
@@ -45,6 +49,7 @@ const endpointIdSchema = z.object({
 });
 
 export const deleteWebhookEndpoint = createServerFn({ method: "POST" })
+	.middleware([requireSessionCookieMiddleware])
 	.validator(endpointIdSchema)
 	.handler(async ({ data }) => {
 		return backendRequest<{ message: string }>({
@@ -53,13 +58,13 @@ export const deleteWebhookEndpoint = createServerFn({ method: "POST" })
 		});
 	});
 
-export const listWebhookDeliveries = createServerFn({ method: "GET" }).handler(
-	async () => {
+export const listWebhookDeliveries = createServerFn({ method: "GET" })
+	.middleware([requireSessionCookieMiddleware])
+	.handler(async () => {
 		return fetchAllPages((page) =>
 			backendRequest<PageResponse<WebhookDeliveryDto>>({
 				path: "/v1/webhooks/deliveries",
 				search: { page, size: 200 },
 			}),
 		);
-	},
-);
+	});

@@ -1,7 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
-import { backendRequest } from "#/lib/api/backend.ts";
+import {
+	backendRequest,
+	requireSessionCookieMiddleware,
+} from "#/lib/api/backend.ts";
 import type { FeeSummaryDto, MerchantFeeRateDto } from "#/types/api.ts";
 
 const feeSummarySchema = z.object({
@@ -9,6 +12,7 @@ const feeSummarySchema = z.object({
 });
 
 export const getFeeSummary = createServerFn({ method: "GET" })
+	.middleware([requireSessionCookieMiddleware])
 	.validator(feeSummarySchema)
 	.handler(async ({ data }) => {
 		return backendRequest<FeeSummaryDto>({
@@ -17,8 +21,8 @@ export const getFeeSummary = createServerFn({ method: "GET" })
 		});
 	});
 
-export const getFeeRate = createServerFn({ method: "GET" }).handler(
-	async () => {
+export const getFeeRate = createServerFn({ method: "GET" })
+	.middleware([requireSessionCookieMiddleware])
+	.handler(async () => {
 		return backendRequest<MerchantFeeRateDto>({ path: "/v1/fees/rate" });
-	},
-);
+	});

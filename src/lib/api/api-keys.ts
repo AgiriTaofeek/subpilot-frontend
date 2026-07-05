@@ -1,22 +1,26 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
-import { backendRequest } from "#/lib/api/backend.ts";
+import {
+	backendRequest,
+	requireSessionCookieMiddleware,
+} from "#/lib/api/backend.ts";
 import type { ApiKeyResponseDto } from "#/types/api.ts";
 
-export const listApiKeys = createServerFn({ method: "GET" }).handler(
-	async () => {
+export const listApiKeys = createServerFn({ method: "GET" })
+	.middleware([requireSessionCookieMiddleware])
+	.handler(async () => {
 		return backendRequest<ApiKeyResponseDto[]>({
 			path: "/v1/settings/api-keys",
 		});
-	},
-);
+	});
 
 const createApiKeySchema = z.object({
 	label: z.string().min(1),
 });
 
 export const createApiKey = createServerFn({ method: "POST" })
+	.middleware([requireSessionCookieMiddleware])
 	.validator(createApiKeySchema)
 	.handler(async ({ data }) => {
 		return backendRequest<ApiKeyResponseDto>({
@@ -31,6 +35,7 @@ const apiKeyIdSchema = z.object({
 });
 
 export const revokeApiKey = createServerFn({ method: "POST" })
+	.middleware([requireSessionCookieMiddleware])
 	.validator(apiKeyIdSchema)
 	.handler(async ({ data }) => {
 		return backendRequest<{ message: string }>({

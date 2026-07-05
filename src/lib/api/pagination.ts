@@ -7,18 +7,23 @@ import type { PageResponse } from "#/types/api.ts";
 // until the backend reports `last: true`.
 const MAX_PAGES = 50;
 
-export async function fetchAllPages<T>(
+export async function fetchAllPages<T extends { id: string }>(
 	fetchPage: (page: number) => Promise<PageResponse<T>>,
 ): Promise<T[]> {
-	const all: T[] = [];
+	// Offset pagination drifts when records are created/removed between page
+	// fetches, which can surface the same id on two consecutive pages — dedupe
+	// by id so callers never render duplicate React keys from that drift.
+	const byId = new Map<string, T>();
 	let page = 0;
 	let result: PageResponse<T>;
 
 	do {
 		result = await fetchPage(page);
-		all.push(...result.content);
+		for (const item of result.content) {
+			byId.set(item.id, item);
+		}
 		page += 1;
 	} while (!result.last && page < MAX_PAGES);
 
-	return all;
+	return [...byId.values()];
 }

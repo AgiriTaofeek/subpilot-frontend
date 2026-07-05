@@ -1,7 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
-import { backendRequest } from "#/lib/api/backend.ts";
+import {
+	backendRequest,
+	requireSessionCookieMiddleware,
+} from "#/lib/api/backend.ts";
 import { fetchAllPages } from "#/lib/api/pagination.ts";
 import type { AuditLogDto, PageResponse } from "#/types/api.ts";
 
@@ -12,6 +15,7 @@ const listAuditLogsSchema = z.object({
 });
 
 export const listAuditLogs = createServerFn({ method: "GET" })
+	.middleware([requireSessionCookieMiddleware])
 	.validator(listAuditLogsSchema)
 	.handler(async ({ data }) => {
 		return fetchAllPages((page) =>

@@ -1,7 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
-import { backendRequest } from "#/lib/api/backend.ts";
+import {
+	backendRequest,
+	requireSessionCookieMiddleware,
+} from "#/lib/api/backend.ts";
 import type { AnalyticsSummaryDto, TimeSeriesChartDto } from "#/types/api.ts";
 
 const rangeDaysSchema = z.object({
@@ -14,6 +17,7 @@ const chartWithGranularitySchema = z.object({
 });
 
 export const getAnalyticsSummary = createServerFn({ method: "GET" })
+	.middleware([requireSessionCookieMiddleware])
 	.validator(rangeDaysSchema)
 	.handler(async ({ data }) => {
 		return backendRequest<AnalyticsSummaryDto>({
@@ -23,6 +27,7 @@ export const getAnalyticsSummary = createServerFn({ method: "GET" })
 	});
 
 export const getRevenueOverTime = createServerFn({ method: "GET" })
+	.middleware([requireSessionCookieMiddleware])
 	.validator(chartWithGranularitySchema)
 	.handler(async ({ data }) => {
 		return backendRequest<TimeSeriesChartDto>({
@@ -32,6 +37,7 @@ export const getRevenueOverTime = createServerFn({ method: "GET" })
 	});
 
 export const getSubscriptionGrowth = createServerFn({ method: "GET" })
+	.middleware([requireSessionCookieMiddleware])
 	.validator(chartWithGranularitySchema)
 	.handler(async ({ data }) => {
 		return backendRequest<TimeSeriesChartDto>({
@@ -41,6 +47,7 @@ export const getSubscriptionGrowth = createServerFn({ method: "GET" })
 	});
 
 export const getPaymentSuccessRateTrend = createServerFn({ method: "GET" })
+	.middleware([requireSessionCookieMiddleware])
 	.validator(rangeDaysSchema)
 	.handler(async ({ data }) => {
 		return backendRequest<TimeSeriesChartDto>({
@@ -50,6 +57,7 @@ export const getPaymentSuccessRateTrend = createServerFn({ method: "GET" })
 	});
 
 export const getDunningRecoveryRateTrend = createServerFn({ method: "GET" })
+	.middleware([requireSessionCookieMiddleware])
 	.validator(rangeDaysSchema)
 	.handler(async ({ data }) => {
 		return backendRequest<TimeSeriesChartDto>({

@@ -28,6 +28,23 @@ export function SessionExpiredFallback() {
 	);
 }
 
+export function NotFoundFallback() {
+	return (
+		<RouteErrorFallback
+			title="Page not found"
+			description="The page you're looking for doesn't exist or may have moved."
+			action={
+				<Button
+					asChild
+					className="border-0 bg-(--brand) text-(--brand-fg) hover:bg-(--brand)/90"
+				>
+					<a href="/">Go home</a>
+				</Button>
+			}
+		/>
+	);
+}
+
 export function RouteErrorFallback({
 	title,
 	description,
