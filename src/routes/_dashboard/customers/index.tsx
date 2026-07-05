@@ -1,5 +1,5 @@
 import { MagnifyingGlassIcon } from "@phosphor-icons/react";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import {
 	createFileRoute,
 	stripSearchParams,
@@ -9,7 +9,6 @@ import {
 	type ColumnDef,
 	flexRender,
 	getCoreRowModel,
-	getPaginationRowModel,
 	useReactTable,
 } from "@tanstack/react-table";
 import { useMemo } from "react";
@@ -23,6 +22,7 @@ import {
 	EmptyTitle,
 } from "#/components/ui/empty.tsx";
 import { Input } from "#/components/ui/input.tsx";
+import { PageSizeSelect } from "#/components/ui/page-size-select.tsx";
 import { ListPageSkeleton } from "#/components/ui/page-skeleton.tsx";
 import {
 	Pagination,
@@ -42,6 +42,7 @@ import {
 	TableRow,
 } from "#/components/ui/table.tsx";
 import {
+	CUSTOMERS_PAGE_SIZE,
 	type CustomerSummary,
 	customersListQueryOptions,
 } from "#/data/customers.ts";
@@ -49,13 +50,20 @@ import {
 	subscriptionStatusLabel,
 	subscriptionStatusTone,
 } from "#/data/subscriptions.ts";
+import { useDebouncedSearchInput } from "#/hooks/use-debounced-search-input.ts";
 import { formatDate } from "#/lib/date.ts";
+import { pageSizeSchema } from "#/lib/pagination-sizes.ts";
 
-const defaultCustomersSearch = { page: 1, q: "" };
+const defaultCustomersSearch = {
+	page: 1,
+	q: "",
+	size: CUSTOMERS_PAGE_SIZE,
+};
 
 const customersSearchSchema = z.object({
 	page: z.number().default(defaultCustomersSearch.page),
 	q: z.string().default(defaultCustomersSearch.q),
+	size: pageSizeSchema(defaultCustomersSearch.size),
 });
 
 export const Route = createFileRoute("/_dashboard/customers/")({
@@ -63,24 +71,19 @@ export const Route = createFileRoute("/_dashboard/customers/")({
 	search: {
 		middlewares: [stripSearchParams(defaultCustomersSearch)],
 	},
-	loader: async ({ context }) => {
-		await context.queryClient.ensureQueryData(customersListQueryOptions());
+	loaderDeps: ({ search }) => ({
+		page: search.page,
+		q: search.q,
+		size: search.size,
+	}),
+	loader: ({ context, deps }) => {
+		// Not awaited — see events.tsx for why.
+		void context.queryClient.prefetchQuery(customersListQueryOptions(deps));
 	},
 	component: CustomersListPage,
 	pendingComponent: () => <ListPageSkeleton columns={4} />,
 	head: () => ({ meta: [{ title: "Customers | SubPilot" }] }),
 });
-
-const PAGE_SIZE = 10;
-
-function compareCustomers(a: CustomerSummary, b: CustomerSummary): number {
-	const aUpdated = a.mostRecentSubscriptionUpdate;
-	const bUpdated = b.mostRecentSubscriptionUpdate;
-	if (!aUpdated && !bUpdated) return 0;
-	if (!aUpdated) return 1;
-	if (!bUpdated) return -1;
-	return new Date(bUpdated).getTime() - new Date(aUpdated).getTime();
-}
 
 function SubscriptionSummary({
 	summary,
@@ -102,37 +105,32 @@ function SubscriptionSummary({
 }
 
 function CustomersListPage() {
-	const { page, q } = Route.useSearch();
+	const { page, q, size } = Route.useSearch();
 	const navigate = useNavigate({ from: Route.fullPath });
-	const { data: allCustomers } = useSuspenseQuery(customersListQueryOptions());
+	const { data: customersPage, isPlaceholderData } = useQuery(
+		customersListQueryOptions({ q, page, size }),
+	);
 
-	function handleSearchChange(value: string) {
+	function handleSizeChange(nextSize: number) {
+		navigate({
+			search: (prev) => ({ ...prev, size: nextSize, page: 1 }),
+			resetScroll: false,
+		});
+	}
+
+	const [searchInput, setSearchInput] = useDebouncedSearchInput(q, (value) => {
 		navigate({
 			search: (prev) => ({ ...prev, q: value, page: 1 }),
 			replace: true,
 			resetScroll: false,
 		});
-	}
+	});
 
 	function goToCustomer(customerId: string) {
 		navigate({ to: "/customers/$customerId", params: { customerId } });
 	}
 
-	const filtered = useMemo(
-		() =>
-			allCustomers
-				.filter((c) => {
-					const query = q.trim().toLowerCase();
-					if (!query) return true;
-					return (
-						c.name.toLowerCase().includes(query) ||
-						c.email.toLowerCase().includes(query) ||
-						c.phone.toLowerCase().includes(query)
-					);
-				})
-				.sort(compareCustomers),
-		[allCustomers, q],
-	);
+	const customers = customersPage?.content ?? [];
 
 	const columns = useMemo<ColumnDef<CustomerSummary>[]>(
 		() => [
@@ -203,15 +201,17 @@ function CustomersListPage() {
 	);
 
 	const table = useReactTable({
-		data: filtered,
+		data: customers,
 		columns,
+		getRowId: (row) => row.id,
 		getCoreRowModel: getCoreRowModel(),
-		getPaginationRowModel: getPaginationRowModel(),
+		manualPagination: true,
+		pageCount: Math.max(1, customersPage?.totalPages ?? 1),
 		state: {
-			pagination: { pageIndex: page - 1, pageSize: PAGE_SIZE },
+			pagination: { pageIndex: page - 1, pageSize: size },
 		},
 		onPaginationChange: (updater) => {
-			const current = { pageIndex: page - 1, pageSize: PAGE_SIZE };
+			const current = { pageIndex: page - 1, pageSize: size };
 			const next = typeof updater === "function" ? updater(current) : updater;
 			navigate({
 				search: (prev) => ({ ...prev, page: next.pageIndex + 1 }),
@@ -220,12 +220,13 @@ function CustomersListPage() {
 		},
 	});
 
-	const paginatedCustomers = table
-		.getRowModel()
-		.rows.map((row) => row.original);
+	if (!customersPage) {
+		return <ListPageSkeleton columns={4} />;
+	}
+
 	const pageCount = table.getPageCount();
-	const hasAnyCustomers = allCustomers.length > 0;
-	const isEmpty = filtered.length === 0;
+	const hasActiveFilters = Boolean(q.trim());
+	const isEmpty = customersPage.totalElements === 0;
 
 	return (
 		<div className="flex flex-1 flex-col gap-6 p-6">
@@ -233,40 +234,42 @@ function CustomersListPage() {
 				Customers
 			</h1>
 
-			{hasAnyCustomers && (
+			{(customers.length > 0 || hasActiveFilters) && (
 				<div className="relative w-full sm:max-w-80">
 					<MagnifyingGlassIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-(--ink-3)" />
 					<Input
 						placeholder="Search name, email, or phone…"
-						value={q}
-						onChange={(e) => handleSearchChange(e.target.value)}
+						value={searchInput}
+						onChange={(e) => setSearchInput(e.target.value)}
 						className="border-(--line) bg-(--surface) pl-9 pr-3 focus-visible:ring-(--brand)/30"
 					/>
 				</div>
 			)}
 
-			{!hasAnyCustomers ? (
+			{isEmpty ? (
 				<Empty className="rounded-2xl border border-dashed border-(--line) bg-(--surface-1)">
 					<EmptyHeader>
 						<EmptyTitle className="font-sans text-lg normal-case tracking-tight text-(--ink)">
-							No customers yet
+							{hasActiveFilters
+								? "No customers match your search"
+								: "No customers yet"}
 						</EmptyTitle>
-						<EmptyDescription className="text-(--ink-3)">
-							Customers are created automatically when a subscriber completes
-							checkout.
-						</EmptyDescription>
-					</EmptyHeader>
-				</Empty>
-			) : isEmpty ? (
-				<Empty className="rounded-2xl border border-dashed border-(--line) bg-(--surface-1)">
-					<EmptyHeader>
-						<EmptyTitle className="font-sans text-lg normal-case tracking-tight text-(--ink)">
-							No customers match your search
-						</EmptyTitle>
+						{!hasActiveFilters && (
+							<EmptyDescription className="text-(--ink-3)">
+								Customers are created automatically when a subscriber completes
+								checkout.
+							</EmptyDescription>
+						)}
 					</EmptyHeader>
 				</Empty>
 			) : (
-				<>
+				<div
+					className={
+						isPlaceholderData
+							? "flex flex-col gap-6 opacity-50 transition-opacity"
+							: "flex flex-col gap-6"
+					}
+				>
 					{/* Desktop table */}
 					<div className="hidden overflow-hidden rounded-2xl border border-(--line) bg-(--surface-1) md:block">
 						<Table>
@@ -312,7 +315,7 @@ function CustomersListPage() {
 
 					{/* Mobile cards */}
 					<div className="flex flex-col gap-3 md:hidden">
-						{paginatedCustomers.map((customer) => (
+						{customers.map((customer) => (
 							<div
 								key={customer.id}
 								className="relative flex flex-col gap-2 rounded-2xl border border-(--line) bg-(--surface-1) p-4"
@@ -339,55 +342,60 @@ function CustomersListPage() {
 						))}
 					</div>
 
-					{pageCount > 1 && (
-						<Pagination>
-							<PaginationContent>
-								<PaginationItem>
-									<PaginationPrevious
-										from={Route.fullPath}
-										search={(prev) => ({
-											...prev,
-											page: Math.max(1, page - 1),
-										})}
-										resetScroll={false}
-										aria-disabled={page <= 1}
-										className={
-											page <= 1 ? "pointer-events-none opacity-50" : undefined
-										}
-									/>
-								</PaginationItem>
-								{Array.from({ length: pageCount }, (_, i) => i + 1).map((p) => (
-									<PaginationItem key={p}>
-										<PaginationLink
+					<div className="flex items-center justify-between gap-3">
+						<PageSizeSelect value={size} onChange={handleSizeChange} />
+						{pageCount > 1 && (
+							<Pagination className="w-auto flex-1 justify-end">
+								<PaginationContent>
+									<PaginationItem>
+										<PaginationPrevious
 											from={Route.fullPath}
-											search={(prev) => ({ ...prev, page: p })}
+											search={(prev) => ({
+												...prev,
+												page: Math.max(1, page - 1),
+											})}
 											resetScroll={false}
-											isActive={p === page}
-										>
-											{p}
-										</PaginationLink>
+											aria-disabled={page <= 1}
+											className={
+												page <= 1 ? "pointer-events-none opacity-50" : undefined
+											}
+										/>
 									</PaginationItem>
-								))}
-								<PaginationItem>
-									<PaginationNext
-										from={Route.fullPath}
-										search={(prev) => ({
-											...prev,
-											page: Math.min(pageCount, page + 1),
-										})}
-										resetScroll={false}
-										aria-disabled={page >= pageCount}
-										className={
-											page >= pageCount
-												? "pointer-events-none opacity-50"
-												: undefined
-										}
-									/>
-								</PaginationItem>
-							</PaginationContent>
-						</Pagination>
-					)}
-				</>
+									{Array.from({ length: pageCount }, (_, i) => i + 1).map(
+										(p) => (
+											<PaginationItem key={p}>
+												<PaginationLink
+													from={Route.fullPath}
+													search={(prev) => ({ ...prev, page: p })}
+													resetScroll={false}
+													isActive={p === page}
+												>
+													{p}
+												</PaginationLink>
+											</PaginationItem>
+										),
+									)}
+									<PaginationItem>
+										<PaginationNext
+											from={Route.fullPath}
+											search={(prev) => ({
+												...prev,
+												page: Math.min(pageCount, page + 1),
+											})}
+											resetScroll={false}
+											aria-disabled={page >= pageCount}
+											className={
+												page >= pageCount
+													? "pointer-events-none opacity-50"
+													: undefined
+											}
+										/>
+									</PaginationItem>
+								</PaginationContent>
+							</Pagination>
+						)}
+					</div>
+				</div>
 			)}
 		</div>
 	);

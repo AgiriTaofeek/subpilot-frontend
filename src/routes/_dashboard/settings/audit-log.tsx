@@ -1,4 +1,4 @@
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import {
 	createFileRoute,
 	stripSearchParams,
@@ -17,6 +17,7 @@ import {
 	EmptyTitle,
 } from "#/components/ui/empty.tsx";
 import { Input } from "#/components/ui/input.tsx";
+import { PageSizeSelect } from "#/components/ui/page-size-select.tsx";
 import { ListPageSkeleton } from "#/components/ui/page-skeleton.tsx";
 import {
 	Pagination,
@@ -57,19 +58,23 @@ import {
 	TooltipTrigger,
 } from "#/components/ui/tooltip.tsx";
 import {
+	AUDIT_LOGS_PAGE_SIZE,
 	auditActionGroups,
 	auditActorTypeLabel,
 	auditLogsQueryOptions,
 	parseSnapshot,
 } from "#/data/audit-logs.ts";
+import { useDebouncedSearchInput } from "#/hooks/use-debounced-search-input.ts";
 import { formatDateTime, formatRelativeTime } from "#/lib/date.ts";
+import { pageSizeSchema } from "#/lib/pagination-sizes.ts";
 
-const defaultAuditLogSearch = { q: "", page: 1 };
+const defaultAuditLogSearch = { q: "", page: 1, size: AUDIT_LOGS_PAGE_SIZE };
 
 const auditLogSearchSchema = z.object({
 	action: z.string().optional().catch(undefined),
 	q: z.string().default(defaultAuditLogSearch.q),
 	page: z.number().default(defaultAuditLogSearch.page),
+	size: pageSizeSchema(defaultAuditLogSearch.size),
 });
 
 export const Route = createFileRoute("/_dashboard/settings/audit-log")({
@@ -77,15 +82,21 @@ export const Route = createFileRoute("/_dashboard/settings/audit-log")({
 	search: {
 		middlewares: [stripSearchParams(defaultAuditLogSearch)],
 	},
-	loader: async ({ context }) => {
-		await context.queryClient.ensureQueryData(auditLogsQueryOptions());
+	loaderDeps: ({ search }) => ({
+		action: search.action,
+		q: search.q,
+		page: search.page,
+		size: search.size,
+	}),
+	loader: ({ context, deps }) => {
+		// Not awaited — see events.tsx for why (keeps in-app pagination from
+		// blocking on this fetch so keepPreviousData can dim-and-swap instead).
+		void context.queryClient.prefetchQuery(auditLogsQueryOptions(deps));
 	},
 	component: SettingsAuditLogPage,
 	pendingComponent: () => <ListPageSkeleton columns={5} />,
 	head: () => ({ meta: [{ title: "Audit log | SubPilot" }] }),
 });
-
-const PAGE_SIZE = 10;
 
 async function copyText(text: string, label: string) {
 	try {
@@ -129,10 +140,12 @@ function TimestampCell({ iso }: { iso: string }) {
 }
 
 function SettingsAuditLogPage() {
-	const { action, q, page } = Route.useSearch();
+	const { action, q, page, size } = Route.useSearch();
 	const navigate = useNavigate({ from: Route.fullPath });
 	const [selectedId, setSelectedId] = useState<string | null>(null);
-	const { data: logs } = useSuspenseQuery(auditLogsQueryOptions());
+	const { data: logsPage, isPlaceholderData } = useQuery(
+		auditLogsQueryOptions({ action, q, page, size }),
+	);
 
 	function handleActionChange(value: string) {
 		navigate({
@@ -145,33 +158,30 @@ function SettingsAuditLogPage() {
 		});
 	}
 
-	function handleSearchChange(value: string) {
+	function handleSizeChange(nextSize: number) {
+		navigate({
+			search: (prev) => ({ ...prev, size: nextSize, page: 1 }),
+			resetScroll: false,
+		});
+	}
+
+	const [searchInput, setSearchInput] = useDebouncedSearchInput(q, (value) => {
 		navigate({
 			search: (prev) => ({ ...prev, q: value, page: 1 }),
 			replace: true,
 			resetScroll: false,
 		});
+	});
+
+	if (!logsPage) {
+		return <ListPageSkeleton columns={5} />;
 	}
 
-	const filtered = logs
-		.filter((log) => !action || log.action === action)
-		.filter((log) => {
-			const query = q.trim().toLowerCase();
-			if (!query) return true;
-			return (
-				log.resourceId.toLowerCase().includes(query) ||
-				log.actorId.toLowerCase().includes(query)
-			);
-		})
-		.sort(
-			(a, b) =>
-				new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-		);
-
-	const hasAnyLogs = logs.length > 0;
+	const logs = logsPage.content;
+	const hasActiveFilters = Boolean(action || q.trim());
+	const isEmpty = logsPage.totalElements === 0;
 	const selectedLog = logs.find((log) => log.id === selectedId) ?? null;
-	const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-	const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+	const pageCount = Math.max(1, logsPage.totalPages);
 
 	return (
 		<div className="flex flex-1 flex-col gap-6 p-6">
@@ -181,57 +191,57 @@ function SettingsAuditLogPage() {
 
 			<SettingsTabs />
 
-			{hasAnyLogs && (
-				<div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-					<Select value={action ?? "all"} onValueChange={handleActionChange}>
-						<SelectTrigger className="w-64 rounded-md border-(--line) bg-(--surface) px-3">
-							<SelectValue placeholder="All actions" />
-						</SelectTrigger>
-						<SelectContent>
-							<SelectItem value="all">All actions</SelectItem>
-							{auditActionGroups.map((g) => (
-								<SelectGroup key={g.group}>
-									<SelectLabel>{g.group}</SelectLabel>
-									{g.actions.map((a) => (
-										<SelectItem key={a} value={a}>
-											{a}
-										</SelectItem>
-									))}
-								</SelectGroup>
-							))}
-						</SelectContent>
-					</Select>
+			<div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+				<Select value={action ?? "all"} onValueChange={handleActionChange}>
+					<SelectTrigger className="w-64 rounded-md border-(--line) bg-(--surface) px-3">
+						<SelectValue placeholder="All actions" />
+					</SelectTrigger>
+					<SelectContent>
+						<SelectItem value="all">All actions</SelectItem>
+						{auditActionGroups.map((g) => (
+							<SelectGroup key={g.group}>
+								<SelectLabel>{g.group}</SelectLabel>
+								{g.actions.map((a) => (
+									<SelectItem key={a} value={a}>
+										{a}
+									</SelectItem>
+								))}
+							</SelectGroup>
+						))}
+					</SelectContent>
+				</Select>
 
-					<Input
-						placeholder="Search actor or resource ID…"
-						value={q}
-						onChange={(e) => handleSearchChange(e.target.value)}
-						className="w-full border-(--line) bg-(--surface) px-3 focus-visible:ring-(--brand)/30 sm:max-w-64"
-					/>
-				</div>
-			)}
+				<Input
+					placeholder="Search actor or resource ID…"
+					value={searchInput}
+					onChange={(e) => setSearchInput(e.target.value)}
+					className="w-full border-(--line) bg-(--surface) px-3 focus-visible:ring-(--brand)/30 sm:max-w-64"
+				/>
+			</div>
 
-			{!hasAnyLogs ? (
+			{isEmpty ? (
 				<Empty className="rounded-2xl border border-dashed border-(--line) bg-(--surface-1)">
 					<EmptyHeader>
 						<EmptyTitle className="font-sans text-lg normal-case tracking-tight text-(--ink)">
-							No audit log entries yet
+							{hasActiveFilters
+								? "No entries match your filters"
+								: "No audit log entries yet"}
 						</EmptyTitle>
-						<EmptyDescription className="text-(--ink-3)">
-							Entries appear here whenever you or an API key make a change.
-						</EmptyDescription>
-					</EmptyHeader>
-				</Empty>
-			) : filtered.length === 0 ? (
-				<Empty className="rounded-2xl border border-dashed border-(--line) bg-(--surface-1)">
-					<EmptyHeader>
-						<EmptyTitle className="font-sans text-lg normal-case tracking-tight text-(--ink)">
-							No entries match your filters
-						</EmptyTitle>
+						{!hasActiveFilters && (
+							<EmptyDescription className="text-(--ink-3)">
+								Entries appear here whenever you or an API key make a change.
+							</EmptyDescription>
+						)}
 					</EmptyHeader>
 				</Empty>
 			) : (
-				<>
+				<div
+					className={
+						isPlaceholderData
+							? "flex flex-col gap-6 opacity-50 transition-opacity"
+							: "flex flex-col gap-6"
+					}
+				>
 					{/* Desktop table */}
 					<div className="hidden overflow-hidden rounded-2xl border border-(--line) bg-(--surface-1) md:block">
 						<Table>
@@ -245,7 +255,7 @@ function SettingsAuditLogPage() {
 								</TableRow>
 							</TableHeader>
 							<TableBody>
-								{paginated.map((log) => (
+								{logs.map((log) => (
 									<TableRow
 										key={log.id}
 										onClick={() => setSelectedId(log.id)}
@@ -292,7 +302,7 @@ function SettingsAuditLogPage() {
 
 					{/* Mobile cards */}
 					<div className="flex flex-col gap-3 md:hidden">
-						{paginated.map((log) => (
+						{logs.map((log) => (
 							<button
 								key={log.id}
 								type="button"
@@ -312,55 +322,60 @@ function SettingsAuditLogPage() {
 						))}
 					</div>
 
-					{pageCount > 1 && (
-						<Pagination>
-							<PaginationContent>
-								<PaginationItem>
-									<PaginationPrevious
-										from={Route.fullPath}
-										search={(prev) => ({
-											...prev,
-											page: Math.max(1, page - 1),
-										})}
-										resetScroll={false}
-										aria-disabled={page <= 1}
-										className={
-											page <= 1 ? "pointer-events-none opacity-50" : undefined
-										}
-									/>
-								</PaginationItem>
-								{Array.from({ length: pageCount }, (_, i) => i + 1).map((p) => (
-									<PaginationItem key={p}>
-										<PaginationLink
+					<div className="flex items-center justify-between gap-3">
+						<PageSizeSelect value={size} onChange={handleSizeChange} />
+						{pageCount > 1 && (
+							<Pagination className="w-auto flex-1 justify-end">
+								<PaginationContent>
+									<PaginationItem>
+										<PaginationPrevious
 											from={Route.fullPath}
-											search={(prev) => ({ ...prev, page: p })}
+											search={(prev) => ({
+												...prev,
+												page: Math.max(1, page - 1),
+											})}
 											resetScroll={false}
-											isActive={p === page}
-										>
-											{p}
-										</PaginationLink>
+											aria-disabled={page <= 1}
+											className={
+												page <= 1 ? "pointer-events-none opacity-50" : undefined
+											}
+										/>
 									</PaginationItem>
-								))}
-								<PaginationItem>
-									<PaginationNext
-										from={Route.fullPath}
-										search={(prev) => ({
-											...prev,
-											page: Math.min(pageCount, page + 1),
-										})}
-										resetScroll={false}
-										aria-disabled={page >= pageCount}
-										className={
-											page >= pageCount
-												? "pointer-events-none opacity-50"
-												: undefined
-										}
-									/>
-								</PaginationItem>
-							</PaginationContent>
-						</Pagination>
-					)}
-				</>
+									{Array.from({ length: pageCount }, (_, i) => i + 1).map(
+										(p) => (
+											<PaginationItem key={p}>
+												<PaginationLink
+													from={Route.fullPath}
+													search={(prev) => ({ ...prev, page: p })}
+													resetScroll={false}
+													isActive={p === page}
+												>
+													{p}
+												</PaginationLink>
+											</PaginationItem>
+										),
+									)}
+									<PaginationItem>
+										<PaginationNext
+											from={Route.fullPath}
+											search={(prev) => ({
+												...prev,
+												page: Math.min(pageCount, page + 1),
+											})}
+											resetScroll={false}
+											aria-disabled={page >= pageCount}
+											className={
+												page >= pageCount
+													? "pointer-events-none opacity-50"
+													: undefined
+											}
+										/>
+									</PaginationItem>
+								</PaginationContent>
+							</Pagination>
+						)}
+					</div>
+				</div>
 			)}
 
 			<Sheet

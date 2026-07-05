@@ -1,5 +1,5 @@
 import { CopyIcon } from "@phosphor-icons/react";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import {
 	createFileRoute,
 	stripSearchParams,
@@ -17,6 +17,7 @@ import {
 	EmptyTitle,
 } from "#/components/ui/empty.tsx";
 import { Input } from "#/components/ui/input.tsx";
+import { PageSizeSelect } from "#/components/ui/page-size-select.tsx";
 import { ListPageSkeleton } from "#/components/ui/page-skeleton.tsx";
 import {
 	Pagination,
@@ -57,19 +58,23 @@ import {
 } from "#/components/ui/tooltip.tsx";
 import {
 	auditEventTypeGroups,
+	EVENTS_PAGE_SIZE,
 	eventsListQueryOptions,
 	parsePayload,
 	payloadPreview,
 	resourceTypeLabel,
 } from "#/data/events.ts";
+import { useDebouncedSearchInput } from "#/hooks/use-debounced-search-input.ts";
 import { formatDateTime, formatRelativeTime } from "#/lib/date.ts";
+import { pageSizeSchema } from "#/lib/pagination-sizes.ts";
 
-const defaultEventsSearch = { q: "", page: 1 };
+const defaultEventsSearch = { q: "", page: 1, size: EVENTS_PAGE_SIZE };
 
 const eventsSearchSchema = z.object({
 	eventType: z.string().optional().catch(undefined),
 	q: z.string().default(defaultEventsSearch.q),
 	page: z.number().default(defaultEventsSearch.page),
+	size: pageSizeSchema(defaultEventsSearch.size),
 });
 
 export const Route = createFileRoute("/_dashboard/events")({
@@ -77,15 +82,26 @@ export const Route = createFileRoute("/_dashboard/events")({
 	search: {
 		middlewares: [stripSearchParams(defaultEventsSearch)],
 	},
-	loader: async ({ context }) => {
-		await context.queryClient.ensureQueryData(eventsListQueryOptions());
+	loaderDeps: ({ search }) => ({
+		eventType: search.eventType,
+		q: search.q,
+		page: search.page,
+		size: search.size,
+	}),
+	loader: ({ context, deps }) => {
+		// Not awaited: keeps in-app pagination (page/filter/size changes) from
+		// blocking the route transition on this fetch, so the component's
+		// useQuery + placeholderData: keepPreviousData below can show the
+		// previous page (dimmed) instead of a full skeleton swap while the new
+		// page loads. Cold/first-load requests still populate the cache here —
+		// they just don't hold up the render, so a direct link to page N briefly
+		// shows the table's own loading state instead of full SSR content.
+		void context.queryClient.prefetchQuery(eventsListQueryOptions(deps));
 	},
 	component: EventsPage,
 	pendingComponent: () => <ListPageSkeleton columns={5} />,
 	head: () => ({ meta: [{ title: "Events | SubPilot" }] }),
 });
-
-const PAGE_SIZE = 10;
 
 async function copyText(text: string, label: string) {
 	try {
@@ -129,10 +145,12 @@ function TimestampCell({ iso }: { iso: string }) {
 }
 
 function EventsPage() {
-	const { eventType, q, page } = Route.useSearch();
+	const { eventType, q, page, size } = Route.useSearch();
 	const navigate = useNavigate({ from: Route.fullPath });
 	const [selectedId, setSelectedId] = useState<string | null>(null);
-	const { data: auditEvents } = useSuspenseQuery(eventsListQueryOptions());
+	const { data: eventsPage, isPlaceholderData } = useQuery(
+		eventsListQueryOptions({ eventType, q, page, size }),
+	);
 
 	function handleEventTypeChange(value: string) {
 		navigate({
@@ -145,33 +163,30 @@ function EventsPage() {
 		});
 	}
 
-	function handleSearchChange(value: string) {
+	function handleSizeChange(nextSize: number) {
+		navigate({
+			search: (prev) => ({ ...prev, size: nextSize, page: 1 }),
+			resetScroll: false,
+		});
+	}
+
+	const [searchInput, setSearchInput] = useDebouncedSearchInput(q, (value) => {
 		navigate({
 			search: (prev) => ({ ...prev, q: value, page: 1 }),
 			replace: true,
 			resetScroll: false,
 		});
+	});
+
+	if (!eventsPage) {
+		return <ListPageSkeleton columns={5} />;
 	}
 
-	const filtered = auditEvents
-		.filter((e) => !eventType || e.type === eventType)
-		.filter((e) => {
-			const query = q.trim().toLowerCase();
-			if (!query) return true;
-			return (
-				(e.subscriptionId ?? "").toLowerCase().includes(query) ||
-				e.resourceId.toLowerCase().includes(query)
-			);
-		})
-		.sort(
-			(a, b) =>
-				new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-		);
-
-	const hasAnyEvents = auditEvents.length > 0;
-	const selectedEvent = auditEvents.find((e) => e.id === selectedId) ?? null;
-	const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-	const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+	const events = eventsPage.content;
+	const hasAnyEvents = eventsPage.totalElements > 0;
+	const hasActiveFilters = Boolean(eventType || q.trim());
+	const selectedEvent = events.find((e) => e.id === selectedId) ?? null;
+	const pageCount = Math.max(1, eventsPage.totalPages);
 
 	return (
 		<div className="flex flex-1 flex-col gap-6 p-6">
@@ -179,60 +194,60 @@ function EventsPage() {
 				Events
 			</h1>
 
-			{hasAnyEvents && (
-				<div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-					<Select
-						value={eventType ?? "all"}
-						onValueChange={handleEventTypeChange}
-					>
-						<SelectTrigger className="w-64 rounded-md border-(--line) bg-(--surface) px-3">
-							<SelectValue placeholder="All event types" />
-						</SelectTrigger>
-						<SelectContent>
-							<SelectItem value="all">All event types</SelectItem>
-							{auditEventTypeGroups.map((g) => (
-								<SelectGroup key={g.group}>
-									<SelectLabel>{g.group}</SelectLabel>
-									{g.events.map((ev) => (
-										<SelectItem key={ev} value={ev}>
-											{ev}
-										</SelectItem>
-									))}
-								</SelectGroup>
-							))}
-						</SelectContent>
-					</Select>
+			<div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+				<Select
+					value={eventType ?? "all"}
+					onValueChange={handleEventTypeChange}
+				>
+					<SelectTrigger className="w-64 rounded-md border-(--line) bg-(--surface) px-3">
+						<SelectValue placeholder="All event types" />
+					</SelectTrigger>
+					<SelectContent>
+						<SelectItem value="all">All event types</SelectItem>
+						{auditEventTypeGroups.map((g) => (
+							<SelectGroup key={g.group}>
+								<SelectLabel>{g.group}</SelectLabel>
+								{g.events.map((ev) => (
+									<SelectItem key={ev} value={ev}>
+										{ev}
+									</SelectItem>
+								))}
+							</SelectGroup>
+						))}
+					</SelectContent>
+				</Select>
 
-					<Input
-						placeholder="Search subscription ID…"
-						value={q}
-						onChange={(e) => handleSearchChange(e.target.value)}
-						className="w-full border-(--line) bg-(--surface) px-3 focus-visible:ring-(--brand)/30 sm:max-w-64"
-					/>
-				</div>
-			)}
+				<Input
+					placeholder="Search subscription ID…"
+					value={searchInput}
+					onChange={(e) => setSearchInput(e.target.value)}
+					className="w-full border-(--line) bg-(--surface) px-3 focus-visible:ring-(--brand)/30 sm:max-w-64"
+				/>
+			</div>
 
 			{!hasAnyEvents ? (
 				<Empty className="rounded-2xl border border-dashed border-(--line) bg-(--surface-1)">
 					<EmptyHeader>
 						<EmptyTitle className="font-sans text-lg normal-case tracking-tight text-(--ink)">
-							No events yet
+							{hasActiveFilters
+								? "No events match your filters"
+								: "No events yet"}
 						</EmptyTitle>
-						<EmptyDescription className="text-(--ink-3)">
-							Create a plan or run a checkout to start seeing events here.
-						</EmptyDescription>
-					</EmptyHeader>
-				</Empty>
-			) : filtered.length === 0 ? (
-				<Empty className="rounded-2xl border border-dashed border-(--line) bg-(--surface-1)">
-					<EmptyHeader>
-						<EmptyTitle className="font-sans text-lg normal-case tracking-tight text-(--ink)">
-							No events match your filters
-						</EmptyTitle>
+						{!hasActiveFilters && (
+							<EmptyDescription className="text-(--ink-3)">
+								Create a plan or run a checkout to start seeing events here.
+							</EmptyDescription>
+						)}
 					</EmptyHeader>
 				</Empty>
 			) : (
-				<>
+				<div
+					className={
+						isPlaceholderData
+							? "flex flex-col gap-6 opacity-50 transition-opacity"
+							: "flex flex-col gap-6"
+					}
+				>
 					{/* Desktop table */}
 					<div className="hidden overflow-hidden rounded-2xl border border-(--line) bg-(--surface-1) md:block">
 						<Table>
@@ -247,7 +262,7 @@ function EventsPage() {
 								</TableRow>
 							</TableHeader>
 							<TableBody>
-								{paginated.map((event) => (
+								{events.map((event) => (
 									<TableRow
 										key={event.id}
 										onClick={() => setSelectedId(event.id)}
@@ -289,7 +304,7 @@ function EventsPage() {
 
 					{/* Mobile cards */}
 					<div className="flex flex-col gap-3 md:hidden">
-						{paginated.map((event) => (
+						{events.map((event) => (
 							<button
 								key={event.id}
 								type="button"
@@ -309,55 +324,60 @@ function EventsPage() {
 						))}
 					</div>
 
-					{pageCount > 1 && (
-						<Pagination>
-							<PaginationContent>
-								<PaginationItem>
-									<PaginationPrevious
-										from={Route.fullPath}
-										search={(prev) => ({
-											...prev,
-											page: Math.max(1, page - 1),
-										})}
-										resetScroll={false}
-										aria-disabled={page <= 1}
-										className={
-											page <= 1 ? "pointer-events-none opacity-50" : undefined
-										}
-									/>
-								</PaginationItem>
-								{Array.from({ length: pageCount }, (_, i) => i + 1).map((p) => (
-									<PaginationItem key={p}>
-										<PaginationLink
+					<div className="flex items-center justify-between gap-3">
+						<PageSizeSelect value={size} onChange={handleSizeChange} />
+						{pageCount > 1 && (
+							<Pagination className="w-auto flex-1 justify-end">
+								<PaginationContent>
+									<PaginationItem>
+										<PaginationPrevious
 											from={Route.fullPath}
-											search={(prev) => ({ ...prev, page: p })}
+											search={(prev) => ({
+												...prev,
+												page: Math.max(1, page - 1),
+											})}
 											resetScroll={false}
-											isActive={p === page}
-										>
-											{p}
-										</PaginationLink>
+											aria-disabled={page <= 1}
+											className={
+												page <= 1 ? "pointer-events-none opacity-50" : undefined
+											}
+										/>
 									</PaginationItem>
-								))}
-								<PaginationItem>
-									<PaginationNext
-										from={Route.fullPath}
-										search={(prev) => ({
-											...prev,
-											page: Math.min(pageCount, page + 1),
-										})}
-										resetScroll={false}
-										aria-disabled={page >= pageCount}
-										className={
-											page >= pageCount
-												? "pointer-events-none opacity-50"
-												: undefined
-										}
-									/>
-								</PaginationItem>
-							</PaginationContent>
-						</Pagination>
-					)}
-				</>
+									{Array.from({ length: pageCount }, (_, i) => i + 1).map(
+										(p) => (
+											<PaginationItem key={p}>
+												<PaginationLink
+													from={Route.fullPath}
+													search={(prev) => ({ ...prev, page: p })}
+													resetScroll={false}
+													isActive={p === page}
+												>
+													{p}
+												</PaginationLink>
+											</PaginationItem>
+										),
+									)}
+									<PaginationItem>
+										<PaginationNext
+											from={Route.fullPath}
+											search={(prev) => ({
+												...prev,
+												page: Math.min(pageCount, page + 1),
+											})}
+											resetScroll={false}
+											aria-disabled={page >= pageCount}
+											className={
+												page >= pageCount
+													? "pointer-events-none opacity-50"
+													: undefined
+											}
+										/>
+									</PaginationItem>
+								</PaginationContent>
+							</Pagination>
+						)}
+					</div>
+				</div>
 			)}
 
 			<Sheet

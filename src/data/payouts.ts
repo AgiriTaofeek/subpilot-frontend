@@ -1,8 +1,9 @@
-import { queryOptions } from "@tanstack/react-query";
+import { keepPreviousData, queryOptions } from "@tanstack/react-query";
 
 import { listDisbursements, listPayoutBanks } from "#/lib/api/payouts.ts";
+import type { PageSize } from "#/lib/pagination-sizes.ts";
 
-export const PAYOUTS_PAGE_SIZE = 10;
+export const PAYOUTS_PAGE_SIZE: PageSize = 10;
 
 export const payoutBanksQueryOptions = () =>
 	queryOptions({
@@ -17,11 +18,12 @@ export const payoutBanksQueryOptions = () =>
 // other list route uses) — translated to the backend's 0-based `page`
 // query param inside listDisbursements's caller, not here, so this key
 // stays aligned with what the UI actually shows.
-export const disbursementsQueryOptions = (page: number) =>
+export const disbursementsQueryOptions = (page: number, size?: PageSize) =>
 	queryOptions({
-		queryKey: ["payouts", page],
+		queryKey: ["payouts", page, size],
 		queryFn: () =>
 			listDisbursements({
-				data: { page: page - 1, size: PAYOUTS_PAGE_SIZE },
+				data: { page: page - 1, size: size ?? PAYOUTS_PAGE_SIZE },
 			}),
+		placeholderData: keepPreviousData,
 	});

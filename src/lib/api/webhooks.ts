@@ -5,7 +5,6 @@ import {
 	backendRequest,
 	requireSessionCookieMiddleware,
 } from "#/lib/api/backend.ts";
-import { fetchAllPages } from "#/lib/api/pagination.ts";
 import type {
 	PageResponse,
 	RegisterEndpointRequestDto,
@@ -58,13 +57,26 @@ export const deleteWebhookEndpoint = createServerFn({ method: "POST" })
 		});
 	});
 
-export const listWebhookDeliveries = createServerFn({ method: "GET" })
+const searchDeliveriesSchema = z.object({
+	status: z.string().optional(),
+	endpointId: z.string().optional(),
+	eventType: z.string().optional(),
+	page: z.number().default(0),
+	size: z.number().default(10),
+});
+
+export const searchWebhookDeliveries = createServerFn({ method: "GET" })
 	.middleware([requireSessionCookieMiddleware])
-	.handler(async () => {
-		return fetchAllPages((page) =>
-			backendRequest<PageResponse<WebhookDeliveryDto>>({
-				path: "/v1/webhooks/deliveries",
-				search: { page, size: 200 },
-			}),
-		);
+	.validator(searchDeliveriesSchema)
+	.handler(async ({ data }) => {
+		return backendRequest<PageResponse<WebhookDeliveryDto>>({
+			path: "/v1/webhooks/deliveries",
+			search: {
+				status: data.status,
+				endpointId: data.endpointId,
+				eventType: data.eventType,
+				page: data.page,
+				size: data.size,
+			},
+		});
 	});

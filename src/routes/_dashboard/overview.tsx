@@ -63,7 +63,10 @@ function OverviewPage() {
 	const { data: subscriptions } = useSuspenseQuery(
 		subscriptionsListQueryOptions(),
 	);
-	const eventsQuery = useQuery(eventsListQueryOptions());
+	// Only the 6 most recent events are shown, and the backend already
+	// returns them newest-first, so a single small page covers this —
+	// no need to pull the whole events table for a "recent activity" widget.
+	const eventsQuery = useQuery(eventsListQueryOptions({ page: 1 }));
 	const revenueQuery = useQuery(revenueSummaryQueryOptions("30d"));
 	const hasPlans = plans.length > 0;
 
@@ -106,14 +109,7 @@ function OverviewPage() {
 		(s) => new Date(s.createdAt).getTime() >= thirtyDaysAgo,
 	).length;
 
-	const recentEvents = eventsQuery.data
-		? [...eventsQuery.data]
-				.sort(
-					(a, b) =>
-						new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-				)
-				.slice(0, 6)
-		: [];
+	const recentEvents = eventsQuery.data?.content.slice(0, 6) ?? [];
 
 	const recentSubscriptions = [...subscriptions]
 		.sort(

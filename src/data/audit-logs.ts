@@ -1,7 +1,10 @@
-import { queryOptions } from "@tanstack/react-query";
+import { keepPreviousData, queryOptions } from "@tanstack/react-query";
 
 import { listAuditLogs } from "#/lib/api/audit-logs.ts";
+import type { PageSize } from "#/lib/pagination-sizes.ts";
 import type { AuditActorTypeDto } from "#/types/api.ts";
+
+export const AUDIT_LOGS_PAGE_SIZE: PageSize = 10;
 
 export const auditActionGroups: Array<{ group: string; actions: string[] }> = [
 	{
@@ -46,10 +49,24 @@ export const auditActorTypeLabel: Record<AuditActorTypeDto, string> = {
 	api_key: "API key",
 };
 
-export const auditLogsQueryOptions = () =>
+export const auditLogsQueryOptions = (params: {
+	action?: string;
+	q?: string;
+	page: number;
+	size?: PageSize;
+}) =>
 	queryOptions({
-		queryKey: ["audit-logs"],
-		queryFn: () => listAuditLogs({ data: {} }),
+		queryKey: ["audit-logs", params],
+		queryFn: () =>
+			listAuditLogs({
+				data: {
+					action: params.action,
+					q: params.q,
+					page: params.page - 1,
+					perPage: params.size ?? AUDIT_LOGS_PAGE_SIZE,
+				},
+			}),
+		placeholderData: keepPreviousData,
 	});
 
 export function parseSnapshot(snapshot: string | null): unknown {

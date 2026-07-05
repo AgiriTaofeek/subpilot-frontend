@@ -88,6 +88,103 @@ export const listSubscriptionSummaries = createServerFn({
 		});
 	});
 
+// Cheap total-count check (no join data, size:1) so the "N past due" banner
+// doesn't require pulling every subscription just to count one status.
+export const countPastDueSubscriptions = createServerFn({ method: "GET" })
+	.middleware([requireSessionCookieMiddleware])
+	.handler(async () => {
+		const page = await backendRequest<PageResponse<SubscriptionEntityDto>>({
+			path: "/v1/subscriptions",
+			search: { status: "past_due", page: 0, size: 1 },
+		});
+		return page.totalElements;
+	});
+
+const searchSubscriptionsSchema = z.object({
+	status: z.string().optional(),
+	planId: z.string().optional(),
+	q: z.string().optional(),
+	page: z.number().default(0),
+	size: z.number().default(10),
+});
+
+// Real server-side pagination for the Subscriptions list page — unlike
+// listSubscriptionSummaries above (which stays a full-table fetch: the
+// Overview dashboard needs it for aggregate counts/trends across every
+// subscription, not one page of them; that's a job for a backend stats
+// endpoint, not pagination, and out of scope here). Customer/plan display
+// fields are joined only for the rows on this page, not the whole table.
+export const searchSubscriptionSummaries = createServerFn({
+	method: "GET",
+})
+	.middleware([requireSessionCookieMiddleware])
+	.validator(searchSubscriptionsSchema)
+	.handler(async ({ data }) => {
+		const subscriptionsPage = await backendRequest<
+			PageResponse<SubscriptionEntityDto>
+		>({
+			path: "/v1/subscriptions",
+			search: {
+				status: data.status,
+				planId: data.planId,
+				q: data.q,
+				page: data.page,
+				size: data.size,
+			},
+		});
+
+		const customerIds = [
+			...new Set(subscriptionsPage.content.map((s) => s.customerId)),
+		];
+		const planIds = [
+			...new Set(subscriptionsPage.content.map((s) => s.planId)),
+		];
+
+		const [customers, plans] = await Promise.all([
+			Promise.all(
+				customerIds.map((id) =>
+					backendRequest<CustomerEntityDto>({ path: `/v1/customers/${id}` }),
+				),
+			),
+			Promise.all(
+				planIds.map((id) =>
+					backendRequest<PlanResponseDto>({ path: `/v1/plans/${id}` }),
+				),
+			),
+		]);
+
+		const customersById = new Map(customers.map((c) => [c.id, c]));
+		const plansById = new Map(plans.map((p) => [p.id, p]));
+
+		return {
+			...subscriptionsPage,
+			content: subscriptionsPage.content.map((subscription) => {
+				const customer = customersById.get(subscription.customerId);
+				const plan = plansById.get(subscription.planId);
+
+				return {
+					id: subscription.id,
+					customerId: subscription.customerId,
+					customerName: customer?.fullName ?? "Unknown customer",
+					customerEmail: customer?.email ?? "Unknown email",
+					planId: subscription.planId,
+					planName: plan?.name ?? "Unknown plan",
+					status: subscription.status,
+					amountKobo: plan?.amount ?? 0,
+					nextBillingDate: subscription.nextBillingDate,
+					currentPeriodEnd:
+						subscription.currentPeriodEnd ??
+						subscription.nextBillingDate ??
+						subscription.createdAt,
+					nextRetryAt: null,
+					cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
+					updatedAt: subscription.updatedAt,
+					createdAt: subscription.createdAt,
+				};
+			}),
+		};
+	});
+
 export const getSubscriptionDetail = createServerFn({ method: "GET" })
 	.middleware([requireSessionCookieMiddleware])
 	.validator(subscriptionIdSchema)

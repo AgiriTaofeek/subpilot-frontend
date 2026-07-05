@@ -79,6 +79,82 @@ function mapInvoiceSummary(
 	};
 }
 
+/** Builds the customer/plan-name lookup maps for exactly the invoices passed in — bounded to one page, not the whole table. */
+async function fetchInvoiceJoinDataForPage(invoices: InvoiceEntityDto[]) {
+	const customerIds = [...new Set(invoices.map((i) => i.customerId))];
+	const subscriptionIds = [...new Set(invoices.map((i) => i.subscriptionId))];
+
+	const [customers, subscriptions] = await Promise.all([
+		Promise.all(
+			customerIds.map((id) =>
+				backendRequest<CustomerEntityDto>({ path: `/v1/customers/${id}` }),
+			),
+		),
+		Promise.all(
+			subscriptionIds.map((id) =>
+				backendRequest<SubscriptionEntityDto>({
+					path: `/v1/subscriptions/${id}`,
+				}),
+			),
+		),
+	]);
+
+	const planIds = [...new Set(subscriptions.map((s) => s.planId))];
+	const plans = await Promise.all(
+		planIds.map((id) =>
+			backendRequest<PlanResponseDto>({ path: `/v1/plans/${id}` }),
+		),
+	);
+
+	const customersById = new Map(customers.map((c) => [c.id, c]));
+	const plansById = new Map(plans.map((p) => [p.id, p]));
+	const planNameBySubscriptionId = new Map(
+		subscriptions.map((subscription) => [
+			subscription.id,
+			plansById.get(subscription.planId)?.name ?? "Unknown plan",
+		]),
+	);
+
+	return { customersById, planNameBySubscriptionId };
+}
+
+const searchInvoicesSchema = z.object({
+	status: z.string().optional(),
+	q: z.string().optional(),
+	page: z.number().default(0),
+	size: z.number().default(10),
+});
+
+// Real server-side pagination for the Invoices list page — unlike
+// listInvoiceSummaries below (kept as a full-table fetch for the Revenue
+// dashboard's charts, which need every invoice to bucket into a trend line,
+// not one page of them), this joins customer/plan display data only for the
+// invoices on the requested page.
+export const searchInvoiceSummaries = createServerFn({ method: "GET" })
+	.middleware([requireSessionCookieMiddleware])
+	.validator(searchInvoicesSchema)
+	.handler(async ({ data }) => {
+		const invoicesPage = await backendRequest<PageResponse<InvoiceEntityDto>>({
+			path: "/v1/invoices",
+			search: {
+				status: data.status,
+				q: data.q,
+				page: data.page,
+				size: data.size,
+			},
+		});
+
+		const { customersById, planNameBySubscriptionId } =
+			await fetchInvoiceJoinDataForPage(invoicesPage.content);
+
+		return {
+			...invoicesPage,
+			content: invoicesPage.content.map((invoice) =>
+				mapInvoiceSummary(invoice, customersById, planNameBySubscriptionId),
+			),
+		};
+	});
+
 async function fetchInvoiceJoinData() {
 	const [customers, subscriptions, plans] = await Promise.all([
 		fetchAllPages((page) =>

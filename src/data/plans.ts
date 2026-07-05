@@ -1,4 +1,4 @@
-import { queryOptions } from "@tanstack/react-query";
+import { keepPreviousData, queryOptions } from "@tanstack/react-query";
 
 import {
 	archivePlan as archivePlanServerFn,
@@ -8,8 +8,10 @@ import {
 	initiateCheckout as initiateCheckoutServerFn,
 	listPlans as listPlansServerFn,
 	publishPlan as publishPlanServerFn,
+	searchPlans as searchPlansServerFn,
 	updatePlan as updatePlanServerFn,
 } from "#/lib/api/plans.ts";
+import type { PageSize } from "#/lib/pagination-sizes.ts";
 import type {
 	BillingIntervalDto,
 	PlanResponseDto,
@@ -231,6 +233,8 @@ function toBackendInterval(interval: EditablePlanInterval) {
 	}
 }
 
+export const PLANS_PAGE_SIZE: PageSize = 10;
+
 export const plansQueryOptions = () =>
 	queryOptions({
 		queryKey: ["plans"],
@@ -242,6 +246,31 @@ export const plansQueryOptions = () =>
 		// this key directly, so a longer staleTime just avoids re-fetching on
 		// every incidental revisit.
 		staleTime: 120_000,
+	});
+
+export const plansListQueryOptions = (params: {
+	q?: string;
+	status?: PlanStatus;
+	sort?: string;
+	order?: "asc" | "desc";
+	page: number;
+	size?: PageSize;
+}) =>
+	queryOptions({
+		queryKey: ["plans", "list", params],
+		queryFn: async () => {
+			const page = await searchPlansServerFn({
+				data: {
+					q: params.q,
+					status: params.status,
+					sort: params.sort ? `${params.sort},${params.order}` : undefined,
+					page: params.page - 1,
+					perPage: params.size ?? PLANS_PAGE_SIZE,
+				},
+			});
+			return { ...page, content: page.content.map(mapPlanResponse) };
+		},
+		placeholderData: keepPreviousData,
 	});
 
 export const planDetailQueryOptions = (planId: string) =>

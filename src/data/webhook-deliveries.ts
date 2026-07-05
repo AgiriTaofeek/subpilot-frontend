@@ -1,18 +1,19 @@
-import { queryOptions } from "@tanstack/react-query";
+import { keepPreviousData, queryOptions } from "@tanstack/react-query";
 
-import { listEvents } from "#/lib/api/events.ts";
 import {
-	listWebhookDeliveries,
 	listWebhookEndpoints,
+	searchWebhookDeliveries,
 } from "#/lib/api/webhooks.ts";
+import type { PageSize } from "#/lib/pagination-sizes.ts";
 import type { WebhookDeliveryStatusDto } from "#/types/api.ts";
+
+export const WEBHOOK_DELIVERIES_PAGE_SIZE: PageSize = 10;
 
 export interface WebhookDeliverySummary {
 	id: string;
 	endpointId: string;
 	endpointUrl: string;
 	eventId: string;
-	eventType: string;
 	status: WebhookDeliveryStatusDto;
 	attemptCount: number;
 	lastAttemptedAt: string | null;
@@ -45,35 +46,50 @@ export function httpStatusColor(status: number | null): string {
 	return "text-destructive";
 }
 
-export const webhookDeliveriesListQueryOptions = () =>
+export const webhookDeliveriesListQueryOptions = (params: {
+	status?: WebhookDeliveryStatusDto;
+	endpointId?: string;
+	eventType?: string;
+	page: number;
+	size?: PageSize;
+}) =>
 	queryOptions({
-		queryKey: ["webhook-deliveries"],
-		queryFn: async (): Promise<WebhookDeliverySummary[]> => {
-			const [deliveries, endpoints, events] = await Promise.all([
-				listWebhookDeliveries(),
+		queryKey: ["webhook-deliveries", params],
+		queryFn: async () => {
+			const [deliveriesPage, endpoints] = await Promise.all([
+				searchWebhookDeliveries({
+					data: {
+						status: params.status,
+						endpointId: params.endpointId,
+						eventType: params.eventType,
+						page: params.page - 1,
+						size: params.size ?? WEBHOOK_DELIVERIES_PAGE_SIZE,
+					},
+				}),
 				listWebhookEndpoints(),
-				listEvents(),
 			]);
 
 			const endpointsById = new Map(
 				endpoints.map((endpoint) => [endpoint.id, endpoint]),
 			);
-			const eventsById = new Map(events.map((event) => [event.id, event]));
 
-			return deliveries.map((delivery) => ({
-				id: delivery.id,
-				endpointId: delivery.endpointId,
-				endpointUrl:
-					endpointsById.get(delivery.endpointId)?.url ?? "Unknown endpoint",
-				eventId: delivery.eventId,
-				eventType: eventsById.get(delivery.eventId)?.type ?? "Unknown event",
-				status: delivery.status,
-				attemptCount: delivery.attemptCount,
-				lastAttemptedAt: delivery.lastAttemptedAt,
-				nextRetryAt: delivery.nextRetryAt,
-				responseStatus: delivery.responseStatus,
-				responseBody: delivery.responseBody,
-				createdAt: delivery.createdAt,
-			}));
+			return {
+				...deliveriesPage,
+				content: deliveriesPage.content.map((delivery) => ({
+					id: delivery.id,
+					endpointId: delivery.endpointId,
+					endpointUrl:
+						endpointsById.get(delivery.endpointId)?.url ?? "Unknown endpoint",
+					eventId: delivery.eventId,
+					status: delivery.status,
+					attemptCount: delivery.attemptCount,
+					lastAttemptedAt: delivery.lastAttemptedAt,
+					nextRetryAt: delivery.nextRetryAt,
+					responseStatus: delivery.responseStatus,
+					responseBody: delivery.responseBody,
+					createdAt: delivery.createdAt,
+				})),
+			};
 		},
+		placeholderData: keepPreviousData,
 	});

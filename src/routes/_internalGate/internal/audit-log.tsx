@@ -1,4 +1,4 @@
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import {
 	createFileRoute,
 	stripSearchParams,
@@ -13,7 +13,7 @@ import {
 	EmptyHeader,
 	EmptyTitle,
 } from "#/components/ui/empty.tsx";
-import { Input } from "#/components/ui/input.tsx";
+import { PageSizeSelect } from "#/components/ui/page-size-select.tsx";
 import { ListPageSkeleton } from "#/components/ui/page-skeleton.tsx";
 import {
 	Pagination,
@@ -38,14 +38,18 @@ import {
 	TableHeader,
 	TableRow,
 } from "#/components/ui/table.tsx";
-import { internalAuditLogsQueryOptions } from "#/data/internal-audit.ts";
+import {
+	INTERNAL_AUDIT_LOGS_PAGE_SIZE,
+	internalAuditLogsQueryOptions,
+} from "#/data/internal-audit.ts";
 import { formatDateTime, formatRelativeTime } from "#/lib/date.ts";
+import { pageSizeSchema } from "#/lib/pagination-sizes.ts";
 
-const defaultSearch = { q: "", page: 1 };
+const defaultSearch = { page: 1, size: INTERNAL_AUDIT_LOGS_PAGE_SIZE };
 
 const searchSchema = z.object({
-	q: z.string().default(defaultSearch.q),
 	page: z.number().default(defaultSearch.page),
+	size: pageSizeSchema(defaultSearch.size),
 });
 
 export const Route = createFileRoute("/_internalGate/internal/audit-log")({
@@ -53,49 +57,39 @@ export const Route = createFileRoute("/_internalGate/internal/audit-log")({
 	search: {
 		middlewares: [stripSearchParams(defaultSearch)],
 	},
-	loader: async ({ context }) => {
-		await context.queryClient.ensureQueryData(internalAuditLogsQueryOptions());
+	loaderDeps: ({ search }) => ({ page: search.page, size: search.size }),
+	loader: ({ context, deps }) => {
+		// Not awaited — see events.tsx for why.
+		void context.queryClient.prefetchQuery(internalAuditLogsQueryOptions(deps));
 	},
 	component: InternalAuditLogPage,
 	pendingComponent: () => <ListPageSkeleton columns={4} />,
 	head: () => ({ meta: [{ title: "Internal audit log | SubPilot" }] }),
 });
 
-const PAGE_SIZE = 10;
-
 function InternalAuditLogPage() {
-	const { q, page } = Route.useSearch();
+	const { page, size } = Route.useSearch();
 	const navigate = useNavigate({ from: Route.fullPath });
 	const [selectedId, setSelectedId] = useState<string | null>(null);
-	const { data: logs } = useSuspenseQuery(internalAuditLogsQueryOptions());
+	const { data: logsPage, isPlaceholderData } = useQuery(
+		internalAuditLogsQueryOptions({ page, size }),
+	);
 
-	function handleSearchChange(value: string) {
+	function handleSizeChange(nextSize: number) {
 		navigate({
-			search: (prev) => ({ ...prev, q: value, page: 1 }),
-			replace: true,
+			search: (prev) => ({ ...prev, size: nextSize, page: 1 }),
 			resetScroll: false,
 		});
 	}
 
-	const filtered = logs
-		.filter((log) => {
-			const query = q.trim().toLowerCase();
-			if (!query) return true;
-			return (
-				log.targetId.toLowerCase().includes(query) ||
-				log.actorEmail.toLowerCase().includes(query) ||
-				log.actionType.toLowerCase().includes(query)
-			);
-		})
-		.sort(
-			(a, b) =>
-				new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-		);
+	if (!logsPage) {
+		return <ListPageSkeleton columns={4} />;
+	}
 
-	const hasAnyLogs = logs.length > 0;
+	const logs = logsPage.content;
+	const isEmpty = logsPage.totalElements === 0;
 	const selectedLog = logs.find((log) => log.auditId === selectedId) ?? null;
-	const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-	const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+	const pageCount = Math.max(1, logsPage.totalPages);
 
 	return (
 		<div className="flex flex-1 flex-col gap-6 p-6">
@@ -103,16 +97,7 @@ function InternalAuditLogPage() {
 				Internal audit log
 			</h1>
 
-			{hasAnyLogs && (
-				<Input
-					placeholder="Search actor, action, or target ID…"
-					value={q}
-					onChange={(e) => handleSearchChange(e.target.value)}
-					className="w-full border-(--line) bg-(--surface) px-3 focus-visible:ring-(--brand)/30 sm:max-w-64"
-				/>
-			)}
-
-			{!hasAnyLogs ? (
+			{isEmpty ? (
 				<Empty className="rounded-2xl border border-dashed border-(--line) bg-(--surface-1)">
 					<EmptyHeader>
 						<EmptyTitle className="font-sans text-lg normal-case tracking-tight text-(--ink)">
@@ -123,16 +108,14 @@ function InternalAuditLogPage() {
 						</EmptyDescription>
 					</EmptyHeader>
 				</Empty>
-			) : filtered.length === 0 ? (
-				<Empty className="rounded-2xl border border-dashed border-(--line) bg-(--surface-1)">
-					<EmptyHeader>
-						<EmptyTitle className="font-sans text-lg normal-case tracking-tight text-(--ink)">
-							No entries match your search
-						</EmptyTitle>
-					</EmptyHeader>
-				</Empty>
 			) : (
-				<>
+				<div
+					className={
+						isPlaceholderData
+							? "flex flex-col gap-6 opacity-50 transition-opacity"
+							: "flex flex-col gap-6"
+					}
+				>
 					<div className="overflow-hidden rounded-2xl border border-(--line) bg-(--surface-1)">
 						<Table>
 							<TableHeader>
@@ -144,7 +127,7 @@ function InternalAuditLogPage() {
 								</TableRow>
 							</TableHeader>
 							<TableBody>
-								{paginated.map((log) => (
+								{logs.map((log) => (
 									<TableRow
 										key={log.auditId}
 										onClick={() => setSelectedId(log.auditId)}
@@ -168,55 +151,60 @@ function InternalAuditLogPage() {
 						</Table>
 					</div>
 
-					{pageCount > 1 && (
-						<Pagination>
-							<PaginationContent>
-								<PaginationItem>
-									<PaginationPrevious
-										from={Route.fullPath}
-										search={(prev) => ({
-											...prev,
-											page: Math.max(1, page - 1),
-										})}
-										resetScroll={false}
-										aria-disabled={page <= 1}
-										className={
-											page <= 1 ? "pointer-events-none opacity-50" : undefined
-										}
-									/>
-								</PaginationItem>
-								{Array.from({ length: pageCount }, (_, i) => i + 1).map((p) => (
-									<PaginationItem key={p}>
-										<PaginationLink
+					<div className="flex items-center justify-between gap-3">
+						<PageSizeSelect value={size} onChange={handleSizeChange} />
+						{pageCount > 1 && (
+							<Pagination className="w-auto flex-1 justify-end">
+								<PaginationContent>
+									<PaginationItem>
+										<PaginationPrevious
 											from={Route.fullPath}
-											search={(prev) => ({ ...prev, page: p })}
+											search={(prev) => ({
+												...prev,
+												page: Math.max(1, page - 1),
+											})}
 											resetScroll={false}
-											isActive={p === page}
-										>
-											{p}
-										</PaginationLink>
+											aria-disabled={page <= 1}
+											className={
+												page <= 1 ? "pointer-events-none opacity-50" : undefined
+											}
+										/>
 									</PaginationItem>
-								))}
-								<PaginationItem>
-									<PaginationNext
-										from={Route.fullPath}
-										search={(prev) => ({
-											...prev,
-											page: Math.min(pageCount, page + 1),
-										})}
-										resetScroll={false}
-										aria-disabled={page >= pageCount}
-										className={
-											page >= pageCount
-												? "pointer-events-none opacity-50"
-												: undefined
-										}
-									/>
-								</PaginationItem>
-							</PaginationContent>
-						</Pagination>
-					)}
-				</>
+									{Array.from({ length: pageCount }, (_, i) => i + 1).map(
+										(p) => (
+											<PaginationItem key={p}>
+												<PaginationLink
+													from={Route.fullPath}
+													search={(prev) => ({ ...prev, page: p })}
+													resetScroll={false}
+													isActive={p === page}
+												>
+													{p}
+												</PaginationLink>
+											</PaginationItem>
+										),
+									)}
+									<PaginationItem>
+										<PaginationNext
+											from={Route.fullPath}
+											search={(prev) => ({
+												...prev,
+												page: Math.min(pageCount, page + 1),
+											})}
+											resetScroll={false}
+											aria-disabled={page >= pageCount}
+											className={
+												page >= pageCount
+													? "pointer-events-none opacity-50"
+													: undefined
+											}
+										/>
+									</PaginationItem>
+								</PaginationContent>
+							</Pagination>
+						)}
+					</div>
+				</div>
 			)}
 
 			<Sheet

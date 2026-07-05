@@ -1,11 +1,15 @@
-import { queryOptions } from "@tanstack/react-query";
+import { keepPreviousData, queryOptions } from "@tanstack/react-query";
 import {
 	getInvoiceSummary,
 	listInvoiceRefunds,
 	listInvoiceSummaries,
 	listInvoiceSummariesForSubscription,
+	searchInvoiceSummaries,
 } from "#/lib/api/invoices.ts";
+import type { PageSize } from "#/lib/pagination-sizes.ts";
 import type { InvoiceStatusDto, RefundStatusDto } from "#/types/api.ts";
+
+export const INVOICES_PAGE_SIZE: PageSize = 10;
 
 export interface InvoiceSummary {
 	id: string;
@@ -66,6 +70,26 @@ export const invoicesListQueryOptions = () =>
 	queryOptions({
 		queryKey: ["invoices"],
 		queryFn: () => listInvoiceSummaries(),
+	});
+
+export const invoicesListPageQueryOptions = (params: {
+	status?: InvoiceStatusDto;
+	q?: string;
+	page: number;
+	size?: PageSize;
+}) =>
+	queryOptions({
+		queryKey: ["invoices", "list", params],
+		queryFn: () =>
+			searchInvoiceSummaries({
+				data: {
+					status: params.status,
+					q: params.q,
+					page: params.page - 1,
+					size: params.size ?? INVOICES_PAGE_SIZE,
+				},
+			}),
+		placeholderData: keepPreviousData,
 	});
 
 export const invoiceDetailQueryOptions = (invoiceId: string) =>

@@ -1,9 +1,14 @@
-import { queryOptions } from "@tanstack/react-query";
+import { keepPreviousData, queryOptions } from "@tanstack/react-query";
 import { mapPlanResponse } from "#/data/plans.ts";
 import {
+	countPastDueSubscriptions,
 	getSubscriptionDetail,
 	listSubscriptionSummaries,
+	searchSubscriptionSummaries,
 } from "#/lib/api/subscriptions.ts";
+import type { PageSize } from "#/lib/pagination-sizes.ts";
+
+export const SUBSCRIPTIONS_PAGE_SIZE: PageSize = 10;
 
 export type SubscriptionStatus =
 	| "trialing"
@@ -76,6 +81,34 @@ export const subscriptionsListQueryOptions = () =>
 	queryOptions({
 		queryKey: ["subscriptions"],
 		queryFn: () => listSubscriptionSummaries(),
+	});
+
+export const pastDueSubscriptionsCountQueryOptions = () =>
+	queryOptions({
+		queryKey: ["subscriptions", "past-due-count"],
+		queryFn: () => countPastDueSubscriptions(),
+	});
+
+export const subscriptionsListPageQueryOptions = (params: {
+	status?: SubscriptionStatus;
+	planId?: string;
+	q?: string;
+	page: number;
+	size?: PageSize;
+}) =>
+	queryOptions({
+		queryKey: ["subscriptions", "list", params],
+		queryFn: () =>
+			searchSubscriptionSummaries({
+				data: {
+					status: params.status,
+					planId: params.planId,
+					q: params.q,
+					page: params.page - 1,
+					size: params.size ?? SUBSCRIPTIONS_PAGE_SIZE,
+				},
+			}),
+		placeholderData: keepPreviousData,
 	});
 
 export const subscriptionDetailQueryOptions = (subscriptionId: string) =>

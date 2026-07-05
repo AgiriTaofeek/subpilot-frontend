@@ -1,4 +1,4 @@
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import {
 	createFileRoute,
 	Link,
@@ -14,6 +14,7 @@ import {
 	EmptyTitle,
 } from "#/components/ui/empty.tsx";
 import { Input } from "#/components/ui/input.tsx";
+import { PageSizeSelect } from "#/components/ui/page-size-select.tsx";
 import { ListPageSkeleton } from "#/components/ui/page-skeleton.tsx";
 import {
 	Pagination,
@@ -40,18 +41,27 @@ import {
 	TableRow,
 } from "#/components/ui/table.tsx";
 import {
+	INTERNAL_MERCHANTS_PAGE_SIZE,
 	internalMerchantsListQueryOptions,
 	merchantStatusLabel,
 	merchantStatusTone,
 } from "#/data/internal-merchants.ts";
+import { useDebouncedSearchInput } from "#/hooks/use-debounced-search-input.ts";
 import { formatDate } from "#/lib/date.ts";
+import { pageSizeSchema } from "#/lib/pagination-sizes.ts";
 
-const defaultMerchantsSearch = { q: "", status: "", page: 1 };
+const defaultMerchantsSearch = {
+	q: "",
+	status: "",
+	page: 1,
+	size: INTERNAL_MERCHANTS_PAGE_SIZE,
+};
 
 const merchantsSearchSchema = z.object({
 	q: z.string().default(defaultMerchantsSearch.q),
 	status: z.string().default(defaultMerchantsSearch.status),
 	page: z.number().default(defaultMerchantsSearch.page),
+	size: pageSizeSchema(defaultMerchantsSearch.size),
 });
 
 export const Route = createFileRoute("/_internalGate/internal/merchants/")({
@@ -59,11 +69,20 @@ export const Route = createFileRoute("/_internalGate/internal/merchants/")({
 	search: {
 		middlewares: [stripSearchParams(defaultMerchantsSearch)],
 	},
-	loaderDeps: ({ search }) => ({ status: search.status }),
-	loader: async ({ context, deps }) => {
-		await context.queryClient.ensureQueryData(
+	loaderDeps: ({ search }) => ({
+		q: search.q,
+		status: search.status,
+		page: search.page,
+		size: search.size,
+	}),
+	loader: ({ context, deps }) => {
+		// Not awaited — see events.tsx for why.
+		void context.queryClient.prefetchQuery(
 			internalMerchantsListQueryOptions({
+				query: deps.q || undefined,
 				status: deps.status || undefined,
+				page: deps.page,
+				size: deps.size,
 			}),
 		);
 	},
@@ -72,13 +91,16 @@ export const Route = createFileRoute("/_internalGate/internal/merchants/")({
 	head: () => ({ meta: [{ title: "Merchants | SubPilot Internal" }] }),
 });
 
-const PAGE_SIZE = 20;
-
 function InternalMerchantsPage() {
-	const { q, status, page } = Route.useSearch();
+	const { q, status, page, size } = Route.useSearch();
 	const navigate = useNavigate({ from: Route.fullPath });
-	const { data: merchants } = useSuspenseQuery(
-		internalMerchantsListQueryOptions({ status: status || undefined }),
+	const { data: merchantsPage, isPlaceholderData } = useQuery(
+		internalMerchantsListQueryOptions({
+			query: q || undefined,
+			status: status || undefined,
+			page,
+			size,
+		}),
 	);
 
 	function handleStatusChange(value: string) {
@@ -92,27 +114,29 @@ function InternalMerchantsPage() {
 		});
 	}
 
-	function handleSearchChange(value: string) {
+	function handleSizeChange(nextSize: number) {
+		navigate({
+			search: (prev) => ({ ...prev, size: nextSize, page: 1 }),
+			resetScroll: false,
+		});
+	}
+
+	const [searchInput, setSearchInput] = useDebouncedSearchInput(q, (value) => {
 		navigate({
 			search: (prev) => ({ ...prev, q: value, page: 1 }),
 			replace: true,
 			resetScroll: false,
 		});
-	}
-
-	const filtered = merchants.filter((merchant) => {
-		const query = q.trim().toLowerCase();
-		if (!query) return true;
-		return (
-			merchant.businessName.toLowerCase().includes(query) ||
-			merchant.email.toLowerCase().includes(query) ||
-			merchant.slug.toLowerCase().includes(query)
-		);
 	});
 
-	const hasAnyMerchants = merchants.length > 0;
-	const pageCount = Math.max(1, Math.ceil(filtered.length / PAGE_SIZE));
-	const paginated = filtered.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
+	if (!merchantsPage) {
+		return <ListPageSkeleton columns={4} />;
+	}
+
+	const merchants = merchantsPage.content;
+	const hasActiveFilters = Boolean(q.trim() || status);
+	const isEmpty = merchantsPage.totalElements === 0;
+	const pageCount = Math.max(1, merchantsPage.totalPages);
 
 	return (
 		<div className="flex flex-1 flex-col gap-6 p-6">
@@ -135,33 +159,35 @@ function InternalMerchantsPage() {
 
 				<Input
 					placeholder="Search business, email, or slug…"
-					value={q}
-					onChange={(e) => handleSearchChange(e.target.value)}
+					value={searchInput}
+					onChange={(e) => setSearchInput(e.target.value)}
 					className="w-full border-(--line) bg-(--surface) px-3 focus-visible:ring-(--brand)/30 sm:max-w-64"
 				/>
 			</div>
 
-			{!hasAnyMerchants ? (
+			{isEmpty ? (
 				<Empty className="rounded-2xl border border-dashed border-(--line) bg-(--surface-1)">
 					<EmptyHeader>
 						<EmptyTitle className="font-sans text-lg normal-case tracking-tight text-(--ink)">
-							No merchants match this filter
+							{hasActiveFilters
+								? "No merchants match your filters"
+								: "No merchants yet"}
 						</EmptyTitle>
-						<EmptyDescription className="text-(--ink-3)">
-							Try a different status.
-						</EmptyDescription>
-					</EmptyHeader>
-				</Empty>
-			) : filtered.length === 0 ? (
-				<Empty className="rounded-2xl border border-dashed border-(--line) bg-(--surface-1)">
-					<EmptyHeader>
-						<EmptyTitle className="font-sans text-lg normal-case tracking-tight text-(--ink)">
-							No merchants match your search
-						</EmptyTitle>
+						{hasActiveFilters && (
+							<EmptyDescription className="text-(--ink-3)">
+								Try a different status or search term.
+							</EmptyDescription>
+						)}
 					</EmptyHeader>
 				</Empty>
 			) : (
-				<>
+				<div
+					className={
+						isPlaceholderData
+							? "flex flex-col gap-6 opacity-50 transition-opacity"
+							: "flex flex-col gap-6"
+					}
+				>
 					<div className="overflow-hidden rounded-2xl border border-(--line) bg-(--surface-1)">
 						<Table>
 							<TableHeader>
@@ -173,7 +199,7 @@ function InternalMerchantsPage() {
 								</TableRow>
 							</TableHeader>
 							<TableBody>
-								{paginated.map((merchant) => (
+								{merchants.map((merchant) => (
 									<TableRow
 										key={merchant.merchantId}
 										className="border-(--line) hover:bg-(--surface-2)"
@@ -213,55 +239,60 @@ function InternalMerchantsPage() {
 						</Table>
 					</div>
 
-					{pageCount > 1 && (
-						<Pagination>
-							<PaginationContent>
-								<PaginationItem>
-									<PaginationPrevious
-										from={Route.fullPath}
-										search={(prev) => ({
-											...prev,
-											page: Math.max(1, page - 1),
-										})}
-										resetScroll={false}
-										aria-disabled={page <= 1}
-										className={
-											page <= 1 ? "pointer-events-none opacity-50" : undefined
-										}
-									/>
-								</PaginationItem>
-								{Array.from({ length: pageCount }, (_, i) => i + 1).map((p) => (
-									<PaginationItem key={p}>
-										<PaginationLink
+					<div className="flex items-center justify-between gap-3">
+						<PageSizeSelect value={size} onChange={handleSizeChange} />
+						{pageCount > 1 && (
+							<Pagination className="w-auto flex-1 justify-end">
+								<PaginationContent>
+									<PaginationItem>
+										<PaginationPrevious
 											from={Route.fullPath}
-											search={(prev) => ({ ...prev, page: p })}
+											search={(prev) => ({
+												...prev,
+												page: Math.max(1, page - 1),
+											})}
 											resetScroll={false}
-											isActive={p === page}
-										>
-											{p}
-										</PaginationLink>
+											aria-disabled={page <= 1}
+											className={
+												page <= 1 ? "pointer-events-none opacity-50" : undefined
+											}
+										/>
 									</PaginationItem>
-								))}
-								<PaginationItem>
-									<PaginationNext
-										from={Route.fullPath}
-										search={(prev) => ({
-											...prev,
-											page: Math.min(pageCount, page + 1),
-										})}
-										resetScroll={false}
-										aria-disabled={page >= pageCount}
-										className={
-											page >= pageCount
-												? "pointer-events-none opacity-50"
-												: undefined
-										}
-									/>
-								</PaginationItem>
-							</PaginationContent>
-						</Pagination>
-					)}
-				</>
+									{Array.from({ length: pageCount }, (_, i) => i + 1).map(
+										(p) => (
+											<PaginationItem key={p}>
+												<PaginationLink
+													from={Route.fullPath}
+													search={(prev) => ({ ...prev, page: p })}
+													resetScroll={false}
+													isActive={p === page}
+												>
+													{p}
+												</PaginationLink>
+											</PaginationItem>
+										),
+									)}
+									<PaginationItem>
+										<PaginationNext
+											from={Route.fullPath}
+											search={(prev) => ({
+												...prev,
+												page: Math.min(pageCount, page + 1),
+											})}
+											resetScroll={false}
+											aria-disabled={page >= pageCount}
+											className={
+												page >= pageCount
+													? "pointer-events-none opacity-50"
+													: undefined
+											}
+										/>
+									</PaginationItem>
+								</PaginationContent>
+							</Pagination>
+						)}
+					</div>
+				</div>
 			)}
 		</div>
 	);

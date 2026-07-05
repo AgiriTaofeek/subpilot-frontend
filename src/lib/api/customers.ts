@@ -5,7 +5,6 @@ import {
 	backendRequest,
 	requireSessionCookieMiddleware,
 } from "#/lib/api/backend.ts";
-import { fetchAllPages } from "#/lib/api/pagination.ts";
 import type {
 	CustomerEntityDto,
 	PageResponse,
@@ -36,101 +35,94 @@ function mostRecentUpdate(subscriptions: SubscriptionEntityDto[]) {
 	}, null);
 }
 
-async function fetchCustomersAndSubscriptions() {
-	const [customers, subscriptions] = await Promise.all([
-		fetchAllPages((page) =>
-			backendRequest<PageResponse<CustomerEntityDto>>({
-				path: "/v1/customers",
-				search: { page, perPage: 100 },
-			}),
-		),
-		fetchAllPages((page) =>
-			backendRequest<PageResponse<SubscriptionEntityDto>>({
-				path: "/v1/subscriptions",
-				search: { page, size: 100 },
-			}),
-		),
-	]);
-
-	const subscriptionsByCustomerId = new Map<string, SubscriptionEntityDto[]>();
-	for (const subscription of subscriptions) {
-		const list = subscriptionsByCustomerId.get(subscription.customerId) ?? [];
-		list.push(subscription);
-		subscriptionsByCustomerId.set(subscription.customerId, list);
-	}
-
-	return { customers, subscriptionsByCustomerId };
+/** All of one customer's subscriptions — bounded to a single customer, not a full-table scan. */
+async function fetchSubscriptionsForCustomer(customerId: string) {
+	const page = await backendRequest<PageResponse<SubscriptionEntityDto>>({
+		path: "/v1/subscriptions",
+		search: { customerId, page: 0, size: 100 },
+	});
+	return page.content;
 }
+
+const listCustomersSchema = z.object({
+	q: z.string().optional(),
+	page: z.number().default(0),
+	size: z.number().default(10),
+});
 
 export const listCustomerSummaries = createServerFn({
 	method: "GET",
 })
 	.middleware([requireSessionCookieMiddleware])
-	.handler(async () => {
-		const { customers, subscriptionsByCustomerId } =
-			await fetchCustomersAndSubscriptions();
+	.validator(listCustomersSchema)
+	.handler(async ({ data }) => {
+		const customersPage = await backendRequest<PageResponse<CustomerEntityDto>>(
+			{
+				path: "/v1/customers",
+				search: { q: data.q, page: data.page, perPage: data.size },
+			},
+		);
 
-		return customers.map((customer) => {
-			const customerSubscriptions =
-				subscriptionsByCustomerId.get(customer.id) ?? [];
+		// Subscriptions are only fetched for the customers on this page (bounded
+		// by page size), not the whole table — same fix as the list endpoint
+		// itself, just one join hop down.
+		const subscriptionsByCustomerId = new Map<
+			string,
+			SubscriptionEntityDto[]
+		>();
+		await Promise.all(
+			customersPage.content.map(async (customer) => {
+				subscriptionsByCustomerId.set(
+					customer.id,
+					await fetchSubscriptionsForCustomer(customer.id),
+				);
+			}),
+		);
 
-			return {
-				id: customer.id,
-				name: customer.fullName,
-				email: customer.email,
-				phone: customer.phone ?? "—",
-				cardBrand: customer.cardBrand ?? "—",
-				cardLast4: customer.cardLast4 ?? "----",
-				cardExpiry: customer.cardExpiry ?? "—",
-				createdAt: customer.createdAt,
-				subscriptionSummary: summarizeSubscriptions(customerSubscriptions),
-				mostRecentSubscriptionUpdate: mostRecentUpdate(customerSubscriptions),
-			};
-		});
+		return {
+			...customersPage,
+			content: customersPage.content.map((customer) => {
+				const customerSubscriptions =
+					subscriptionsByCustomerId.get(customer.id) ?? [];
+
+				return {
+					id: customer.id,
+					name: customer.fullName,
+					email: customer.email,
+					phone: customer.phone ?? "—",
+					cardBrand: customer.cardBrand ?? "—",
+					cardLast4: customer.cardLast4 ?? "----",
+					cardExpiry: customer.cardExpiry ?? "—",
+					createdAt: customer.createdAt,
+					subscriptionSummary: summarizeSubscriptions(customerSubscriptions),
+					mostRecentSubscriptionUpdate: mostRecentUpdate(customerSubscriptions),
+				};
+			}),
+		};
 	});
 
 export const getCustomerDetail = createServerFn({ method: "GET" })
 	.middleware([requireSessionCookieMiddleware])
 	.validator(customerIdSchema)
 	.handler(async ({ data }) => {
-		// Backend has no customerId filter on /v1/subscriptions, so finding one
-		// customer's subscriptions means walking every subscription page. Worth
-		// a backend filter param if this list grows large enough to make this
-		// expensive.
-		const [customer, allSubscriptions, allPlans] = await Promise.all([
+		const [customer, subscriptions] = await Promise.all([
 			backendRequest<CustomerEntityDto>({
 				path: `/v1/customers/${data.customerId}`,
 			}),
-			fetchAllPages((page) =>
-				backendRequest<PageResponse<SubscriptionEntityDto>>({
-					path: "/v1/subscriptions",
-					search: { page, size: 100 },
-				}),
-			),
-			fetchAllPages((page) =>
-				backendRequest<PageResponse<PlanResponseDto>>({
-					path: "/v1/plans",
-					search: { page, perPage: 100 },
-				}),
-			),
+			fetchSubscriptionsForCustomer(data.customerId),
 		]);
 
-		const plansById = new Map(allPlans.map((plan) => [plan.id, plan]));
-		const subscriptions = allSubscriptions
-			.filter((subscription) => subscription.customerId === data.customerId)
-			.map((subscription) => {
-				const plan = plansById.get(subscription.planId);
-				return {
-					id: subscription.id,
-					planId: subscription.planId,
-					planName: plan?.name ?? "Unknown plan",
-					status: subscription.status,
-					amountKobo: plan?.amount ?? 0,
-					nextBillingDate: subscription.nextBillingDate,
-					createdAt: subscription.createdAt,
-					updatedAt: subscription.updatedAt,
-				};
-			});
+		const plansById = new Map<string, PlanResponseDto>();
+		await Promise.all(
+			[...new Set(subscriptions.map((s) => s.planId))].map(async (planId) => {
+				plansById.set(
+					planId,
+					await backendRequest<PlanResponseDto>({
+						path: `/v1/plans/${planId}`,
+					}),
+				);
+			}),
+		);
 
 		return {
 			customer: {
@@ -143,6 +135,18 @@ export const getCustomerDetail = createServerFn({ method: "GET" })
 				cardExpiry: customer.cardExpiry ?? "—",
 				createdAt: customer.createdAt,
 			},
-			subscriptions,
+			subscriptions: subscriptions.map((subscription) => {
+				const plan = plansById.get(subscription.planId);
+				return {
+					id: subscription.id,
+					planId: subscription.planId,
+					planName: plan?.name ?? "Unknown plan",
+					status: subscription.status,
+					amountKobo: plan?.amount ?? 0,
+					nextBillingDate: subscription.nextBillingDate,
+					createdAt: subscription.createdAt,
+					updatedAt: subscription.updatedAt,
+				};
+			}),
 		};
 	});

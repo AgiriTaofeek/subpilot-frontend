@@ -3,7 +3,6 @@ import { z } from "zod";
 
 import { requireSessionCookieMiddleware } from "#/lib/api/backend.ts";
 import { internalBackendRequest } from "#/lib/api/internal-backend.ts";
-import { fetchAllPages } from "#/lib/api/pagination.ts";
 import type {
 	InternalMerchantDetailDto,
 	InternalMerchantFeeResponseDto,
@@ -18,25 +17,23 @@ const merchantIdSchema = z.object({
 const listMerchantsSchema = z.object({
 	query: z.string().optional(),
 	status: z.string().optional(),
+	page: z.number().default(0),
+	size: z.number().default(20),
 });
 
 export const listInternalMerchants = createServerFn({ method: "GET" })
 	.middleware([requireSessionCookieMiddleware])
 	.validator(listMerchantsSchema)
 	.handler(async ({ data }) => {
-		return fetchAllPages(
-			(page) =>
-				internalBackendRequest<PageResponse<InternalMerchantListItemDto>>({
-					path: "/v1/internal/merchants",
-					search: {
-						query: data.query,
-						status: data.status,
-						page,
-						size: 100,
-					},
-				}),
-			(merchant) => merchant.merchantId,
-		);
+		return internalBackendRequest<PageResponse<InternalMerchantListItemDto>>({
+			path: "/v1/internal/merchants",
+			search: {
+				query: data.query,
+				status: data.status,
+				page: data.page,
+				size: data.size,
+			},
+		});
 	});
 
 export const getInternalMerchantDetail = createServerFn({ method: "GET" })

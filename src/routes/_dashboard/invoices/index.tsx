@@ -1,5 +1,5 @@
 import { FunnelIcon, MagnifyingGlassIcon } from "@phosphor-icons/react";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery } from "@tanstack/react-query";
 import {
 	createFileRoute,
 	stripSearchParams,
@@ -9,7 +9,6 @@ import {
 	type ColumnDef,
 	flexRender,
 	getCoreRowModel,
-	getPaginationRowModel,
 	useReactTable,
 } from "@tanstack/react-table";
 import { useMemo } from "react";
@@ -23,6 +22,7 @@ import {
 	EmptyTitle,
 } from "#/components/ui/empty.tsx";
 import { Input } from "#/components/ui/input.tsx";
+import { PageSizeSelect } from "#/components/ui/page-size-select.tsx";
 import { ListPageSkeleton } from "#/components/ui/page-skeleton.tsx";
 import {
 	Pagination,
@@ -50,23 +50,27 @@ import {
 } from "#/components/ui/table.tsx";
 import { ToggleGroup, ToggleGroupItem } from "#/components/ui/toggle-group.tsx";
 import {
+	INVOICES_PAGE_SIZE,
 	type InvoiceSummary,
 	invoiceStatusLabel,
 	invoiceStatusTone,
-	invoicesListQueryOptions,
+	invoicesListPageQueryOptions,
 } from "#/data/invoices.ts";
+import { useDebouncedSearchInput } from "#/hooks/use-debounced-search-input.ts";
 import { formatNGN } from "#/lib/currency.ts";
 import { formatDate } from "#/lib/date.ts";
+import { pageSizeSchema } from "#/lib/pagination-sizes.ts";
 import type { InvoiceStatusDto } from "#/types/api.ts";
 
 const statusValues = ["pending", "paid", "failed", "void", "refunded"] as const;
 
-const defaultInvoicesSearch = { page: 1, q: "" };
+const defaultInvoicesSearch = { page: 1, q: "", size: INVOICES_PAGE_SIZE };
 
 const invoicesSearchSchema = z.object({
 	page: z.number().default(defaultInvoicesSearch.page),
 	status: z.enum(statusValues).optional().catch(undefined),
 	q: z.string().default(defaultInvoicesSearch.q),
+	size: pageSizeSchema(defaultInvoicesSearch.size),
 });
 
 export const Route = createFileRoute("/_dashboard/invoices/")({
@@ -74,15 +78,20 @@ export const Route = createFileRoute("/_dashboard/invoices/")({
 	search: {
 		middlewares: [stripSearchParams(defaultInvoicesSearch)],
 	},
-	loader: async ({ context }) => {
-		await context.queryClient.ensureQueryData(invoicesListQueryOptions());
+	loaderDeps: ({ search }) => ({
+		page: search.page,
+		status: search.status,
+		q: search.q,
+		size: search.size,
+	}),
+	loader: ({ context, deps }) => {
+		// Not awaited — see events.tsx for why.
+		void context.queryClient.prefetchQuery(invoicesListPageQueryOptions(deps));
 	},
 	component: InvoicesListPage,
 	pendingComponent: () => <ListPageSkeleton columns={5} />,
 	head: () => ({ meta: [{ title: "Invoices | SubPilot" }] }),
 });
-
-const PAGE_SIZE = 10;
 
 const statusFilters: Array<{ value: InvoiceStatusDto; label: string }> =
 	statusValues.map((value) => ({ value, label: invoiceStatusLabel[value] }));
@@ -102,9 +111,18 @@ function rowTone(invoice: InvoiceSummary): "failed" | "void" | "default" {
 }
 
 function InvoicesListPage() {
-	const { page, status, q } = Route.useSearch();
+	const { page, status, q, size } = Route.useSearch();
 	const navigate = useNavigate({ from: Route.fullPath });
-	const { data: allInvoices } = useSuspenseQuery(invoicesListQueryOptions());
+	const { data: invoicesPage, isPlaceholderData } = useQuery(
+		invoicesListPageQueryOptions({ page, status, q, size }),
+	);
+
+	function handleSizeChange(nextSize: number) {
+		navigate({
+			search: (prev) => ({ ...prev, size: nextSize, page: 1 }),
+			resetScroll: false,
+		});
+	}
 
 	function handleStatusFilterChange(value: string) {
 		navigate({
@@ -117,38 +135,19 @@ function InvoicesListPage() {
 		});
 	}
 
-	function handleSearchChange(value: string) {
+	const [searchInput, setSearchInput] = useDebouncedSearchInput(q, (value) => {
 		navigate({
 			search: (prev) => ({ ...prev, q: value, page: 1 }),
 			replace: true,
 			resetScroll: false,
 		});
-	}
+	});
 
 	function goToInvoice(invoiceId: string) {
 		navigate({ to: "/invoices/$invoiceId", params: { invoiceId } });
 	}
 
-	const filtered = useMemo(
-		() =>
-			allInvoices
-				.filter((i) => !status || i.status === status)
-				.filter((i) => {
-					const query = q.trim().toLowerCase();
-					if (!query) return true;
-					return (
-						i.number.toLowerCase().includes(query) ||
-						i.customerEmail.toLowerCase().includes(query)
-					);
-				})
-				.sort(
-					(a, b) =>
-						new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(),
-				),
-		[allInvoices, status, q],
-	);
-
-	const summaryGross = filtered.reduce((sum, i) => sum + i.grossKobo, 0);
+	const invoices = invoicesPage?.content ?? [];
 
 	const columns = useMemo<ColumnDef<InvoiceSummary>[]>(
 		() => [
@@ -285,15 +284,17 @@ function InvoicesListPage() {
 	);
 
 	const table = useReactTable({
-		data: filtered,
+		data: invoices,
 		columns,
+		getRowId: (row) => row.id,
 		getCoreRowModel: getCoreRowModel(),
-		getPaginationRowModel: getPaginationRowModel(),
+		manualPagination: true,
+		pageCount: Math.max(1, invoicesPage?.totalPages ?? 1),
 		state: {
-			pagination: { pageIndex: page - 1, pageSize: PAGE_SIZE },
+			pagination: { pageIndex: page - 1, pageSize: size },
 		},
 		onPaginationChange: (updater) => {
-			const current = { pageIndex: page - 1, pageSize: PAGE_SIZE };
+			const current = { pageIndex: page - 1, pageSize: size };
 			const next = typeof updater === "function" ? updater(current) : updater;
 			navigate({
 				search: (prev) => ({ ...prev, page: next.pageIndex + 1 }),
@@ -302,10 +303,13 @@ function InvoicesListPage() {
 		},
 	});
 
-	const paginatedInvoices = table.getRowModel().rows.map((row) => row.original);
+	if (!invoicesPage) {
+		return <ListPageSkeleton columns={5} />;
+	}
+
 	const pageCount = table.getPageCount();
-	const hasAnyInvoices = allInvoices.length > 0;
-	const isEmpty = filtered.length === 0;
+	const hasActiveFilters = Boolean(status || q.trim());
+	const isEmpty = invoicesPage.totalElements === 0;
 
 	return (
 		<div className="flex flex-1 flex-col gap-6 p-6">
@@ -313,85 +317,83 @@ function InvoicesListPage() {
 				Invoices
 			</h1>
 
-			{hasAnyInvoices && (
-				<div className="flex flex-col gap-3">
-					<ToggleGroup
-						type="single"
-						variant="outline"
-						size="sm"
-						value={status ?? ""}
-						onValueChange={handleStatusFilterChange}
-						className="overflow-x-auto"
-					>
-						{statusFilters.map((f) => (
-							<ToggleGroupItem
-								key={f.value}
-								value={f.value}
-								className="rounded-full border-(--line) px-4 text-xs font-medium normal-case tracking-normal data-[state=on]:bg-(--surface-2) data-[state=on]:text-(--ink)"
-							>
-								{f.label}
-							</ToggleGroupItem>
-						))}
-					</ToggleGroup>
-
-					{/* Desktop: search inline */}
-					<div className="hidden sm:flex">
-						<div className="relative w-full max-w-64">
-							<MagnifyingGlassIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-(--ink-3)" />
-							<Input
-								placeholder="Search invoice # or email…"
-								value={q}
-								onChange={(e) => handleSearchChange(e.target.value)}
-								className="border-(--line) bg-(--surface) pl-9 pr-3 focus-visible:ring-(--brand)/30"
-							/>
-						</div>
-					</div>
-
-					{/* Mobile: Filters sheet */}
-					<Sheet>
-						<SheetTrigger asChild>
-							<Button
-								variant="outline"
-								size="sm"
-								className="w-fit border-(--line) sm:hidden"
-							>
-								<FunnelIcon data-icon="inline-start" />
-								Filters
-							</Button>
-						</SheetTrigger>
-						<SheetContent
-							side="right"
-							className="w-88 border-(--line) bg-(--surface-1)"
+			<div className="flex flex-col gap-3">
+				<ToggleGroup
+					type="single"
+					variant="outline"
+					size="sm"
+					value={status ?? ""}
+					onValueChange={handleStatusFilterChange}
+					className="overflow-x-auto"
+				>
+					{statusFilters.map((f) => (
+						<ToggleGroupItem
+							key={f.value}
+							value={f.value}
+							className="rounded-full border-(--line) px-4 text-xs font-medium normal-case tracking-normal data-[state=on]:bg-(--surface-2) data-[state=on]:text-(--ink)"
 						>
-							<SheetHeader className="pb-4">
-								<SheetTitle className="font-sans text-lg normal-case tracking-tight text-(--ink)">
-									Filters
-								</SheetTitle>
-							</SheetHeader>
-							<div className="flex flex-col gap-4 px-8 pb-8">
-								<div className="relative w-full">
-									<MagnifyingGlassIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-(--ink-3)" />
-									<Input
-										placeholder="Search invoice # or email…"
-										value={q}
-										onChange={(e) => handleSearchChange(e.target.value)}
-										className="border-(--line) bg-(--surface) pl-9 pr-3 focus-visible:ring-(--brand)/30"
-									/>
-								</div>
-							</div>
-						</SheetContent>
-					</Sheet>
+							{f.label}
+						</ToggleGroupItem>
+					))}
+				</ToggleGroup>
 
-					{status && (
-						<p className="text-sm text-(--ink-2)">
-							{formatNGN(summaryGross)} total gross · {filtered.length} invoice
-							{filtered.length === 1 ? "" : "s"}
-						</p>
-					)}
+				{/* Desktop: search inline */}
+				<div className="hidden sm:flex">
+					<div className="relative w-full max-w-64">
+						<MagnifyingGlassIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-(--ink-3)" />
+						<Input
+							placeholder="Search invoice # or email…"
+							value={searchInput}
+							onChange={(e) => setSearchInput(e.target.value)}
+							className="border-(--line) bg-(--surface) pl-9 pr-3 focus-visible:ring-(--brand)/30"
+						/>
+					</div>
 				</div>
-			)}
 
-			{!hasAnyInvoices ? (
+				{/* Mobile: Filters sheet */}
+				<Sheet>
+					<SheetTrigger asChild>
+						<Button
+							variant="outline"
+							size="sm"
+							className="w-fit border-(--line) sm:hidden"
+						>
+							<FunnelIcon data-icon="inline-start" />
+							Filters
+						</Button>
+					</SheetTrigger>
+					<SheetContent
+						side="right"
+						className="w-88 border-(--line) bg-(--surface-1)"
+					>
+						<SheetHeader className="pb-4">
+							<SheetTitle className="font-sans text-lg normal-case tracking-tight text-(--ink)">
+								Filters
+							</SheetTitle>
+						</SheetHeader>
+						<div className="flex flex-col gap-4 px-8 pb-8">
+							<div className="relative w-full">
+								<MagnifyingGlassIcon className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-(--ink-3)" />
+								<Input
+									placeholder="Search invoice # or email…"
+									value={searchInput}
+									onChange={(e) => setSearchInput(e.target.value)}
+									className="border-(--line) bg-(--surface) pl-9 pr-3 focus-visible:ring-(--brand)/30"
+								/>
+							</div>
+						</div>
+					</SheetContent>
+				</Sheet>
+
+				{status && (
+					<p className="text-sm text-(--ink-2)">
+						{invoicesPage.totalElements} invoice
+						{invoicesPage.totalElements === 1 ? "" : "s"}
+					</p>
+				)}
+			</div>
+
+			{isEmpty && !hasActiveFilters ? (
 				<Empty className="rounded-2xl border border-dashed border-(--line) bg-(--surface-1)">
 					<EmptyHeader>
 						<EmptyTitle className="font-sans text-lg normal-case tracking-tight text-(--ink)">
@@ -411,7 +413,13 @@ function InvoicesListPage() {
 					</EmptyHeader>
 				</Empty>
 			) : (
-				<>
+				<div
+					className={
+						isPlaceholderData
+							? "flex flex-col gap-6 opacity-50 transition-opacity"
+							: "flex flex-col gap-6"
+					}
+				>
 					{/* Desktop table */}
 					<div className="hidden overflow-hidden rounded-2xl border border-(--line) bg-(--surface-1) md:block">
 						<Table>
@@ -464,7 +472,7 @@ function InvoicesListPage() {
 
 					{/* Mobile cards */}
 					<div className="flex flex-col gap-3 md:hidden">
-						{paginatedInvoices.map((invoice) => {
+						{invoices.map((invoice) => {
 							const tone = rowTone(invoice);
 							return (
 								<div
@@ -513,55 +521,60 @@ function InvoicesListPage() {
 						})}
 					</div>
 
-					{pageCount > 1 && (
-						<Pagination>
-							<PaginationContent>
-								<PaginationItem>
-									<PaginationPrevious
-										from={Route.fullPath}
-										search={(prev) => ({
-											...prev,
-											page: Math.max(1, page - 1),
-										})}
-										resetScroll={false}
-										aria-disabled={page <= 1}
-										className={
-											page <= 1 ? "pointer-events-none opacity-50" : undefined
-										}
-									/>
-								</PaginationItem>
-								{Array.from({ length: pageCount }, (_, i) => i + 1).map((p) => (
-									<PaginationItem key={p}>
-										<PaginationLink
+					<div className="flex items-center justify-between gap-3">
+						<PageSizeSelect value={size} onChange={handleSizeChange} />
+						{pageCount > 1 && (
+							<Pagination className="w-auto flex-1 justify-end">
+								<PaginationContent>
+									<PaginationItem>
+										<PaginationPrevious
 											from={Route.fullPath}
-											search={(prev) => ({ ...prev, page: p })}
+											search={(prev) => ({
+												...prev,
+												page: Math.max(1, page - 1),
+											})}
 											resetScroll={false}
-											isActive={p === page}
-										>
-											{p}
-										</PaginationLink>
+											aria-disabled={page <= 1}
+											className={
+												page <= 1 ? "pointer-events-none opacity-50" : undefined
+											}
+										/>
 									</PaginationItem>
-								))}
-								<PaginationItem>
-									<PaginationNext
-										from={Route.fullPath}
-										search={(prev) => ({
-											...prev,
-											page: Math.min(pageCount, page + 1),
-										})}
-										resetScroll={false}
-										aria-disabled={page >= pageCount}
-										className={
-											page >= pageCount
-												? "pointer-events-none opacity-50"
-												: undefined
-										}
-									/>
-								</PaginationItem>
-							</PaginationContent>
-						</Pagination>
-					)}
-				</>
+									{Array.from({ length: pageCount }, (_, i) => i + 1).map(
+										(p) => (
+											<PaginationItem key={p}>
+												<PaginationLink
+													from={Route.fullPath}
+													search={(prev) => ({ ...prev, page: p })}
+													resetScroll={false}
+													isActive={p === page}
+												>
+													{p}
+												</PaginationLink>
+											</PaginationItem>
+										),
+									)}
+									<PaginationItem>
+										<PaginationNext
+											from={Route.fullPath}
+											search={(prev) => ({
+												...prev,
+												page: Math.min(pageCount, page + 1),
+											})}
+											resetScroll={false}
+											aria-disabled={page >= pageCount}
+											className={
+												page >= pageCount
+													? "pointer-events-none opacity-50"
+													: undefined
+											}
+										/>
+									</PaginationItem>
+								</PaginationContent>
+							</Pagination>
+						)}
+					</div>
+				</div>
 			)}
 		</div>
 	);

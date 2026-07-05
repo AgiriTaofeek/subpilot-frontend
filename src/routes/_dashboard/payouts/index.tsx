@@ -1,9 +1,14 @@
 import {
 	useMutation,
+	useQuery,
 	useQueryClient,
 	useSuspenseQuery,
 } from "@tanstack/react-query";
-import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
+import {
+	createFileRoute,
+	stripSearchParams,
+	useNavigate,
+} from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -31,6 +36,7 @@ import {
 } from "#/components/ui/empty.tsx";
 import { Field, FieldError, FieldLabel } from "#/components/ui/field.tsx";
 import { Input } from "#/components/ui/input.tsx";
+import { PageSizeSelect } from "#/components/ui/page-size-select.tsx";
 import { ListPageSkeleton } from "#/components/ui/page-skeleton.tsx";
 import {
 	Pagination,
@@ -67,6 +73,7 @@ import {
 } from "#/components/ui/table.tsx";
 import {
 	disbursementsQueryOptions,
+	PAYOUTS_PAGE_SIZE,
 	payoutBanksQueryOptions,
 } from "#/data/payouts.ts";
 import { useHandleMutationError } from "#/hooks/use-handle-mutation-error.ts";
@@ -78,12 +85,14 @@ import {
 } from "#/lib/api/payouts.ts";
 import { formatNGN } from "#/lib/currency.ts";
 import { formatDate } from "#/lib/date.ts";
+import { pageSizeSchema } from "#/lib/pagination-sizes.ts";
 import type { DisbursementStatusDto } from "#/types/api.ts";
 
-const defaultPayoutsSearch = { page: 1 };
+const defaultPayoutsSearch = { page: 1, size: PAYOUTS_PAGE_SIZE };
 
 const payoutsSearchSchema = z.object({
 	page: z.number().default(defaultPayoutsSearch.page),
+	size: pageSizeSchema(defaultPayoutsSearch.size),
 });
 
 export const Route = createFileRoute("/_dashboard/payouts/")({
@@ -91,12 +100,15 @@ export const Route = createFileRoute("/_dashboard/payouts/")({
 	search: {
 		middlewares: [stripSearchParams(defaultPayoutsSearch)],
 	},
-	loaderDeps: ({ search }) => ({ page: search.page }),
+	loaderDeps: ({ search }) => ({ page: search.page, size: search.size }),
 	loader: async ({ context, deps }) => {
-		await Promise.all([
-			context.queryClient.ensureQueryData(disbursementsQueryOptions(deps.page)),
-			context.queryClient.ensureQueryData(payoutBanksQueryOptions()),
-		]);
+		// Disbursements: not awaited — see events.tsx for why. Banks: still
+		// awaited, small reference data for the bank-account sheet, not the
+		// paginated resource.
+		void context.queryClient.prefetchQuery(
+			disbursementsQueryOptions(deps.page, deps.size),
+		);
+		await context.queryClient.ensureQueryData(payoutBanksQueryOptions());
 	},
 	component: PayoutsPage,
 	pendingComponent: () => <ListPageSkeleton columns={5} />,
@@ -332,15 +344,23 @@ function BankAccountSheet({
 }
 
 function PayoutsPage() {
-	const { page } = Route.useSearch();
-	const { data: payoutsPage } = useSuspenseQuery(
-		disbursementsQueryOptions(page),
+	const { page, size } = Route.useSearch();
+	const navigate = useNavigate({ from: Route.fullPath });
+	const { data: payoutsPage, isPlaceholderData } = useQuery(
+		disbursementsQueryOptions(page, size),
 	);
 	const [bankSheetOpen, setBankSheetOpen] = useState(false);
 	const [triggerConfirmOpen, setTriggerConfirmOpen] = useState(false);
 	const [selectedId, setSelectedId] = useState<string | null>(null);
 	const queryClient = useQueryClient();
 	const handleMutationError = useHandleMutationError();
+
+	function handleSizeChange(nextSize: number) {
+		navigate({
+			search: (prev) => ({ ...prev, size: nextSize, page: 1 }),
+			resetScroll: false,
+		});
+	}
 
 	const triggerMutation = useMutation({
 		mutationFn: () => triggerDisbursement(),
@@ -366,6 +386,10 @@ function PayoutsPage() {
 			});
 		},
 	});
+
+	if (!payoutsPage) {
+		return <ListPageSkeleton columns={5} />;
+	}
 
 	const disbursements = payoutsPage.content;
 	const pageCount = Math.max(1, payoutsPage.totalPages);
@@ -439,7 +463,13 @@ function PayoutsPage() {
 					</EmptyContent>
 				</Empty>
 			) : (
-				<>
+				<div
+					className={
+						isPlaceholderData
+							? "flex flex-col gap-6 opacity-50 transition-opacity"
+							: "flex flex-col gap-6"
+					}
+				>
 					{/* Desktop table */}
 					<div className="hidden overflow-hidden rounded-2xl border border-(--line) bg-(--surface-1) md:block">
 						<Table>
@@ -507,55 +537,60 @@ function PayoutsPage() {
 						))}
 					</div>
 
-					{pageCount > 1 && (
-						<Pagination>
-							<PaginationContent>
-								<PaginationItem>
-									<PaginationPrevious
-										from={Route.fullPath}
-										search={(prev) => ({
-											...prev,
-											page: Math.max(1, page - 1),
-										})}
-										resetScroll={false}
-										aria-disabled={page <= 1}
-										className={
-											page <= 1 ? "pointer-events-none opacity-50" : undefined
-										}
-									/>
-								</PaginationItem>
-								{Array.from({ length: pageCount }, (_, i) => i + 1).map((p) => (
-									<PaginationItem key={p}>
-										<PaginationLink
+					<div className="flex items-center justify-between gap-3">
+						<PageSizeSelect value={size} onChange={handleSizeChange} />
+						{pageCount > 1 && (
+							<Pagination className="w-auto flex-1 justify-end">
+								<PaginationContent>
+									<PaginationItem>
+										<PaginationPrevious
 											from={Route.fullPath}
-											search={(prev) => ({ ...prev, page: p })}
+											search={(prev) => ({
+												...prev,
+												page: Math.max(1, page - 1),
+											})}
 											resetScroll={false}
-											isActive={p === page}
-										>
-											{p}
-										</PaginationLink>
+											aria-disabled={page <= 1}
+											className={
+												page <= 1 ? "pointer-events-none opacity-50" : undefined
+											}
+										/>
 									</PaginationItem>
-								))}
-								<PaginationItem>
-									<PaginationNext
-										from={Route.fullPath}
-										search={(prev) => ({
-											...prev,
-											page: Math.min(pageCount, page + 1),
-										})}
-										resetScroll={false}
-										aria-disabled={page >= pageCount}
-										className={
-											page >= pageCount
-												? "pointer-events-none opacity-50"
-												: undefined
-										}
-									/>
-								</PaginationItem>
-							</PaginationContent>
-						</Pagination>
-					)}
-				</>
+									{Array.from({ length: pageCount }, (_, i) => i + 1).map(
+										(p) => (
+											<PaginationItem key={p}>
+												<PaginationLink
+													from={Route.fullPath}
+													search={(prev) => ({ ...prev, page: p })}
+													resetScroll={false}
+													isActive={p === page}
+												>
+													{p}
+												</PaginationLink>
+											</PaginationItem>
+										),
+									)}
+									<PaginationItem>
+										<PaginationNext
+											from={Route.fullPath}
+											search={(prev) => ({
+												...prev,
+												page: Math.min(pageCount, page + 1),
+											})}
+											resetScroll={false}
+											aria-disabled={page >= pageCount}
+											className={
+												page >= pageCount
+													? "pointer-events-none opacity-50"
+													: undefined
+											}
+										/>
+									</PaginationItem>
+								</PaginationContent>
+							</Pagination>
+						)}
+					</div>
+				</div>
 			)}
 
 			<BankAccountSheet open={bankSheetOpen} onOpenChange={setBankSheetOpen} />

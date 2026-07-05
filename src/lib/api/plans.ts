@@ -5,7 +5,6 @@ import {
 	backendRequest,
 	requireSessionCookieMiddleware,
 } from "#/lib/api/backend.ts";
-import { fetchAllPages } from "#/lib/api/pagination.ts";
 import type {
 	CheckoutInitResponseDto,
 	CreatePlanRequestDto,
@@ -58,15 +57,46 @@ const checkoutSchema = z.object({
 	phone: z.string().min(1),
 });
 
+// Full-catalog fetch for reference/dropdown consumers (plan selectors on the
+// subscription and account pages) — plan counts are bounded by how many
+// pricing plans a merchant has configured, not by customer/transaction
+// volume, so one generous page is the right shape here, unlike the
+// customer/invoice/subscription lists this repo's other list endpoints back.
 export const listPlans = createServerFn({ method: "GET" })
 	.middleware([requireSessionCookieMiddleware])
 	.handler(async () => {
-		return fetchAllPages((page) =>
-			backendRequest<PageResponse<PlanResponseDto>>({
-				path: "/v1/plans",
-				search: { page, perPage: 100 },
-			}),
-		);
+		const page = await backendRequest<PageResponse<PlanResponseDto>>({
+			path: "/v1/plans",
+			search: { page: 0, perPage: 100 },
+		});
+		return page.content;
+	});
+
+const searchPlansSchema = z.object({
+	q: z.string().optional(),
+	status: z.enum(["draft", "published", "archived"]).optional(),
+	sort: z.string().optional(),
+	page: z.number().default(0),
+	perPage: z.number().default(10),
+});
+
+// Real server-side pagination for the Plans list page itself — backend
+// supports q/status filtering and a "field,direction" sort string
+// (PlanController.parseSort) for name/amountKobo/trialDays/status/createdAt.
+export const searchPlans = createServerFn({ method: "GET" })
+	.middleware([requireSessionCookieMiddleware])
+	.validator(searchPlansSchema)
+	.handler(async ({ data }) => {
+		return backendRequest<PageResponse<PlanResponseDto>>({
+			path: "/v1/plans",
+			search: {
+				q: data.q,
+				status: data.status,
+				sort: data.sort,
+				page: data.page,
+				perPage: data.perPage,
+			},
+		});
 	});
 
 export const getPlan = createServerFn({ method: "GET" })

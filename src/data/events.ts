@@ -1,7 +1,10 @@
-import { queryOptions } from "@tanstack/react-query";
+import { keepPreviousData, queryOptions } from "@tanstack/react-query";
 
 import { listEvents } from "#/lib/api/events.ts";
+import type { PageSize } from "#/lib/pagination-sizes.ts";
 import type { AuditEventTypeDto } from "#/types/api.ts";
+
+export const EVENTS_PAGE_SIZE: PageSize = 10;
 
 export const auditEventTypeGroups: Array<{
 	group: string;
@@ -52,10 +55,24 @@ export const auditEventTypeGroups: Array<{
 	},
 ];
 
-export const eventsListQueryOptions = () =>
+export const eventsListQueryOptions = (params: {
+	eventType?: string;
+	q?: string;
+	page: number;
+	size?: PageSize;
+}) =>
 	queryOptions({
-		queryKey: ["events"],
-		queryFn: () => listEvents(),
+		queryKey: ["events", params],
+		queryFn: () =>
+			listEvents({
+				data: {
+					eventType: params.eventType,
+					q: params.q,
+					page: params.page - 1,
+					size: params.size ?? EVENTS_PAGE_SIZE,
+				},
+			}),
+		placeholderData: keepPreviousData,
 	});
 
 export function resourceTypeLabel(resourceType: string): string {
