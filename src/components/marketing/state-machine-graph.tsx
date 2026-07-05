@@ -36,6 +36,7 @@ const tour: SubscriptionStatus[] = [
 	"trialing",
 	"active",
 	"past_due",
+	"suspended",
 	"active",
 	"paused",
 	"active",

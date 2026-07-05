@@ -445,6 +445,13 @@ export const webhookEvents: WebhookEventDef[] = [
 		payloadExample: `{ "subscriptionId": "01J...", "invoiceId": "01J...", "failureReason": "insufficient_funds" }`,
 	},
 	{
+		type: "subscription.suspended",
+		category: "Subscription",
+		description:
+			"The grace period after a failed renewal elapsed with no recovery — cut off downstream access now, self-cure is still possible.",
+		payloadExample: `{ "subscriptionId": "01J...", "suspendedAt": "2025-06-28T12:00:00Z" }`,
+	},
+	{
 		type: "subscription.paused",
 		category: "Subscription",
 		description: "The merchant paused billing on this subscription.",
@@ -561,5 +568,23 @@ export const webhookEvents: WebhookEventDef[] = [
 		description: "Nomba rejected the refund.",
 		payloadExample: `{ "refundId": "01J...", "reason": "bank_rejected" }`,
 		status: "pending",
+	},
+	{
+		type: "payout.triggered",
+		category: "Payout",
+		description: "A payout of your collected revenue was initiated.",
+		payloadExample: `{ "payoutId": "01J...", "amount": 12400000, "currency": "NGN", "periodStart": "2025-06-01T00:00:00Z", "periodEnd": "2025-06-30T00:00:00Z" }`,
+	},
+	{
+		type: "payout.succeeded",
+		category: "Payout",
+		description: "Nomba confirmed the transfer to your settlement account.",
+		payloadExample: `{ "payoutId": "01J...", "nombaTransferReference": "NMB-TRF-XYZ", "amount": 12400000 }`,
+	},
+	{
+		type: "payout.failed",
+		category: "Payout",
+		description: "The transfer failed and will be retried or needs review.",
+		payloadExample: `{ "payoutId": "01J...", "failureReason": "invalid_account" }`,
 	},
 ];

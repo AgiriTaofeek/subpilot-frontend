@@ -59,14 +59,19 @@ export const subscriptionStatusLabel: Record<SubscriptionStatus, string> = {
 	expired: "Expired",
 };
 
+// Mirrors the backend's authoritative SubscriptionStateMachine exactly
+// (co.subpilot.subscription.SubscriptionStateMachine) — past_due no longer
+// transitions directly to cancelled/expired; every dunning-exhaustion path
+// passes through suspended first (see that class's javadoc for the full
+// rationale). Keep these two in sync if the backend machine ever changes.
 export const subscriptionTransitions: Record<
 	SubscriptionStatus,
 	SubscriptionStatus[]
 > = {
 	trialing: ["active", "cancelled"],
-	active: ["past_due", "paused", "cancelled"],
-	past_due: ["active", "cancelled", "expired"],
-	suspended: ["active", "cancelled"],
+	active: ["past_due", "paused", "cancelled", "expired"],
+	past_due: ["active", "suspended"],
+	suspended: ["active", "cancelled", "expired"],
 	paused: ["active", "cancelled"],
 	cancelled: [],
 	expired: [],
@@ -78,11 +83,12 @@ export const subscriptionTransitionLabels: Record<string, string> = {
 	"active->past_due": "payment fails",
 	"active->paused": "pause",
 	"active->cancelled": "cancel",
+	"active->expired": "fixed term ends",
 	"past_due->active": "payment recovers",
-	"past_due->cancelled": "dunning exhausted",
-	"past_due->expired": "retries exhausted",
-	"suspended->active": "resume",
-	"suspended->cancelled": "cancel",
+	"past_due->suspended": "grace period elapses",
+	"suspended->active": "payment recovers",
+	"suspended->cancelled": "dunning exhausted (cancel)",
+	"suspended->expired": "dunning exhausted (expire)",
 	"paused->active": "resume",
 	"paused->cancelled": "cancel",
 };
