@@ -9,7 +9,7 @@ import {
 	stripSearchParams,
 	useNavigate,
 } from "@tanstack/react-router";
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 
@@ -19,6 +19,16 @@ import {
 } from "#/components/layout/route-error-fallback.tsx";
 import { Button } from "#/components/ui/button.tsx";
 import { Card, CardContent, CardHeader } from "#/components/ui/card.tsx";
+import {
+	Combobox,
+	ComboboxContent,
+	ComboboxEmpty,
+	ComboboxInput,
+	ComboboxItem,
+	ComboboxList,
+	ComboboxTrigger,
+	ComboboxValue,
+} from "#/components/ui/combobox.tsx";
 import {
 	Dialog,
 	DialogContent,
@@ -46,13 +56,6 @@ import {
 	PaginationNext,
 	PaginationPrevious,
 } from "#/components/ui/pagination.tsx";
-import {
-	Select,
-	SelectContent,
-	SelectItem,
-	SelectTrigger,
-	SelectValue,
-} from "#/components/ui/select.tsx";
 import {
 	Sheet,
 	SheetContent,
@@ -86,7 +89,7 @@ import {
 import { formatNGN } from "#/lib/currency.ts";
 import { formatDate } from "#/lib/date.ts";
 import { pageSizeSchema } from "#/lib/pagination-sizes.ts";
-import type { DisbursementStatusDto } from "#/types/api.ts";
+import type { DisbursementStatusDto, PayoutBankDto } from "#/types/api.ts";
 
 const defaultPayoutsSearch = { page: 1, size: PAYOUTS_PAGE_SIZE };
 
@@ -176,7 +179,12 @@ function BankAccountSheet({
 	onOpenChange: (open: boolean) => void;
 }) {
 	const { data: banks } = useSuspenseQuery(payoutBanksQueryOptions());
+	const sortedBanks = useMemo(
+		() => [...banks].sort((a, b) => a.name.localeCompare(b.name)),
+		[banks],
+	);
 	const [bankCode, setBankCode] = useState("");
+	const [bankPickerOpen, setBankPickerOpen] = useState(false);
 	const [accountNumber, setAccountNumber] = useState("");
 	const [verifiedName, setVerifiedName] = useState<string | null>(null);
 	const [verifyError, setVerifyError] = useState<string | null>(null);
@@ -230,10 +238,14 @@ function BankAccountSheet({
 					resetVerification();
 				}
 			}}
+			modal={false}
 		>
 			<SheetContent
 				side="right"
 				className="w-88 border-(--line) bg-(--surface-1)"
+				onEscapeKeyDown={(event) => {
+					if (bankPickerOpen) event.preventDefault();
+				}}
 			>
 				<SheetHeader className="pb-4">
 					<SheetTitle className="font-sans text-lg normal-case tracking-tight text-(--ink)">
@@ -251,27 +263,45 @@ function BankAccountSheet({
 						>
 							Bank
 						</FieldLabel>
-						<Select
-							value={bankCode}
-							onValueChange={(value) => {
-								setBankCode(value);
+						<Combobox<PayoutBankDto>
+							items={sortedBanks}
+							value={
+								sortedBanks.find((bank) => bank.bankCode === bankCode) ?? null
+							}
+							onValueChange={(bank) => {
+								setBankCode(bank?.bankCode ?? "");
 								resetVerification();
 							}}
+							onOpenChange={setBankPickerOpen}
+							itemToStringValue={(bank) => bank.name}
+							itemToStringLabel={(bank) => bank.name}
 						>
-							<SelectTrigger
+							<ComboboxTrigger
 								id="bankCode"
-								className="w-full rounded-md border-(--line) bg-(--surface) px-3"
+								render={
+									<Button
+										variant="outline"
+										className="w-full justify-between rounded-md border-(--line) bg-(--surface) px-3 font-normal"
+									/>
+								}
 							>
-								<SelectValue placeholder="Select your bank" />
-							</SelectTrigger>
-							<SelectContent>
-								{banks.map((bank) => (
-									<SelectItem key={bank.bankCode} value={bank.bankCode}>
-										{bank.name}
-									</SelectItem>
-								))}
-							</SelectContent>
-						</Select>
+								<ComboboxValue placeholder="Select your bank" />
+							</ComboboxTrigger>
+							<ComboboxContent>
+								<ComboboxInput
+									showTrigger={false}
+									placeholder="Search banks…"
+								/>
+								<ComboboxEmpty>No bank found.</ComboboxEmpty>
+								<ComboboxList>
+									{(bank: PayoutBankDto) => (
+										<ComboboxItem key={bank.bankCode} value={bank}>
+											{bank.name}
+										</ComboboxItem>
+									)}
+								</ComboboxList>
+							</ComboboxContent>
+						</Combobox>
 					</Field>
 
 					<Field data-invalid={verifyError !== null}>
