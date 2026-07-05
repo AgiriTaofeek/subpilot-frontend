@@ -67,27 +67,27 @@ export const listCustomerSummaries = createServerFn({
 })
 	.middleware([requireSessionCookieMiddleware])
 	.handler(async () => {
-	const { customers, subscriptionsByCustomerId } =
-		await fetchCustomersAndSubscriptions();
+		const { customers, subscriptionsByCustomerId } =
+			await fetchCustomersAndSubscriptions();
 
-	return customers.map((customer) => {
-		const customerSubscriptions =
-			subscriptionsByCustomerId.get(customer.id) ?? [];
+		return customers.map((customer) => {
+			const customerSubscriptions =
+				subscriptionsByCustomerId.get(customer.id) ?? [];
 
-		return {
-			id: customer.id,
-			name: customer.fullName,
-			email: customer.email,
-			phone: customer.phone ?? "—",
-			cardBrand: customer.cardBrand ?? "—",
-			cardLast4: customer.cardLast4 ?? "----",
-			cardExpiry: customer.cardExpiry ?? "—",
-			createdAt: customer.createdAt,
-			subscriptionSummary: summarizeSubscriptions(customerSubscriptions),
-			mostRecentSubscriptionUpdate: mostRecentUpdate(customerSubscriptions),
-		};
+			return {
+				id: customer.id,
+				name: customer.fullName,
+				email: customer.email,
+				phone: customer.phone ?? "—",
+				cardBrand: customer.cardBrand ?? "—",
+				cardLast4: customer.cardLast4 ?? "----",
+				cardExpiry: customer.cardExpiry ?? "—",
+				createdAt: customer.createdAt,
+				subscriptionSummary: summarizeSubscriptions(customerSubscriptions),
+				mostRecentSubscriptionUpdate: mostRecentUpdate(customerSubscriptions),
+			};
+		});
 	});
-});
 
 export const getCustomerDetail = createServerFn({ method: "GET" })
 	.middleware([requireSessionCookieMiddleware])

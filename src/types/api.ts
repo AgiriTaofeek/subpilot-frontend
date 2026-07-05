@@ -421,7 +421,7 @@ export interface PortalSubscriptionViewDto {
 	billingInterval: string;
 	currentPeriodStart: string;
 	currentPeriodEnd: string;
-	nextBillingDate: string;
+	nextBillingDate: string | null;
 	trialEndsAt: string | null;
 	cancelAtPeriodEnd: boolean;
 	cardLast4: string | null;
@@ -446,6 +446,32 @@ export interface PortalAvailablePlanDto {
 	amount: number;
 	currency: string;
 	billingInterval: string;
+}
+
+export type RefundStatusDto =
+	| "pending_approval"
+	| "pending"
+	| "succeeded"
+	| "failed"
+	| "rejected";
+
+export interface RefundResponseDto {
+	id: string;
+	invoiceId: string;
+	amount: number;
+	currency: string;
+	platformFeeRefunded: number;
+	status: RefundStatusDto;
+	reason: string | null;
+	nombaReference: string | null;
+	failureReason: string | null;
+	createdAt: string;
+	resolvedAt: string | null;
+}
+
+export interface CreateRefundRequestDto {
+	amount?: number;
+	reason?: string;
 }
 
 export interface PortalCancelRequestDto {

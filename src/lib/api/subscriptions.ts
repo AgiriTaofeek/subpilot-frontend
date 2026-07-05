@@ -36,57 +36,57 @@ export const listSubscriptionSummaries = createServerFn({
 })
 	.middleware([requireSessionCookieMiddleware])
 	.handler(async () => {
-	const [subscriptions, customers, plans] = await Promise.all([
-		fetchAllPages((page) =>
-			backendRequest<PageResponse<SubscriptionEntityDto>>({
-				path: "/v1/subscriptions",
-				search: { page, size: 100 },
-			}),
-		),
-		fetchAllPages((page) =>
-			backendRequest<PageResponse<CustomerEntityDto>>({
-				path: "/v1/customers",
-				search: { page, perPage: 100 },
-			}),
-		),
-		fetchAllPages((page) =>
-			backendRequest<PageResponse<PlanResponseDto>>({
-				path: "/v1/plans",
-				search: { page, perPage: 100 },
-			}),
-		),
-	]);
+		const [subscriptions, customers, plans] = await Promise.all([
+			fetchAllPages((page) =>
+				backendRequest<PageResponse<SubscriptionEntityDto>>({
+					path: "/v1/subscriptions",
+					search: { page, size: 100 },
+				}),
+			),
+			fetchAllPages((page) =>
+				backendRequest<PageResponse<CustomerEntityDto>>({
+					path: "/v1/customers",
+					search: { page, perPage: 100 },
+				}),
+			),
+			fetchAllPages((page) =>
+				backendRequest<PageResponse<PlanResponseDto>>({
+					path: "/v1/plans",
+					search: { page, perPage: 100 },
+				}),
+			),
+		]);
 
-	const customersById = new Map(
-		customers.map((customer) => [customer.id, customer]),
-	);
-	const plansById = new Map(plans.map((plan) => [plan.id, plan]));
+		const customersById = new Map(
+			customers.map((customer) => [customer.id, customer]),
+		);
+		const plansById = new Map(plans.map((plan) => [plan.id, plan]));
 
-	return subscriptions.map((subscription) => {
-		const customer = customersById.get(subscription.customerId);
-		const plan = plansById.get(subscription.planId);
+		return subscriptions.map((subscription) => {
+			const customer = customersById.get(subscription.customerId);
+			const plan = plansById.get(subscription.planId);
 
-		return {
-			id: subscription.id,
-			customerId: subscription.customerId,
-			customerName: customer?.fullName ?? "Unknown customer",
-			customerEmail: customer?.email ?? "Unknown email",
-			planId: subscription.planId,
-			planName: plan?.name ?? "Unknown plan",
-			status: subscription.status,
-			amountKobo: plan?.amount ?? 0,
-			nextBillingDate: subscription.nextBillingDate,
-			currentPeriodEnd:
-				subscription.currentPeriodEnd ??
-				subscription.nextBillingDate ??
-				subscription.createdAt,
-			nextRetryAt: null,
-			cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
-			updatedAt: subscription.updatedAt,
-			createdAt: subscription.createdAt,
-		};
+			return {
+				id: subscription.id,
+				customerId: subscription.customerId,
+				customerName: customer?.fullName ?? "Unknown customer",
+				customerEmail: customer?.email ?? "Unknown email",
+				planId: subscription.planId,
+				planName: plan?.name ?? "Unknown plan",
+				status: subscription.status,
+				amountKobo: plan?.amount ?? 0,
+				nextBillingDate: subscription.nextBillingDate,
+				currentPeriodEnd:
+					subscription.currentPeriodEnd ??
+					subscription.nextBillingDate ??
+					subscription.createdAt,
+				nextRetryAt: null,
+				cancelAtPeriodEnd: subscription.cancelAtPeriodEnd,
+				updatedAt: subscription.updatedAt,
+				createdAt: subscription.createdAt,
+			};
+		});
 	});
-});
 
 export const getSubscriptionDetail = createServerFn({ method: "GET" })
 	.middleware([requireSessionCookieMiddleware])

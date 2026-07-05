@@ -11,6 +11,7 @@ import {
 	RouteErrorFallback,
 	SessionExpiredFallback,
 } from "#/components/layout/route-error-fallback.tsx";
+import { AmountInput } from "#/components/ui/amount-input.tsx";
 import { Button } from "#/components/ui/button.tsx";
 import { Card, CardContent } from "#/components/ui/card.tsx";
 import {
@@ -21,8 +22,10 @@ import {
 	DialogHeader,
 	DialogTitle,
 } from "#/components/ui/dialog.tsx";
+import { Field, FieldLabel } from "#/components/ui/field.tsx";
 import { Spinner } from "#/components/ui/spinner.tsx";
 import { StatusBadge } from "#/components/ui/status-badge.tsx";
+import { Textarea } from "#/components/ui/textarea.tsx";
 import {
 	Tooltip,
 	TooltipContent,
@@ -30,12 +33,15 @@ import {
 } from "#/components/ui/tooltip.tsx";
 import {
 	invoiceDetailQueryOptions,
+	invoiceRefundsQueryOptions,
 	invoiceStatusLabel,
 	invoiceStatusTone,
+	refundStatusLabel,
+	refundStatusTone,
 } from "#/data/invoices.ts";
 import { useHandleMutationError } from "#/hooks/use-handle-mutation-error.ts";
 import { classifyError } from "#/lib/api/classify-error.ts";
-import { voidInvoice } from "#/lib/api/invoices.ts";
+import { createInvoiceRefund, voidInvoice } from "#/lib/api/invoices.ts";
 import { isSessionError } from "#/lib/api/is-session-error.ts";
 import { formatNGN } from "#/lib/currency.ts";
 import { formatDate } from "#/lib/date.ts";
@@ -43,9 +49,14 @@ import type { InvoiceStatusDto } from "#/types/api.ts";
 
 export const Route = createFileRoute("/_dashboard/invoices/$invoiceId")({
 	loader: async ({ context, params }) => {
-		await context.queryClient.ensureQueryData(
-			invoiceDetailQueryOptions(params.invoiceId),
-		);
+		await Promise.all([
+			context.queryClient.ensureQueryData(
+				invoiceDetailQueryOptions(params.invoiceId),
+			),
+			context.queryClient.ensureQueryData(
+				invoiceRefundsQueryOptions(params.invoiceId),
+			),
+		]);
 	},
 	component: InvoiceDetailPage,
 	errorComponent: InvoiceDetailErrorFallback,
@@ -109,13 +120,23 @@ function voidButtonState(
 	return "hidden";
 }
 
+function canRefund(status: InvoiceStatusDto): boolean {
+	return status === "paid";
+}
+
 function InvoiceDetailPage() {
 	const { invoiceId } = Route.useParams();
 	const queryClient = useQueryClient();
 	const { data: invoice } = useSuspenseQuery(
 		invoiceDetailQueryOptions(invoiceId),
 	);
+	const { data: refunds } = useSuspenseQuery(
+		invoiceRefundsQueryOptions(invoiceId),
+	);
 	const [voidOpen, setVoidOpen] = useState(false);
+	const [refundOpen, setRefundOpen] = useState(false);
+	const [refundAmountKobo, setRefundAmountKobo] = useState(0);
+	const [refundReason, setRefundReason] = useState("");
 	const handleMutationError = useHandleMutationError();
 
 	const voidState = voidButtonState(invoice.status);
@@ -137,6 +158,34 @@ function InvoiceDetailPage() {
 			}),
 	});
 
+	const refundMutation = useMutation({
+		mutationFn: () =>
+			createInvoiceRefund({
+				data: {
+					invoiceId,
+					amount: refundAmountKobo > 0 ? refundAmountKobo : undefined,
+					reason: refundReason.trim() || undefined,
+				},
+			}),
+		onSuccess: async () => {
+			await queryClient.invalidateQueries({
+				queryKey: invoiceDetailQueryOptions(invoiceId).queryKey,
+			});
+			await queryClient.invalidateQueries({
+				queryKey: invoiceRefundsQueryOptions(invoiceId).queryKey,
+			});
+			await queryClient.invalidateQueries({ queryKey: ["invoices"] });
+			setRefundOpen(false);
+			setRefundAmountKobo(0);
+			setRefundReason("");
+			toast.success("Refund initiated");
+		},
+		onError: (error) =>
+			handleMutationError(error, {
+				fallbackMessage: "Couldn't refund this invoice.",
+			}),
+	});
+
 	return (
 		<div className="p-6">
 			<div className="flex flex-col gap-4 border-b border-(--line) pb-6 sm:flex-row sm:items-start sm:justify-between">
@@ -151,31 +200,43 @@ function InvoiceDetailPage() {
 					</div>
 				</div>
 
-				{voidState !== "hidden" &&
-					(voidState === "disabled" ? (
-						<Tooltip>
-							<TooltipTrigger asChild>
-								<span>
-									<Button
-										variant="outline"
-										disabled
-										className="border-(--line) text-(--ink-3)"
-									>
-										Void
-									</Button>
-								</span>
-							</TooltipTrigger>
-							<TooltipContent>Cannot void a paid invoice</TooltipContent>
-						</Tooltip>
-					) : (
+				<div className="flex items-center gap-2">
+					{canRefund(invoice.status) && (
 						<Button
 							variant="outline"
-							onClick={() => setVoidOpen(true)}
-							className="border-destructive/30 text-destructive hover:bg-destructive/10"
+							onClick={() => setRefundOpen(true)}
+							className="border-(--line)"
 						>
-							Void
+							Refund
 						</Button>
-					))}
+					)}
+
+					{voidState !== "hidden" &&
+						(voidState === "disabled" ? (
+							<Tooltip>
+								<TooltipTrigger asChild>
+									<span>
+										<Button
+											variant="outline"
+											disabled
+											className="border-(--line) text-(--ink-3)"
+										>
+											Void
+										</Button>
+									</span>
+								</TooltipTrigger>
+								<TooltipContent>Cannot void a paid invoice</TooltipContent>
+							</Tooltip>
+						) : (
+							<Button
+								variant="outline"
+								onClick={() => setVoidOpen(true)}
+								className="border-destructive/30 text-destructive hover:bg-destructive/10"
+							>
+								Void
+							</Button>
+						))}
+				</div>
 			</div>
 
 			<div className="grid gap-4 pt-6 sm:grid-cols-2 lg:grid-cols-4">
@@ -255,6 +316,101 @@ function InvoiceDetailPage() {
 					</CardContent>
 				</Card>
 			</div>
+
+			{refunds.length > 0 && (
+				<div className="pt-6">
+					<p className="island-kicker m-0 mb-2">Refunds</p>
+					<Card className="border border-(--line) bg-(--surface-1) shadow-none">
+						<CardContent className="flex flex-col divide-y divide-(--line) py-0">
+							{refunds.map((refund) => (
+								<div
+									key={refund.id}
+									className="flex items-center justify-between gap-3 py-3 first:pt-4 last:pb-4"
+								>
+									<div>
+										<div className="flex items-center gap-2">
+											<p className="m-0 font-medium text-(--ink)">
+												{formatNGN(refund.amount)}
+											</p>
+											<StatusBadge tone={refundStatusTone[refund.status]}>
+												{refundStatusLabel[refund.status]}
+											</StatusBadge>
+										</div>
+										{refund.reason && (
+											<p className="m-0 mt-0.5 text-xs text-(--ink-3)">
+												{refund.reason}
+											</p>
+										)}
+										{refund.status === "failed" && refund.failureReason && (
+											<p className="m-0 mt-0.5 text-xs text-destructive">
+												{refund.failureReason}
+											</p>
+										)}
+									</div>
+									<p className="m-0 text-xs text-(--ink-3)">
+										{formatDate(refund.createdAt)}
+									</p>
+								</div>
+							))}
+						</CardContent>
+					</Card>
+				</div>
+			)}
+
+			<Dialog open={refundOpen} onOpenChange={setRefundOpen}>
+				<DialogContent>
+					<DialogHeader>
+						<DialogTitle>Refund this invoice?</DialogTitle>
+						<DialogDescription>
+							Leave the amount blank to refund the full{" "}
+							{formatNGN(invoice.grossKobo)}.
+						</DialogDescription>
+					</DialogHeader>
+					<div className="flex flex-col gap-4">
+						<Field>
+							<FieldLabel htmlFor="refund-amount">Amount (optional)</FieldLabel>
+							<AmountInput
+								id="refund-amount"
+								value={refundAmountKobo}
+								onChange={setRefundAmountKobo}
+							/>
+						</Field>
+						<Field>
+							<FieldLabel htmlFor="refund-reason">Reason (optional)</FieldLabel>
+							<Textarea
+								id="refund-reason"
+								value={refundReason}
+								onChange={(e) => setRefundReason(e.target.value)}
+								placeholder="Why is this being refunded?"
+								className="border-(--line) bg-(--surface)"
+							/>
+						</Field>
+					</div>
+					<DialogFooter>
+						<Button
+							variant="outline"
+							onClick={() => setRefundOpen(false)}
+							className="border-(--line)"
+						>
+							Cancel
+						</Button>
+						<Button
+							variant="destructive"
+							onClick={() => refundMutation.mutate()}
+							disabled={refundMutation.isPending}
+						>
+							{refundMutation.isPending ? (
+								<>
+									<Spinner data-icon="inline-start" />
+									Refunding…
+								</>
+							) : (
+								"Refund invoice"
+							)}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 
 			<Dialog open={voidOpen} onOpenChange={setVoidOpen}>
 				<DialogContent>

@@ -1,10 +1,11 @@
 import { queryOptions } from "@tanstack/react-query";
 import {
 	getInvoiceSummary,
+	listInvoiceRefunds,
 	listInvoiceSummaries,
 	listInvoiceSummariesForSubscription,
 } from "#/lib/api/invoices.ts";
-import type { InvoiceStatusDto } from "#/types/api.ts";
+import type { InvoiceStatusDto, RefundStatusDto } from "#/types/api.ts";
 
 export interface InvoiceSummary {
 	id: string;
@@ -42,6 +43,25 @@ export const invoiceStatusLabel: Record<InvoiceStatusDto, string> = {
 	refunded: "Refunded",
 };
 
+export const refundStatusTone: Record<
+	RefundStatusDto,
+	"success" | "warning" | "danger" | "neutral"
+> = {
+	pending_approval: "warning",
+	pending: "warning",
+	succeeded: "success",
+	failed: "danger",
+	rejected: "danger",
+};
+
+export const refundStatusLabel: Record<RefundStatusDto, string> = {
+	pending_approval: "Pending approval",
+	pending: "Processing",
+	succeeded: "Refunded",
+	failed: "Failed",
+	rejected: "Rejected",
+};
+
 export const invoicesListQueryOptions = () =>
 	queryOptions({
 		queryKey: ["invoices"],
@@ -52,6 +72,12 @@ export const invoiceDetailQueryOptions = (invoiceId: string) =>
 	queryOptions({
 		queryKey: ["invoices", invoiceId],
 		queryFn: () => getInvoiceSummary({ data: { invoiceId } }),
+	});
+
+export const invoiceRefundsQueryOptions = (invoiceId: string) =>
+	queryOptions({
+		queryKey: ["invoices", invoiceId, "refunds"],
+		queryFn: () => listInvoiceRefunds({ data: { invoiceId } }),
 	});
 
 export const invoicesForSubscriptionQueryOptions = (subscriptionId: string) =>

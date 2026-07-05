@@ -11,6 +11,7 @@ import type {
 	InvoiceEntityDto,
 	PageResponse,
 	PlanResponseDto,
+	RefundResponseDto,
 	SubscriptionEntityDto,
 } from "#/types/api.ts";
 
@@ -25,6 +26,32 @@ export const voidInvoice = createServerFn({ method: "POST" })
 		return backendRequest<InvoiceEntityDto>({
 			path: `/v1/invoices/${data.invoiceId}/void`,
 			method: "POST",
+		});
+	});
+
+const createRefundSchema = z.object({
+	invoiceId: z.string().min(1),
+	amount: z.number().positive().optional(),
+	reason: z.string().max(500).optional(),
+});
+
+export const createInvoiceRefund = createServerFn({ method: "POST" })
+	.middleware([requireSessionCookieMiddleware])
+	.validator(createRefundSchema)
+	.handler(async ({ data }) => {
+		return backendRequest<RefundResponseDto>({
+			path: `/v1/invoices/${data.invoiceId}/refund`,
+			method: "POST",
+			body: { amount: data.amount, reason: data.reason },
+		});
+	});
+
+export const listInvoiceRefunds = createServerFn({ method: "GET" })
+	.middleware([requireSessionCookieMiddleware])
+	.validator(invoiceIdSchema)
+	.handler(async ({ data }) => {
+		return backendRequest<RefundResponseDto[]>({
+			path: `/v1/invoices/${data.invoiceId}/refund`,
 		});
 	});
 
@@ -93,21 +120,21 @@ export const listInvoiceSummaries = createServerFn({
 })
 	.middleware([requireSessionCookieMiddleware])
 	.handler(async () => {
-	const [invoices, { customersById, planNameBySubscriptionId }] =
-		await Promise.all([
-			fetchAllPages((page) =>
-				backendRequest<PageResponse<InvoiceEntityDto>>({
-					path: "/v1/invoices",
-					search: { page, size: 100 },
-				}),
-			),
-			fetchInvoiceJoinData(),
-		]);
+		const [invoices, { customersById, planNameBySubscriptionId }] =
+			await Promise.all([
+				fetchAllPages((page) =>
+					backendRequest<PageResponse<InvoiceEntityDto>>({
+						path: "/v1/invoices",
+						search: { page, size: 100 },
+					}),
+				),
+				fetchInvoiceJoinData(),
+			]);
 
-	return invoices.map((invoice) =>
-		mapInvoiceSummary(invoice, customersById, planNameBySubscriptionId),
-	);
-});
+		return invoices.map((invoice) =>
+			mapInvoiceSummary(invoice, customersById, planNameBySubscriptionId),
+		);
+	});
 
 export const getInvoiceSummary = createServerFn({ method: "GET" })
 	.middleware([requireSessionCookieMiddleware])
