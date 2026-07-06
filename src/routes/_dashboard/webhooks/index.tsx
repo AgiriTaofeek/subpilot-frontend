@@ -10,11 +10,12 @@ import {
 	useQueryClient,
 	useSuspenseQuery,
 } from "@tanstack/react-query";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, getRouteApi, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 
+import { RestrictedAction } from "#/components/layout/restricted-action.tsx";
 import { Button } from "#/components/ui/button.tsx";
 import { Checkbox } from "#/components/ui/checkbox.tsx";
 import {
@@ -78,6 +79,8 @@ import {
 import { formatDate } from "#/lib/date.ts";
 import type { WebhookEndpointDto } from "#/types/api.ts";
 
+const dashboardRouteApi = getRouteApi("/_dashboard");
+
 export const Route = createFileRoute("/_dashboard/webhooks/")({
 	loader: async ({ context }) => {
 		await context.queryClient.ensureQueryData(
@@ -105,6 +108,7 @@ const registerSchema = z.object({
 });
 
 function WebhookEndpointsPage() {
+	const { merchantSession } = dashboardRouteApi.useRouteContext();
 	const queryClient = useQueryClient();
 	const { data: endpoints } = useSuspenseQuery(
 		webhookEndpointsListQueryOptions(),
@@ -185,232 +189,250 @@ function WebhookEndpointsPage() {
 					<Button asChild variant="outline" className="border-(--line)">
 						<Link to="/webhooks/deliveries">View deliveries</Link>
 					</Button>
-					<Sheet open={registerOpen} onOpenChange={setRegisterOpen}>
-						<SheetTrigger asChild>
-							<Button className="border-0 bg-(--brand) text-(--brand-fg) hover:bg-(--brand)/90">
+					<RestrictedAction
+						status={merchantSession.status}
+						triggerClassName="border-0 bg-(--brand) text-(--brand-fg) hover:bg-(--brand)/90"
+						triggerChildren={
+							<>
 								<PlusIcon data-icon="inline-start" />
 								Register endpoint
-							</Button>
-						</SheetTrigger>
-						<SheetContent
-							side="right"
-							className="w-full border-(--line) bg-(--surface-1) sm:max-w-md"
-						>
-							<SheetHeader className="pb-4">
-								<SheetTitle className="font-sans text-lg normal-case tracking-tight text-(--ink)">
+							</>
+						}
+					>
+						<Sheet open={registerOpen} onOpenChange={setRegisterOpen}>
+							<SheetTrigger asChild>
+								<Button className="border-0 bg-(--brand) text-(--brand-fg) hover:bg-(--brand)/90">
+									<PlusIcon data-icon="inline-start" />
 									Register endpoint
-								</SheetTitle>
-								<SheetDescription className="text-(--ink-2)">
-									Choose which events this endpoint should receive.
-								</SheetDescription>
-							</SheetHeader>
-							<form
-								onSubmit={(e) => {
-									e.preventDefault();
-									form.handleSubmit();
-								}}
-								noValidate
-								className="flex flex-1 flex-col gap-4 overflow-y-auto px-8 pb-8"
+								</Button>
+							</SheetTrigger>
+							<SheetContent
+								side="right"
+								className="w-full border-(--line) bg-(--surface-1) sm:max-w-md"
 							>
-								<FieldGroup className="gap-4">
-									<form.Field name="url">
-										{(field) => {
-											const isInvalid =
-												field.state.meta.isTouched && !field.state.meta.isValid;
-											const showHttpWarning =
-												field.state.value.startsWith("http://") &&
-												!field.state.value.startsWith("http://localhost");
-											return (
-												<Field data-invalid={isInvalid}>
+								<SheetHeader className="pb-4">
+									<SheetTitle className="font-sans text-lg normal-case tracking-tight text-(--ink)">
+										Register endpoint
+									</SheetTitle>
+									<SheetDescription className="text-(--ink-2)">
+										Choose which events this endpoint should receive.
+									</SheetDescription>
+								</SheetHeader>
+								<form
+									onSubmit={(e) => {
+										e.preventDefault();
+										form.handleSubmit();
+									}}
+									noValidate
+									className="flex flex-1 flex-col gap-4 overflow-y-auto px-8 pb-8"
+								>
+									<FieldGroup className="gap-4">
+										<form.Field name="url">
+											{(field) => {
+												const isInvalid =
+													field.state.meta.isTouched &&
+													!field.state.meta.isValid;
+												const showHttpWarning =
+													field.state.value.startsWith("http://") &&
+													!field.state.value.startsWith("http://localhost");
+												return (
+													<Field data-invalid={isInvalid}>
+														<FieldLabel
+															htmlFor="url"
+															className="text-sm font-medium text-(--ink-2)"
+														>
+															Endpoint URL
+														</FieldLabel>
+														<Input
+															id="url"
+															placeholder="https://your-app.com/webhooks/subpilot"
+															value={field.state.value}
+															onBlur={field.handleBlur}
+															onChange={(e) =>
+																field.handleChange(e.target.value)
+															}
+															aria-invalid={isInvalid}
+															className="border-(--line) bg-(--surface) px-3 focus-visible:ring-(--brand)/30"
+														/>
+														{showHttpWarning && !isInvalid && (
+															<p className="flex items-center gap-1.5 text-xs text-(--warning)">
+																<WarningCircleIcon className="size-3.5" />
+																Production endpoints must use HTTPS.
+															</p>
+														)}
+														<FieldError
+															className="text-xs"
+															errors={
+																isInvalid
+																	? (field.state.meta.errors as Array<{
+																			message?: string;
+																		}>)
+																	: undefined
+															}
+														/>
+													</Field>
+												);
+											}}
+										</form.Field>
+
+										<form.Field name="description">
+											{(field) => (
+												<Field>
 													<FieldLabel
-														htmlFor="url"
+														htmlFor="description"
 														className="text-sm font-medium text-(--ink-2)"
 													>
-														Endpoint URL
+														Description{" "}
+														<span className="font-normal text-(--ink-3)">
+															(optional)
+														</span>
 													</FieldLabel>
 													<Input
-														id="url"
-														placeholder="https://your-app.com/webhooks/subpilot"
+														id="description"
+														placeholder="Production billing sync"
 														value={field.state.value}
 														onBlur={field.handleBlur}
 														onChange={(e) => field.handleChange(e.target.value)}
-														aria-invalid={isInvalid}
 														className="border-(--line) bg-(--surface) px-3 focus-visible:ring-(--brand)/30"
 													/>
-													{showHttpWarning && !isInvalid && (
-														<p className="flex items-center gap-1.5 text-xs text-(--warning)">
-															<WarningCircleIcon className="size-3.5" />
-															Production endpoints must use HTTPS.
-														</p>
-													)}
-													<FieldError
-														className="text-xs"
-														errors={
-															isInvalid
-																? (field.state.meta.errors as Array<{
-																		message?: string;
-																	}>)
-																: undefined
-														}
-													/>
 												</Field>
-											);
-										}}
-									</form.Field>
-
-									<form.Field name="description">
-										{(field) => (
-											<Field>
-												<FieldLabel
-													htmlFor="description"
-													className="text-sm font-medium text-(--ink-2)"
-												>
-													Description{" "}
-													<span className="font-normal text-(--ink-3)">
-														(optional)
-													</span>
-												</FieldLabel>
-												<Input
-													id="description"
-													placeholder="Production billing sync"
-													value={field.state.value}
-													onBlur={field.handleBlur}
-													onChange={(e) => field.handleChange(e.target.value)}
-													className="border-(--line) bg-(--surface) px-3 focus-visible:ring-(--brand)/30"
-												/>
-											</Field>
-										)}
-									</form.Field>
-
-									<form.Field name="events">
-										{(field) => {
-											const isInvalid =
-												field.state.meta.isTouched && !field.state.meta.isValid;
-											const selected = field.state.value;
-											return (
-												<Field data-invalid={isInvalid}>
-													<FieldLabel className="text-sm font-medium text-(--ink-2)">
-														Events
-													</FieldLabel>
-													<div className="flex flex-col gap-3">
-														{eventTypeGroups.map((group) => {
-															const allChecked = group.events.every((ev) =>
-																selected.includes(ev),
-															);
-															const someChecked = group.events.some((ev) =>
-																selected.includes(ev),
-															);
-															return (
-																<div
-																	key={group.group}
-																	className="flex flex-col gap-2 rounded-md border border-(--line) p-3"
-																>
-																	<Field orientation="horizontal">
-																		<Checkbox
-																			id={`group-${group.group}`}
-																			checked={
-																				allChecked
-																					? true
-																					: someChecked
-																						? "indeterminate"
-																						: false
-																			}
-																			onCheckedChange={(checked) => {
-																				if (checked) {
-																					field.handleChange([
-																						...new Set([
-																							...selected,
-																							...group.events,
-																						]),
-																					]);
-																				} else {
-																					field.handleChange(
-																						selected.filter(
-																							(ev) =>
-																								!group.events.includes(ev),
-																						),
-																					);
-																				}
-																			}}
-																		/>
-																		<FieldContent>
-																			<FieldLabel
-																				htmlFor={`group-${group.group}`}
-																				className="text-sm font-semibold text-(--ink)"
-																			>
-																				{group.group}
-																			</FieldLabel>
-																		</FieldContent>
-																	</Field>
-																	<Separator className="bg-(--line)" />
-																	<div className="flex flex-col gap-1.5 pl-1">
-																		{group.events.map((ev) => (
-																			<Field key={ev} orientation="horizontal">
-																				<Checkbox
-																					id={ev}
-																					checked={selected.includes(ev)}
-																					onCheckedChange={(checked) => {
-																						field.handleChange(
-																							checked
-																								? [...selected, ev]
-																								: selected.filter(
-																										(e) => e !== ev,
-																									),
-																						);
-																					}}
-																				/>
-																				<FieldContent>
-																					<FieldLabel
-																						htmlFor={ev}
-																						className="font-heading text-xs font-normal text-(--ink-2)"
-																					>
-																						{ev}
-																					</FieldLabel>
-																				</FieldContent>
-																			</Field>
-																		))}
-																	</div>
-																</div>
-															);
-														})}
-													</div>
-													<FieldError
-														className="text-xs"
-														errors={
-															isInvalid
-																? (field.state.meta.errors as Array<{
-																		message?: string;
-																	}>)
-																: undefined
-														}
-													/>
-												</Field>
-											);
-										}}
-									</form.Field>
-								</FieldGroup>
-
-								<form.Subscribe selector={(state) => state.isSubmitting}>
-									{(isSubmitting) => (
-										<Button
-											type="submit"
-											disabled={isSubmitting}
-											className="w-full border-0 bg-(--brand) text-(--brand-fg) hover:bg-(--brand)/90"
-										>
-											{isSubmitting ? (
-												<>
-													<Spinner data-icon="inline-start" />
-													Registering…
-												</>
-											) : (
-												"Register endpoint"
 											)}
-										</Button>
-									)}
-								</form.Subscribe>
-							</form>
-						</SheetContent>
-					</Sheet>
+										</form.Field>
+
+										<form.Field name="events">
+											{(field) => {
+												const isInvalid =
+													field.state.meta.isTouched &&
+													!field.state.meta.isValid;
+												const selected = field.state.value;
+												return (
+													<Field data-invalid={isInvalid}>
+														<FieldLabel className="text-sm font-medium text-(--ink-2)">
+															Events
+														</FieldLabel>
+														<div className="flex flex-col gap-3">
+															{eventTypeGroups.map((group) => {
+																const allChecked = group.events.every((ev) =>
+																	selected.includes(ev),
+																);
+																const someChecked = group.events.some((ev) =>
+																	selected.includes(ev),
+																);
+																return (
+																	<div
+																		key={group.group}
+																		className="flex flex-col gap-2 rounded-md border border-(--line) p-3"
+																	>
+																		<Field orientation="horizontal">
+																			<Checkbox
+																				id={`group-${group.group}`}
+																				checked={
+																					allChecked
+																						? true
+																						: someChecked
+																							? "indeterminate"
+																							: false
+																				}
+																				onCheckedChange={(checked) => {
+																					if (checked) {
+																						field.handleChange([
+																							...new Set([
+																								...selected,
+																								...group.events,
+																							]),
+																						]);
+																					} else {
+																						field.handleChange(
+																							selected.filter(
+																								(ev) =>
+																									!group.events.includes(ev),
+																							),
+																						);
+																					}
+																				}}
+																			/>
+																			<FieldContent>
+																				<FieldLabel
+																					htmlFor={`group-${group.group}`}
+																					className="text-sm font-semibold text-(--ink)"
+																				>
+																					{group.group}
+																				</FieldLabel>
+																			</FieldContent>
+																		</Field>
+																		<Separator className="bg-(--line)" />
+																		<div className="flex flex-col gap-1.5 pl-1">
+																			{group.events.map((ev) => (
+																				<Field
+																					key={ev}
+																					orientation="horizontal"
+																				>
+																					<Checkbox
+																						id={ev}
+																						checked={selected.includes(ev)}
+																						onCheckedChange={(checked) => {
+																							field.handleChange(
+																								checked
+																									? [...selected, ev]
+																									: selected.filter(
+																											(e) => e !== ev,
+																										),
+																							);
+																						}}
+																					/>
+																					<FieldContent>
+																						<FieldLabel
+																							htmlFor={ev}
+																							className="font-heading text-xs font-normal text-(--ink-2)"
+																						>
+																							{ev}
+																						</FieldLabel>
+																					</FieldContent>
+																				</Field>
+																			))}
+																		</div>
+																	</div>
+																);
+															})}
+														</div>
+														<FieldError
+															className="text-xs"
+															errors={
+																isInvalid
+																	? (field.state.meta.errors as Array<{
+																			message?: string;
+																		}>)
+																	: undefined
+															}
+														/>
+													</Field>
+												);
+											}}
+										</form.Field>
+									</FieldGroup>
+
+									<form.Subscribe selector={(state) => state.isSubmitting}>
+										{(isSubmitting) => (
+											<Button
+												type="submit"
+												disabled={isSubmitting}
+												className="w-full border-0 bg-(--brand) text-(--brand-fg) hover:bg-(--brand)/90"
+											>
+												{isSubmitting ? (
+													<>
+														<Spinner data-icon="inline-start" />
+														Registering…
+													</>
+												) : (
+													"Register endpoint"
+												)}
+											</Button>
+										)}
+									</form.Subscribe>
+								</form>
+							</SheetContent>
+						</Sheet>
+					</RestrictedAction>
 				</div>
 			</div>
 
@@ -425,12 +447,18 @@ function WebhookEndpointsPage() {
 						</EmptyDescription>
 					</EmptyHeader>
 					<EmptyContent>
-						<Button
-							onClick={() => setRegisterOpen(true)}
-							className="border-0 bg-(--brand) text-(--brand-fg) hover:bg-(--brand)/90"
+						<RestrictedAction
+							status={merchantSession.status}
+							triggerClassName="border-0 bg-(--brand) text-(--brand-fg) hover:bg-(--brand)/90"
+							triggerChildren="Register endpoint"
 						>
-							Register endpoint
-						</Button>
+							<Button
+								onClick={() => setRegisterOpen(true)}
+								className="border-0 bg-(--brand) text-(--brand-fg) hover:bg-(--brand)/90"
+							>
+								Register endpoint
+							</Button>
+						</RestrictedAction>
 					</EmptyContent>
 				</Empty>
 			) : (

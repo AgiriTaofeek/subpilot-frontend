@@ -4,10 +4,11 @@ import {
 	useQueryClient,
 	useSuspenseQuery,
 } from "@tanstack/react-query";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, getRouteApi, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { RestrictedAction } from "#/components/layout/restricted-action.tsx";
 import {
 	RouteErrorFallback,
 	SessionExpiredFallback,
@@ -53,6 +54,8 @@ import { useHandleMutationError } from "#/hooks/use-handle-mutation-error.ts";
 import { classifyError } from "#/lib/api/classify-error.ts";
 import { isSessionError } from "#/lib/api/is-session-error.ts";
 import { formatNGN } from "#/lib/currency.ts";
+
+const dashboardRouteApi = getRouteApi("/_dashboard");
 
 export const Route = createFileRoute("/_dashboard/plans/$planId")({
 	loader: async ({ context, params }) => {
@@ -104,6 +107,7 @@ function PlanDetailErrorFallback({
 }
 
 function PlanDetailPage() {
+	const { merchantSession } = dashboardRouteApi.useRouteContext();
 	const { planId } = Route.useParams();
 	const queryClient = useQueryClient();
 	const { data: plan } = useSuspenseQuery(planDetailQueryOptions(planId));
@@ -285,12 +289,18 @@ function PlanDetailPage() {
 				{!isEditing && (
 					<div className="hidden items-center gap-2 sm:flex">
 						{primaryAction === "publish" && (
-							<Button
-								onClick={() => setPublishDialogOpen(true)}
-								className="border-0 bg-(--brand) text-(--brand-fg) hover:bg-(--brand)/90"
+							<RestrictedAction
+								status={merchantSession.status}
+								triggerClassName="border-0 bg-(--brand) text-(--brand-fg) hover:bg-(--brand)/90"
+								triggerChildren="Publish"
 							>
-								Publish
-							</Button>
+								<Button
+									onClick={() => setPublishDialogOpen(true)}
+									className="border-0 bg-(--brand) text-(--brand-fg) hover:bg-(--brand)/90"
+								>
+									Publish
+								</Button>
+							</RestrictedAction>
 						)}
 						{primaryAction === "archive" && (
 							<Button
@@ -443,12 +453,18 @@ function PlanDetailPage() {
 
 			{primaryAction === "publish" && !isEditing && (
 				<div className="fixed inset-x-0 bottom-0 z-40 border-t border-(--line) bg-(--surface-1) p-4 sm:hidden">
-					<Button
-						onClick={() => setPublishDialogOpen(true)}
-						className="w-full border-0 bg-(--brand) text-(--brand-fg) hover:bg-(--brand)/90"
+					<RestrictedAction
+						status={merchantSession.status}
+						triggerClassName="w-full border-0 bg-(--brand) text-(--brand-fg) hover:bg-(--brand)/90"
+						triggerChildren="Publish"
 					>
-						Publish
-					</Button>
+						<Button
+							onClick={() => setPublishDialogOpen(true)}
+							className="w-full border-0 bg-(--brand) text-(--brand-fg) hover:bg-(--brand)/90"
+						>
+							Publish
+						</Button>
+					</RestrictedAction>
 				</div>
 			)}
 

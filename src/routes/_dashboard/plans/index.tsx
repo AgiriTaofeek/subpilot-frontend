@@ -10,6 +10,7 @@ import {
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
 	createFileRoute,
+	getRouteApi,
 	Link,
 	stripSearchParams,
 	useNavigate,
@@ -24,6 +25,7 @@ import { useCallback, useMemo } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 
+import { RestrictedAction } from "#/components/layout/restricted-action.tsx";
 import { Button } from "#/components/ui/button.tsx";
 import {
 	DropdownMenu,
@@ -77,6 +79,8 @@ import { useHandleMutationError } from "#/hooks/use-handle-mutation-error.ts";
 import { formatNGN } from "#/lib/currency.ts";
 import { pageSizeSchema } from "#/lib/pagination-sizes.ts";
 
+const dashboardRouteApi = getRouteApi("/_dashboard");
+
 const sortKeys = ["name", "amountKobo", "trialDays", "status"] as const;
 type SortKey = (typeof sortKeys)[number];
 
@@ -128,6 +132,7 @@ const statusFilters: Array<{ value: PlanStatus; label: string }> = [
 ];
 
 function PlansListPage() {
+	const { merchantSession } = dashboardRouteApi.useRouteContext();
 	const { page, status, q, sort, order, size } = Route.useSearch();
 	const navigate = useNavigate({ from: Route.fullPath });
 	const queryClient = useQueryClient();
@@ -343,7 +348,9 @@ function PlansListPage() {
 								</DropdownMenuItem>
 								{plan.status === "draft" && (
 									<DropdownMenuItem
-										disabled={isPublishPending}
+										disabled={
+											isPublishPending || merchantSession.status !== "active"
+										}
 										onClick={() => publishPlanMutate(plan.id)}
 									>
 										Publish
@@ -374,6 +381,7 @@ function PlansListPage() {
 		publishPlanMutate,
 		isArchivePending,
 		archivePlanMutate,
+		merchantSession.status,
 	]);
 
 	const plans = plansPage?.content ?? [];
@@ -415,15 +423,26 @@ function PlansListPage() {
 				<h1 className="text-2xl font-semibold tracking-tight text-(--ink)">
 					Plans
 				</h1>
-				<Button
-					asChild
-					className="border-0 bg-(--brand) text-(--brand-fg) hover:bg-(--brand)/90"
+				<RestrictedAction
+					status={merchantSession.status}
+					triggerClassName="border-0 bg-(--brand) text-(--brand-fg) hover:bg-(--brand)/90"
+					triggerChildren={
+						<>
+							<PlusIcon data-icon="inline-start" />
+							Create plan
+						</>
+					}
 				>
-					<Link to="/plans/new">
-						<PlusIcon data-icon="inline-start" />
-						Create plan
-					</Link>
-				</Button>
+					<Button
+						asChild
+						className="border-0 bg-(--brand) text-(--brand-fg) hover:bg-(--brand)/90"
+					>
+						<Link to="/plans/new">
+							<PlusIcon data-icon="inline-start" />
+							Create plan
+						</Link>
+					</Button>
+				</RestrictedAction>
 			</div>
 
 			<div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -475,12 +494,18 @@ function PlansListPage() {
 						</EmptyDescription>
 					</EmptyHeader>
 					<EmptyContent>
-						<Button
-							asChild
-							className="border-0 bg-(--brand) text-(--brand-fg) hover:bg-(--brand)/90"
+						<RestrictedAction
+							status={merchantSession.status}
+							triggerClassName="border-0 bg-(--brand) text-(--brand-fg) hover:bg-(--brand)/90"
+							triggerChildren="Create plan"
 						>
-							<Link to="/plans/new">Create plan</Link>
-						</Button>
+							<Button
+								asChild
+								className="border-0 bg-(--brand) text-(--brand-fg) hover:bg-(--brand)/90"
+							>
+								<Link to="/plans/new">Create plan</Link>
+							</Button>
+						</RestrictedAction>
 					</EmptyContent>
 				</Empty>
 			) : isArchivedEmptyFilter ? (

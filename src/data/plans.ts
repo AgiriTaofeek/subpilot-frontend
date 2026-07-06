@@ -14,9 +14,28 @@ import {
 import type { PageSize } from "#/lib/pagination-sizes.ts";
 import type {
 	BillingIntervalDto,
+	MerchantStatusDto,
 	PlanResponseDto,
 	PublicPlanResponseDto,
 } from "#/types/api.ts";
+
+// Mirrors the backend's PlanService.create merchant-status gate — a
+// merchant that isn't active yet (or no longer is) can't create new plans.
+export const restrictedMerchantStatusCopy: Record<
+	Exclude<MerchantStatusDto, "active">,
+	{ reason: string; title: string; description: string }
+> = {
+	under_review: {
+		reason: "Your account is under review.",
+		title: "Account under review",
+		description: "Plan creation unlocks once your account is approved.",
+	},
+	suspended: {
+		reason: "Your account is suspended.",
+		title: "Account suspended",
+		description: "Plan creation is disabled while your account is suspended.",
+	},
+};
 
 export type PlanStatus = "draft" | "published" | "archived";
 

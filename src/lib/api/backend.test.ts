@@ -64,6 +64,7 @@ describe("backendRequest", () => {
 					userId: "user_123",
 					email: "hello@acme.test",
 					businessName: "Acme Corp",
+					status: "active" as const,
 				} satisfies AuthSessionDto);
 			}),
 			http.post("https://api.test/v1/auth/refresh", ({ request }) => {
@@ -92,6 +93,7 @@ describe("backendRequest", () => {
 			userId: "user_123",
 			email: "hello@acme.test",
 			businessName: "Acme Corp",
+			status: "active" as const,
 		});
 
 		expect(meCalls).toBe(2);
@@ -126,6 +128,7 @@ describe("backendRequest", () => {
 					userId: "user_123",
 					email: "hello@acme.test",
 					businessName: "Acme Corp",
+					status: "active" as const,
 				} satisfies AuthSessionDto);
 			}),
 			http.post("https://api.test/v1/auth/refresh", ({ request }) => {
@@ -154,6 +157,7 @@ describe("backendRequest", () => {
 			userId: "user_123",
 			email: "hello@acme.test",
 			businessName: "Acme Corp",
+			status: "active" as const,
 		});
 
 		expect(meCalls).toBe(2);
@@ -184,6 +188,7 @@ describe("backendRequest", () => {
 						userId: "user_123",
 						email: "hello@acme.test",
 						businessName: "Acme Corp",
+						status: "active" as const,
 					} satisfies AuthSessionDto),
 					{ headers: backendCookies },
 				);
@@ -197,6 +202,7 @@ describe("backendRequest", () => {
 				email: "hello@acme.test",
 				password: "secret",
 				businessName: "Acme Corp",
+				status: "active" as const,
 			},
 		});
 

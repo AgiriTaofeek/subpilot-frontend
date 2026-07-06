@@ -19,7 +19,7 @@ import {
 	getCoreRowModel,
 	useReactTable,
 } from "@tanstack/react-table";
-import { useMemo } from "react";
+import { useCallback, useMemo } from "react";
 import { z } from "zod";
 
 import {
@@ -148,6 +148,15 @@ function SubscriptionsListPage() {
 	const { page, status, planId, q, size } = Route.useSearch();
 	const navigate = useNavigate({ from: Route.fullPath });
 	const queryClient = useQueryClient();
+	const goToSubscription = useCallback(
+		(subscriptionId: string) => {
+			navigate({
+				to: "/subscriptions/$subscriptionId",
+				params: { subscriptionId },
+			});
+		},
+		[navigate],
+	);
 	const { data: subscriptionsPage, isPlaceholderData } = useQuery(
 		subscriptionsListPageQueryOptions({ page, status, planId, q, size }),
 	);
@@ -515,7 +524,11 @@ function SubscriptionsListPage() {
 							</TableHeader>
 							<TableBody>
 								{table.getRowModel().rows.map((row) => (
-									<TableRow key={row.id} className="border-(--line)">
+									<TableRow
+										key={row.id}
+										onClick={() => goToSubscription(row.original.id)}
+										className="cursor-pointer border-(--line) hover:bg-(--surface-2)"
+									>
 										{row.getVisibleCells().map((cell) => (
 											<TableCell key={cell.id}>
 												{flexRender(
@@ -543,6 +556,12 @@ function SubscriptionsListPage() {
 											: "border-(--line) bg-(--surface-1)"
 									}`}
 								>
+									<button
+										type="button"
+										onClick={() => goToSubscription(sub.id)}
+										aria-label={`View ${sub.customerName}'s subscription`}
+										className="absolute inset-0 z-0 rounded-2xl"
+									/>
 									<div className="relative z-10 flex items-start justify-between gap-2">
 										<div>
 											<p className="m-0 font-medium text-(--ink)">

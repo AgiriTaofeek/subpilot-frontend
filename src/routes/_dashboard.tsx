@@ -4,6 +4,7 @@ import { getCookie } from "@tanstack/react-start/server";
 
 import { DashboardHeader } from "#/components/layout/dashboard-header.tsx";
 import { DashboardSidebar } from "#/components/layout/dashboard-sidebar.tsx";
+import { MerchantStatusBanner } from "#/components/layout/merchant-status-banner.tsx";
 import {
 	RouteErrorFallback,
 	SessionExpiredFallback,
@@ -101,6 +102,7 @@ function DashboardLayout() {
 			<DashboardSidebar />
 			<SidebarInset>
 				<DashboardHeader merchantSession={merchantSession} />
+				<MerchantStatusBanner status={merchantSession.status} />
 				<div className="flex flex-1 flex-col">
 					<Outlet />
 				</div>

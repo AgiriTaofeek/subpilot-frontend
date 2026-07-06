@@ -1,7 +1,9 @@
+import { WarningCircleIcon } from "@phosphor-icons/react";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
 import {
 	createFileRoute,
+	getRouteApi,
 	Link,
 	useBlocker,
 	useNavigate,
@@ -26,6 +28,14 @@ import {
 	DialogTitle,
 } from "#/components/ui/dialog.tsx";
 import {
+	Empty,
+	EmptyContent,
+	EmptyDescription,
+	EmptyHeader,
+	EmptyMedia,
+	EmptyTitle,
+} from "#/components/ui/empty.tsx";
+import {
 	Field,
 	FieldContent,
 	FieldError,
@@ -49,8 +59,11 @@ import {
 	createPlan,
 	type EditablePlanInterval,
 	formatInterval,
+	restrictedMerchantStatusCopy,
 } from "#/data/plans.ts";
 import { formatNGN } from "#/lib/currency.ts";
+
+const dashboardRouteApi = getRouteApi("/_dashboard");
 
 export const Route = createFileRoute("/_dashboard/plans/new")({
 	component: NewPlanPage,
@@ -117,6 +130,7 @@ function slugify(name: string): string {
 }
 
 function NewPlanPage() {
+	const { merchantSession } = dashboardRouteApi.useRouteContext();
 	const navigate = useNavigate();
 	const queryClient = useQueryClient();
 
@@ -153,6 +167,39 @@ function NewPlanPage() {
 		enableBeforeUnload: () => form.state.isDirty,
 		withResolver: true,
 	});
+
+	if (merchantSession.status !== "active") {
+		const copy = restrictedMerchantStatusCopy[merchantSession.status];
+		return (
+			<div className="p-6">
+				<Empty className="rounded-2xl border border-dashed border-(--line) bg-(--surface-1)">
+					<EmptyHeader>
+						<EmptyMedia
+							variant="icon"
+							className={
+								merchantSession.status === "suspended"
+									? "rounded-full bg-destructive/10 text-destructive"
+									: "rounded-full bg-amber-500/10 text-(--warning)"
+							}
+						>
+							<WarningCircleIcon />
+						</EmptyMedia>
+						<EmptyTitle className="font-sans text-lg normal-case tracking-tight text-(--ink)">
+							{copy.title}
+						</EmptyTitle>
+						<EmptyDescription className="text-(--ink-3)">
+							{copy.description}
+						</EmptyDescription>
+					</EmptyHeader>
+					<EmptyContent>
+						<Button asChild variant="outline" className="border-(--line)">
+							<Link to="/plans">Back to plans</Link>
+						</Button>
+					</EmptyContent>
+				</Empty>
+			</div>
+		);
+	}
 
 	return (
 		<div className="p-6">

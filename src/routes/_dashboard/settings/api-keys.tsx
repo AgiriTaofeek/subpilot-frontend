@@ -9,10 +9,11 @@ import {
 	useQueryClient,
 	useSuspenseQuery,
 } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, getRouteApi } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import { RestrictedAction } from "#/components/layout/restricted-action.tsx";
 import { SettingsTabs } from "#/components/layout/settings-tabs.tsx";
 import { Alert, AlertDescription, AlertTitle } from "#/components/ui/alert.tsx";
 import { Button } from "#/components/ui/button.tsx";
@@ -61,6 +62,8 @@ import { createApiKey, revokeApiKey } from "#/lib/api/api-keys.ts";
 import { formatDate } from "#/lib/date.ts";
 import type { ApiKeyResponseDto } from "#/types/api.ts";
 
+const dashboardRouteApi = getRouteApi("/_dashboard");
+
 export const Route = createFileRoute("/_dashboard/settings/api-keys")({
 	loader: async ({ context }) => {
 		await context.queryClient.ensureQueryData(apiKeysListQueryOptions());
@@ -70,6 +73,7 @@ export const Route = createFileRoute("/_dashboard/settings/api-keys")({
 });
 
 function SettingsApiKeysPage() {
+	const { merchantSession } = dashboardRouteApi.useRouteContext();
 	const queryClient = useQueryClient();
 	const { data: keys } = useSuspenseQuery(apiKeysListQueryOptions());
 	const [createOpen, setCreateOpen] = useState(false);
@@ -150,13 +154,24 @@ function SettingsApiKeysPage() {
 						them in your backend or environment manager.
 					</p>
 				</div>
-				<Button
-					onClick={() => setCreateOpen(true)}
-					className="border-0 bg-(--brand) text-(--brand-fg) hover:bg-(--brand)/90"
+				<RestrictedAction
+					status={merchantSession.status}
+					triggerClassName="border-0 bg-(--brand) text-(--brand-fg) hover:bg-(--brand)/90"
+					triggerChildren={
+						<>
+							<PlusIcon data-icon="inline-start" />
+							Create API key
+						</>
+					}
 				>
-					<PlusIcon data-icon="inline-start" />
-					Create API key
-				</Button>
+					<Button
+						onClick={() => setCreateOpen(true)}
+						className="border-0 bg-(--brand) text-(--brand-fg) hover:bg-(--brand)/90"
+					>
+						<PlusIcon data-icon="inline-start" />
+						Create API key
+					</Button>
+				</RestrictedAction>
 			</div>
 
 			<SettingsTabs />
@@ -182,12 +197,18 @@ function SettingsApiKeysPage() {
 						</EmptyDescription>
 					</EmptyHeader>
 					<EmptyContent>
-						<Button
-							onClick={() => setCreateOpen(true)}
-							className="border-0 bg-(--brand) text-(--brand-fg) hover:bg-(--brand)/90"
+						<RestrictedAction
+							status={merchantSession.status}
+							triggerClassName="border-0 bg-(--brand) text-(--brand-fg) hover:bg-(--brand)/90"
+							triggerChildren="Create API key"
 						>
-							Create API key
-						</Button>
+							<Button
+								onClick={() => setCreateOpen(true)}
+								className="border-0 bg-(--brand) text-(--brand-fg) hover:bg-(--brand)/90"
+							>
+								Create API key
+							</Button>
+						</RestrictedAction>
 					</EmptyContent>
 				</Empty>
 			) : (

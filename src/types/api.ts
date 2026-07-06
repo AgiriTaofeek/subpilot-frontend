@@ -24,6 +24,7 @@ export interface AuthSessionDto {
 	userId: string;
 	email: string;
 	businessName: string;
+	status: MerchantStatusDto;
 }
 
 export type BillingIntervalDto =
