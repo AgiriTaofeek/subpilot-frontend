@@ -85,7 +85,7 @@ function InternalLayout() {
 		<SidebarProvider defaultOpen={sidebarOpen}>
 			<InternalSidebar internalAdminSession={internalAdminSession} />
 			<SidebarInset>
-				<InternalHeader />
+				<InternalHeader internalAdminSession={internalAdminSession} />
 				<div className="flex flex-1 flex-col">
 					<Outlet />
 				</div>

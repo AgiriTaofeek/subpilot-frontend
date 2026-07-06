@@ -98,9 +98,9 @@ function DashboardLayout() {
 
 	return (
 		<SidebarProvider defaultOpen={sidebarOpen}>
-			<DashboardSidebar merchantSession={merchantSession} />
+			<DashboardSidebar />
 			<SidebarInset>
-				<DashboardHeader />
+				<DashboardHeader merchantSession={merchantSession} />
 				<div className="flex flex-1 flex-col">
 					<Outlet />
 				</div>

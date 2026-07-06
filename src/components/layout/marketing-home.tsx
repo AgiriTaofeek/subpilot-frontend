@@ -126,13 +126,7 @@ function HeroSection() {
 					{/* Left column */}
 					<div className="flex flex-col gap-8">
 						<div className="flex flex-col gap-5">
-							{/* Kicker badge */}
-							<div className="inline-flex items-center gap-2 rounded-full border border-(--brand)/25 bg-(--brand)/10 px-4 py-1.5">
-								<span className="size-1.5 rounded-full bg-(--brand)" />
-								<span className="font-heading text-[0.65rem] uppercase tracking-widest text-(--brand)">
-									Recurring billing for Nomba
-								</span>
-							</div>
+							<p className="island-kicker m-0">Recurring billing for Nomba</p>
 
 							<h1 className="text-4xl font-semibold leading-[1.1] tracking-tight text-(--pitch-fg) sm:text-5xl xl:text-6xl">
 								The managed subscription layer Nomba doesn't ship.
@@ -769,8 +763,8 @@ export default function MarketingHome() {
 					<Section
 						id="product"
 						eyebrow="Why this exists"
-						title="Nomba gives you payment primitives. It does not give you the managed subscription layer."
-						description="SubPilot exists so product teams stop rebuilding plan models, retries, subscriber self-serve, and downstream event visibility from scratch."
+						title="Nomba tokenizes the card and charges it on demand. It doesn't run the subscription on top."
+						description="Plans, billing schedules, retries, proration, and trials are still yours to build — usually as a cron job charging a saved token and hoping nothing drifts. SubPilot is that layer, already built."
 					>
 						<div className="grid gap-4 lg:grid-cols-2">
 							<Card className="border border-(--line) bg-(--surface-1) py-0 shadow-none">

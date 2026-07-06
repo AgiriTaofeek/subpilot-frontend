@@ -3,17 +3,13 @@ import {
 	ClipboardTextIcon,
 	CurrencyCircleDollarIcon,
 	ReceiptIcon,
-	SignOutIcon,
 	SquaresFourIcon,
 } from "@phosphor-icons/react";
-import { useQueryClient } from "@tanstack/react-query";
-import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
-import { useEffect, useState } from "react";
-import { toast } from "sonner";
+import { Link, useRouterState } from "@tanstack/react-router";
+import { useEffect } from "react";
 import {
 	Sidebar,
 	SidebarContent,
-	SidebarFooter,
 	SidebarGroup,
 	SidebarGroupContent,
 	SidebarHeader,
@@ -23,8 +19,6 @@ import {
 	SidebarRail,
 	useSidebar,
 } from "#/components/ui/sidebar.tsx";
-import { Spinner } from "#/components/ui/spinner.tsx";
-import { logoutInternalAdmin } from "#/lib/api/internal-auth.ts";
 import type { InternalAdminSessionDto } from "#/types/api.ts";
 
 const navItems = [
@@ -89,9 +83,7 @@ export function InternalSidebar({
 					: best,
 			null,
 		);
-	const navigate = useNavigate();
-	const queryClient = useQueryClient();
-	const [isLoggingOut, setIsLoggingOut] = useState(false);
+
 	const { isMobile, setOpenMobile } = useSidebar();
 
 	// biome-ignore lint/correctness/useExhaustiveDependencies: pathname is a deliberate re-trigger signal, not read in the effect body.
@@ -100,21 +92,6 @@ export function InternalSidebar({
 			setOpenMobile(false);
 		}
 	}, [pathname, isMobile, setOpenMobile]);
-
-	async function handleLogout() {
-		setIsLoggingOut(true);
-		try {
-			await logoutInternalAdmin();
-			queryClient.clear();
-			toast.success("Logged out");
-			await navigate({ to: "/internal/login" });
-		} catch (error) {
-			setIsLoggingOut(false);
-			toast.error(
-				error instanceof Error ? error.message : "Couldn't log you out.",
-			);
-		}
-	}
 
 	return (
 		<Sidebar collapsible="icon" className="border-destructive/20">
@@ -165,41 +142,6 @@ export function InternalSidebar({
 					</SidebarGroupContent>
 				</SidebarGroup>
 			</SidebarContent>
-
-			<SidebarFooter className="border-t border-(--line)">
-				<SidebarMenu>
-					<SidebarMenuItem className="group-data-[collapsible=icon]:hidden">
-						<div className="flex items-center gap-2 px-2 py-1.5">
-							<span className="inline-flex size-6 shrink-0 items-center justify-center rounded-full bg-destructive/15 text-[0.6rem] font-semibold text-destructive">
-								{internalAdminSession.displayName.charAt(0)}
-							</span>
-							<div className="min-w-0">
-								<p className="truncate text-xs font-medium text-sidebar-foreground">
-									{internalAdminSession.displayName}
-								</p>
-								<p className="truncate text-[0.7rem] text-sidebar-foreground/70">
-									{internalAdminSession.role}
-								</p>
-							</div>
-						</div>
-					</SidebarMenuItem>
-					<SidebarMenuItem>
-						<SidebarMenuButton
-							onClick={handleLogout}
-							disabled={isLoggingOut}
-							tooltip="Log out"
-							className="text-sidebar-foreground/60 hover:text-sidebar-foreground"
-						>
-							{isLoggingOut ? (
-								<Spinner data-icon="inline-start" />
-							) : (
-								<SignOutIcon />
-							)}
-							<span>{isLoggingOut ? "Logging out…" : "Log out"}</span>
-						</SidebarMenuButton>
-					</SidebarMenuItem>
-				</SidebarMenu>
-			</SidebarFooter>
 
 			<SidebarRail />
 		</Sidebar>

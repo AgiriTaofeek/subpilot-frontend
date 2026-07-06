@@ -1,10 +1,14 @@
-import { Link, useRouterState } from "@tanstack/react-router";
+import { useQueryClient } from "@tanstack/react-query";
+import { Link, useNavigate, useRouterState } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-
+import { toast } from "sonner";
+import { UserMenu } from "#/components/layout/user-menu.tsx";
 import ThemeToggle from "#/components/ThemeToggle.tsx";
 import { Separator } from "#/components/ui/separator.tsx";
 import { SidebarTrigger } from "#/components/ui/sidebar.tsx";
+import { logoutMerchant } from "#/lib/api/auth.ts";
 import { cn } from "#/lib/utils.ts";
+import type { AuthSessionDto } from "#/types/api.ts";
 
 const sections = [
 	{ prefix: "/overview", href: "/overview", label: "Overview" },
@@ -24,9 +28,16 @@ function currentSection(pathname: string) {
 	);
 }
 
-export function DashboardHeader() {
+export function DashboardHeader({
+	merchantSession,
+}: {
+	merchantSession: AuthSessionDto;
+}) {
 	const pathname = useRouterState({ select: (s) => s.location.pathname });
+	const navigate = useNavigate();
+	const queryClient = useQueryClient();
 	const [scrolled, setScrolled] = useState(false);
+	const [isLoggingOut, setIsLoggingOut] = useState(false);
 
 	useEffect(() => {
 		const onScroll = () => setScrolled(window.scrollY > 4);
@@ -34,6 +45,24 @@ export function DashboardHeader() {
 		onScroll();
 		return () => window.removeEventListener("scroll", onScroll);
 	}, []);
+
+	async function handleLogout() {
+		setIsLoggingOut(true);
+		try {
+			await logoutMerchant();
+			// See DashboardSidebar's previous handleLogout for why this must
+			// clear the whole cache, not just the auth-gate query: every
+			// business-data query lives under static, account-unscoped keys.
+			queryClient.clear();
+			toast.success("Logged out");
+			await navigate({ to: "/auth/login" });
+		} catch (error) {
+			setIsLoggingOut(false);
+			toast.error(
+				error instanceof Error ? error.message : "Couldn't log you out.",
+			);
+		}
+	}
 
 	const section = currentSection(pathname);
 	const rest = section
@@ -73,6 +102,14 @@ export function DashboardHeader() {
 			)}
 			<div className="ml-auto flex items-center gap-2">
 				<ThemeToggle />
+				<UserMenu
+					name={merchantSession.businessName}
+					subtitle={merchantSession.email}
+					accountHref="/settings/account"
+					onLogout={handleLogout}
+					isLoggingOut={isLoggingOut}
+					tone="brand"
+				/>
 			</div>
 		</header>
 	);
