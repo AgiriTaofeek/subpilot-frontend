@@ -51,6 +51,7 @@ import {
 	subscriptionStatusTone,
 } from "#/data/subscriptions.ts";
 import { useDebouncedSearchInput } from "#/hooks/use-debounced-search-input.ts";
+import { activatableRowProps } from "#/lib/activatable-row.ts";
 import { formatDate } from "#/lib/date.ts";
 import { pageSizeSchema } from "#/lib/pagination-sizes.ts";
 
@@ -318,24 +319,19 @@ function CustomersListPage() {
 						{customers.map((customer) => (
 							<div
 								key={customer.id}
-								className="relative flex flex-col gap-2 rounded-2xl border border-(--line) bg-(--surface-1) p-4"
+								{...activatableRowProps(() => goToCustomer(customer.id))}
+								className="flex cursor-pointer flex-col gap-2 rounded-2xl border border-(--line) bg-(--surface-1) p-4"
 							>
-								<button
-									type="button"
-									onClick={() => goToCustomer(customer.id)}
-									aria-label={`View ${customer.name}`}
-									className="absolute inset-0 z-0 rounded-2xl"
-								/>
-								<div className="relative z-10">
+								<div>
 									<p className="m-0 font-medium text-(--ink)">
 										{customer.name}
 									</p>
 									<p className="m-0 text-xs text-(--ink-3)">{customer.email}</p>
 								</div>
-								<div className="relative z-10 text-sm text-(--ink-2)">
+								<div className="text-sm text-(--ink-2)">
 									{customer.cardBrand} •••• {customer.cardLast4}
 								</div>
-								<div className="relative z-10">
+								<div>
 									<SubscriptionSummary summary={customer.subscriptionSummary} />
 								</div>
 							</div>

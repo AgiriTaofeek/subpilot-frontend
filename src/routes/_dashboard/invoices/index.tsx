@@ -57,6 +57,7 @@ import {
 	invoicesListPageQueryOptions,
 } from "#/data/invoices.ts";
 import { useDebouncedSearchInput } from "#/hooks/use-debounced-search-input.ts";
+import { activatableRowProps } from "#/lib/activatable-row.ts";
 import { formatNGN } from "#/lib/currency.ts";
 import { formatDate } from "#/lib/date.ts";
 import { pageSizeSchema } from "#/lib/pagination-sizes.ts";
@@ -477,19 +478,14 @@ function InvoicesListPage() {
 							return (
 								<div
 									key={invoice.id}
-									className={`relative flex flex-col gap-2 rounded-2xl border p-4 ${
+									{...activatableRowProps(() => goToInvoice(invoice.id))}
+									className={`flex cursor-pointer flex-col gap-2 rounded-2xl border p-4 ${
 										tone === "failed"
 											? "border-l-2 border-l-destructive/30 border-(--line) bg-destructive/5"
 											: "border-(--line) bg-(--surface-1)"
 									}`}
 								>
-									<button
-										type="button"
-										onClick={() => goToInvoice(invoice.id)}
-										aria-label={`View invoice ${invoice.number}`}
-										className="absolute inset-0 z-0 rounded-2xl"
-									/>
-									<div className="relative z-10 flex items-center justify-between gap-2">
+									<div className="flex items-center justify-between gap-2">
 										<span
 											className={`font-heading text-xs ${
 												tone === "void" ? "text-(--ink-3)" : "text-(--ink)"
@@ -507,13 +503,13 @@ function InvoicesListPage() {
 										</div>
 									</div>
 									<div
-										className={`relative z-10 text-sm ${
+										className={`text-sm ${
 											tone === "void" ? "text-(--ink-3)" : "text-(--ink-2)"
 										}`}
 									>
 										{formatNGN(invoice.grossKobo)}
 									</div>
-									<div className="relative z-10 text-xs text-(--ink-3)">
+									<div className="text-xs text-(--ink-3)">
 										{invoice.customerName} · {formatDate(invoice.createdAt)}
 									</div>
 								</div>

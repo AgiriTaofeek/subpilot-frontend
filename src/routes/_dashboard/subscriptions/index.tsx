@@ -83,6 +83,7 @@ import {
 	subscriptionsListPageQueryOptions,
 } from "#/data/subscriptions.ts";
 import { useDebouncedSearchInput } from "#/hooks/use-debounced-search-input.ts";
+import { activatableRowProps } from "#/lib/activatable-row.ts";
 import { formatNGN } from "#/lib/currency.ts";
 import { formatDate } from "#/lib/date.ts";
 import { pageSizeSchema } from "#/lib/pagination-sizes.ts";
@@ -550,19 +551,14 @@ function SubscriptionsListPage() {
 							return (
 								<div
 									key={sub.id}
-									className={`relative flex flex-col gap-2 rounded-2xl border p-4 ${
+									{...activatableRowProps(() => goToSubscription(sub.id))}
+									className={`flex cursor-pointer flex-col gap-2 rounded-2xl border p-4 ${
 										isPastDue
 											? "border-amber-500/20 bg-amber-500/5"
 											: "border-(--line) bg-(--surface-1)"
 									}`}
 								>
-									<button
-										type="button"
-										onClick={() => goToSubscription(sub.id)}
-										aria-label={`View ${sub.customerName}'s subscription`}
-										className="absolute inset-0 z-0 rounded-2xl"
-									/>
-									<div className="relative z-10 flex items-start justify-between gap-2">
+									<div className="flex items-start justify-between gap-2">
 										<div>
 											<p className="m-0 font-medium text-(--ink)">
 												{sub.customerName}
@@ -575,20 +571,20 @@ function SubscriptionsListPage() {
 											{subscriptionStatusLabel[sub.status]}
 										</StatusBadge>
 									</div>
-									<div className="relative z-10 text-sm text-(--ink-2)">
+									<div className="text-sm text-(--ink-2)">
 										{sub.planName} · {formatNGN(sub.amountKobo)}
 									</div>
-									<div className="relative z-10 text-xs text-(--ink-3)">
+									<div className="text-xs text-(--ink-3)">
 										Next billing:{" "}
 										{formatRelativeBillingDate(sub.nextBillingDate)}
 									</div>
 									{isPastDue && sub.nextRetryAt && (
-										<div className="relative z-10 text-xs font-medium text-(--warning)">
+										<div className="text-xs font-medium text-(--warning)">
 											Next retry: {formatRelativeBillingDate(sub.nextRetryAt)}
 										</div>
 									)}
 									{sub.cancelAtPeriodEnd && (
-										<div className="relative z-10 text-xs font-medium text-(--warning)">
+										<div className="text-xs font-medium text-(--warning)">
 											Cancels: {formatRelativeBillingDate(sub.currentPeriodEnd)}
 										</div>
 									)}

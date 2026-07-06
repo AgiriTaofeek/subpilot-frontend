@@ -76,6 +76,7 @@ import {
 } from "#/data/plans.ts";
 import { useDebouncedSearchInput } from "#/hooks/use-debounced-search-input.ts";
 import { useHandleMutationError } from "#/hooks/use-handle-mutation-error.ts";
+import { activatableRowProps } from "#/lib/activatable-row.ts";
 import { formatNGN } from "#/lib/currency.ts";
 import { pageSizeSchema } from "#/lib/pagination-sizes.ts";
 
@@ -580,28 +581,26 @@ function PlansListPage() {
 						{plans.map((plan) => (
 							<div
 								key={plan.id}
-								className="relative flex flex-col gap-2 rounded-2xl border border-(--line) bg-(--surface-1) p-4"
+								{...activatableRowProps(() => goToPlan(plan.id))}
+								className="flex cursor-pointer flex-col gap-2 rounded-2xl border border-(--line) bg-(--surface-1) p-4"
 							>
-								<button
-									type="button"
-									onClick={() => goToPlan(plan.id)}
-									aria-label={`View ${plan.name}`}
-									className="absolute inset-0 z-0 rounded-2xl"
-								/>
-								<div className="relative z-10 flex items-center justify-between gap-2">
+								<div className="flex items-center justify-between gap-2">
 									<span className="font-medium text-(--ink)">{plan.name}</span>
 									<StatusBadge tone={statusTone[plan.status]}>
 										{plan.status}
 									</StatusBadge>
 								</div>
-								<div className="relative z-10 text-sm text-(--ink-2)">
+								<div className="text-sm text-(--ink-2)">
 									{formatNGN(plan.amountKobo)} · {formatInterval(plan.interval)}
 								</div>
 								{plan.status === "published" && (
 									<button
 										type="button"
-										onClick={() => handleCopy(plan)}
-										className="relative z-10 flex w-fit items-center gap-1.5 rounded-full border border-(--line) bg-(--surface-2) px-2.5 py-1 text-xs text-(--ink-2)"
+										onClick={(e) => {
+											e.stopPropagation();
+											handleCopy(plan);
+										}}
+										className="flex w-fit items-center gap-1.5 rounded-full border border-(--line) bg-(--surface-2) px-2.5 py-1 text-xs text-(--ink-2)"
 									>
 										<CopyIcon className="size-3.5" />
 										Copy link
