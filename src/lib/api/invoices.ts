@@ -216,13 +216,15 @@ export const getInvoiceSummary = createServerFn({ method: "GET" })
 	.middleware([requireSessionCookieMiddleware])
 	.validator(invoiceIdSchema)
 	.handler(async ({ data }) => {
-		const [invoice, { customersById, planNameBySubscriptionId }] =
-			await Promise.all([
-				backendRequest<InvoiceEntityDto>({
-					path: `/v1/invoices/${data.invoiceId}`,
-				}),
-				fetchInvoiceJoinData(),
-			]);
+		const invoice = await backendRequest<InvoiceEntityDto>({
+			path: `/v1/invoices/${data.invoiceId}`,
+		});
+
+		// Bounded to this one invoice's customer/subscription/plan — not the
+		// whole-table fetchInvoiceJoinData(), which paged through every
+		// customer/subscription/plan the merchant has just to resolve one name.
+		const { customersById, planNameBySubscriptionId } =
+			await fetchInvoiceJoinDataForPage([invoice]);
 
 		return mapInvoiceSummary(invoice, customersById, planNameBySubscriptionId);
 	});
@@ -233,14 +235,15 @@ export const listInvoiceSummariesForSubscription = createServerFn({
 	.middleware([requireSessionCookieMiddleware])
 	.validator(z.object({ subscriptionId: z.string().min(1) }))
 	.handler(async ({ data }) => {
-		const [invoicesPage, { customersById, planNameBySubscriptionId }] =
-			await Promise.all([
-				backendRequest<PageResponse<InvoiceEntityDto>>({
-					path: "/v1/invoices",
-					search: { page: 0, size: 10, subscriptionId: data.subscriptionId },
-				}),
-				fetchInvoiceJoinData(),
-			]);
+		const invoicesPage = await backendRequest<PageResponse<InvoiceEntityDto>>({
+			path: "/v1/invoices",
+			search: { page: 0, size: 10, subscriptionId: data.subscriptionId },
+		});
+
+		// Bounded to the customers/plans referenced by these invoices — see
+		// getInvoiceSummary above for why, same reasoning.
+		const { customersById, planNameBySubscriptionId } =
+			await fetchInvoiceJoinDataForPage(invoicesPage.content);
 
 		return invoicesPage.content
 			.map((invoice) =>

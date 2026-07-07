@@ -50,6 +50,7 @@ import {
 	statusTone,
 	updatePlan,
 } from "#/data/plans.ts";
+import { activeSubscriptionsCountForPlanQueryOptions } from "#/data/subscriptions.ts";
 import { useHandleMutationError } from "#/hooks/use-handle-mutation-error.ts";
 import { classifyError } from "#/lib/api/classify-error.ts";
 import { isSessionError } from "#/lib/api/is-session-error.ts";
@@ -59,9 +60,14 @@ const dashboardRouteApi = getRouteApi("/_dashboard");
 
 export const Route = createFileRoute("/_dashboard/plans/$planId")({
 	loader: async ({ context, params }) => {
-		await context.queryClient.ensureQueryData(
-			planDetailQueryOptions(params.planId),
-		);
+		await Promise.all([
+			context.queryClient.ensureQueryData(
+				planDetailQueryOptions(params.planId),
+			),
+			context.queryClient.ensureQueryData(
+				activeSubscriptionsCountForPlanQueryOptions(params.planId),
+			),
+		]);
 	},
 	component: PlanDetailPage,
 	errorComponent: PlanDetailErrorFallback,
@@ -111,6 +117,9 @@ function PlanDetailPage() {
 	const { planId } = Route.useParams();
 	const queryClient = useQueryClient();
 	const { data: plan } = useSuspenseQuery(planDetailQueryOptions(planId));
+	const { data: activeSubscriptionCount } = useSuspenseQuery(
+		activeSubscriptionsCountForPlanQueryOptions(planId),
+	);
 	const [isEditing, setIsEditing] = useState(false);
 	const [editName, setEditName] = useState(plan?.name ?? "");
 	const [editDescription, setEditDescription] = useState(
@@ -185,9 +194,6 @@ function PlanDetailPage() {
 			: plan.status === "published"
 				? "archive"
 				: null;
-
-	// TODO: replace with a real count once the subscriptions data model exists.
-	const activeSubscriptionCount = plan.status === "published" ? 4 : 0;
 
 	function startEdit() {
 		if (!plan) return;
@@ -392,12 +398,14 @@ function PlanDetailPage() {
 
 						<p className="text-sm text-(--ink-2)">
 							{activeSubscriptionCount > 0 ? (
-								<a
-									href={`/subscriptions?planId=${plan.id}`}
+								<Link
+									to="/subscriptions"
+									search={{ planId: plan.id }}
 									className="font-medium text-(--brand) hover:underline"
 								>
-									{activeSubscriptionCount} active subscriptions
-								</a>
+									{activeSubscriptionCount} active subscription
+									{activeSubscriptionCount === 1 ? "" : "s"}
+								</Link>
 							) : (
 								"No active subscriptions."
 							)}

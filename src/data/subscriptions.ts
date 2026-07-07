@@ -1,6 +1,7 @@
 import { keepPreviousData, queryOptions } from "@tanstack/react-query";
 import { mapPlanResponse } from "#/data/plans.ts";
 import {
+	countActiveSubscriptionsForPlan,
 	countPastDueSubscriptions,
 	getSubscriptionDetail,
 	listSubscriptionSummaries,
@@ -121,6 +122,12 @@ export const pastDueSubscriptionsCountQueryOptions = () =>
 	queryOptions({
 		queryKey: ["subscriptions", "past-due-count"],
 		queryFn: () => countPastDueSubscriptions(),
+	});
+
+export const activeSubscriptionsCountForPlanQueryOptions = (planId: string) =>
+	queryOptions({
+		queryKey: ["subscriptions", "active-count", "plan", planId],
+		queryFn: () => countActiveSubscriptionsForPlan({ data: { planId } }),
 	});
 
 export const subscriptionsListPageQueryOptions = (params: {

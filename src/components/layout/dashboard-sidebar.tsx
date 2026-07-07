@@ -18,6 +18,7 @@ import {
 	SidebarContent,
 	SidebarGroup,
 	SidebarGroupContent,
+	SidebarGroupLabel,
 	SidebarHeader,
 	SidebarMenu,
 	SidebarMenuButton,
@@ -26,72 +27,97 @@ import {
 	useSidebar,
 } from "#/components/ui/sidebar.tsx";
 
-const navItems = [
+// Grouped to mirror the real lifecycle a merchant follows — publish a plan,
+// a customer subscribes, that produces invoices and revenue, revenue gets
+// paid out — rather than one flat list where that chain has no visual
+// structure at all. `label: null` renders no SidebarGroupLabel, for
+// Overview's single entry-point group.
+const navGroups = [
 	{
-		label: "Overview",
-		href: "/overview",
-		icon: SquaresFourIcon,
-		activePrefix: "/overview",
+		label: null,
+		items: [
+			{
+				label: "Overview",
+				href: "/overview",
+				icon: SquaresFourIcon,
+				activePrefix: "/overview",
+			},
+		],
 	},
 	{
-		label: "Analytics",
-		href: "/analytics",
-		icon: ChartBarIcon,
-		activePrefix: "/analytics",
+		label: "Billing",
+		items: [
+			{
+				label: "Plans",
+				href: "/plans",
+				icon: ClipboardTextIcon,
+				activePrefix: "/plans",
+			},
+			{
+				label: "Subscriptions",
+				href: "/subscriptions",
+				icon: ArrowsClockwiseIcon,
+				activePrefix: "/subscriptions",
+			},
+			{
+				label: "Invoices",
+				href: "/invoices",
+				icon: ReceiptIcon,
+				activePrefix: "/invoices",
+			},
+			{
+				label: "Customers",
+				href: "/customers",
+				icon: UsersIcon,
+				activePrefix: "/customers",
+			},
+			{
+				label: "Revenue",
+				href: "/revenue",
+				icon: ChartLineUpIcon,
+				activePrefix: "/revenue",
+			},
+			{
+				label: "Payouts",
+				href: "/payouts",
+				icon: BankIcon,
+				activePrefix: "/payouts",
+			},
+			{
+				label: "Analytics",
+				href: "/analytics",
+				icon: ChartBarIcon,
+				activePrefix: "/analytics",
+			},
+		],
 	},
 	{
-		label: "Plans",
-		href: "/plans",
-		icon: ClipboardTextIcon,
-		activePrefix: "/plans",
+		label: "Developer",
+		items: [
+			{
+				label: "Webhooks",
+				href: "/webhooks",
+				icon: ShareNetworkIcon,
+				activePrefix: "/webhooks",
+			},
+			{
+				label: "Events",
+				href: "/events",
+				icon: ClockClockwiseIcon,
+				activePrefix: "/events",
+			},
+		],
 	},
 	{
-		label: "Subscriptions",
-		href: "/subscriptions",
-		icon: ArrowsClockwiseIcon,
-		activePrefix: "/subscriptions",
-	},
-	{
-		label: "Invoices",
-		href: "/invoices",
-		icon: ReceiptIcon,
-		activePrefix: "/invoices",
-	},
-	{
-		label: "Customers",
-		href: "/customers",
-		icon: UsersIcon,
-		activePrefix: "/customers",
-	},
-	{
-		label: "Revenue",
-		href: "/revenue",
-		icon: ChartLineUpIcon,
-		activePrefix: "/revenue",
-	},
-	{
-		label: "Payouts",
-		href: "/payouts",
-		icon: BankIcon,
-		activePrefix: "/payouts",
-	},
-	{
-		label: "Webhooks",
-		href: "/webhooks",
-		icon: ShareNetworkIcon,
-		activePrefix: "/webhooks",
-	},
-	{
-		label: "Events",
-		href: "/events",
-		icon: ClockClockwiseIcon,
-		activePrefix: "/events",
-	},
-	{
-		label: "Settings",
-		href: "/settings/account",
-		icon: GearIcon,
-		activePrefix: "/settings",
+		label: "Account",
+		items: [
+			{
+				label: "Settings",
+				href: "/settings/account",
+				icon: GearIcon,
+				activePrefix: "/settings",
+			},
+		],
 	},
 ] as const;
 
@@ -135,31 +161,36 @@ export function DashboardSidebar() {
 			</SidebarHeader>
 
 			<SidebarContent>
-				<SidebarGroup>
-					<SidebarGroupContent>
-						<SidebarMenu>
-							{navItems.map((item) => {
-								const isActive =
-									pathname === item.href ||
-									pathname.startsWith(`${item.activePrefix}/`);
-								return (
-									<SidebarMenuItem key={item.label}>
-										<SidebarMenuButton
-											asChild
-											isActive={isActive}
-											tooltip={item.label}
-										>
-											<Link to={item.href}>
-												<item.icon />
-												<span>{item.label}</span>
-											</Link>
-										</SidebarMenuButton>
-									</SidebarMenuItem>
-								);
-							})}
-						</SidebarMenu>
-					</SidebarGroupContent>
-				</SidebarGroup>
+				{navGroups.map((group) => (
+					<SidebarGroup key={group.label ?? "primary"}>
+						{group.label ? (
+							<SidebarGroupLabel>{group.label}</SidebarGroupLabel>
+						) : null}
+						<SidebarGroupContent>
+							<SidebarMenu>
+								{group.items.map((item) => {
+									const isActive =
+										pathname === item.href ||
+										pathname.startsWith(`${item.activePrefix}/`);
+									return (
+										<SidebarMenuItem key={item.label}>
+											<SidebarMenuButton
+												asChild
+												isActive={isActive}
+												tooltip={item.label}
+											>
+												<Link to={item.href}>
+													<item.icon />
+													<span>{item.label}</span>
+												</Link>
+											</SidebarMenuButton>
+										</SidebarMenuItem>
+									);
+								})}
+							</SidebarMenu>
+						</SidebarGroupContent>
+					</SidebarGroup>
+				))}
 			</SidebarContent>
 
 			<SidebarRail />

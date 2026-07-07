@@ -77,6 +77,7 @@ import {
 import {
 	disbursementsQueryOptions,
 	PAYOUTS_PAGE_SIZE,
+	payoutAccountQueryOptions,
 	payoutBanksQueryOptions,
 } from "#/data/payouts.ts";
 import { useHandleMutationError } from "#/hooks/use-handle-mutation-error.ts";
@@ -105,13 +106,16 @@ export const Route = createFileRoute("/_dashboard/payouts/")({
 	},
 	loaderDeps: ({ search }) => ({ page: search.page, size: search.size }),
 	loader: async ({ context, deps }) => {
-		// Disbursements: not awaited — see events.tsx for why. Banks: still
-		// awaited, small reference data for the bank-account sheet, not the
-		// paginated resource.
+		// Disbursements: not awaited — see events.tsx for why. Banks and the
+		// saved payout account: still awaited, small reference data for the
+		// bank-account sheet, not the paginated resource.
 		void context.queryClient.prefetchQuery(
 			disbursementsQueryOptions(deps.page, deps.size),
 		);
-		await context.queryClient.ensureQueryData(payoutBanksQueryOptions());
+		await Promise.all([
+			context.queryClient.ensureQueryData(payoutBanksQueryOptions()),
+			context.queryClient.ensureQueryData(payoutAccountQueryOptions()),
+		]);
 	},
 	component: PayoutsPage,
 	pendingComponent: () => <ListPageSkeleton columns={5} />,
@@ -158,11 +162,11 @@ const disbursementStatusLabel: Record<DisbursementStatusDto, string> = {
 	failed: "Failed",
 };
 
-// The backend's only signal that a payout account isn't set up yet — see
-// DisbursementService.trigger(). There's no GET endpoint to check this
-// proactively (noted in the implementation plan as a backend follow-up), so
-// this string match is the only way to catch this specific case and point
-// the merchant at the right fix instead of a generic error toast.
+// Fallback for triggering a payout with no account on file. GET
+// /v1/merchants/me/payout-account (payoutAccountQueryOptions, used below to
+// pre-fill the bank sheet) covers the proactive case, but this string match
+// stays as a safety net for the trigger call itself — see
+// DisbursementService.trigger() on the backend for the message it throws.
 const PAYOUT_ACCOUNT_NOT_CONFIGURED_MESSAGE =
 	"no payout bank account configured";
 
@@ -179,16 +183,22 @@ function BankAccountSheet({
 	onOpenChange: (open: boolean) => void;
 }) {
 	const { data: banks } = useSuspenseQuery(payoutBanksQueryOptions());
+	const { data: payoutAccount } = useSuspenseQuery(payoutAccountQueryOptions());
 	const sortedBanks = useMemo(
 		() => [...banks].sort((a, b) => a.name.localeCompare(b.name)),
 		[banks],
 	);
+	// Seeded from payoutAccount when the sheet opens (see the Sheet's
+	// onOpenChange below) rather than as useState initializers, since this
+	// component stays mounted the whole time — a useState initializer would
+	// only ever run once and go stale after a save.
 	const [bankCode, setBankCode] = useState("");
 	const [bankPickerOpen, setBankPickerOpen] = useState(false);
 	const [accountNumber, setAccountNumber] = useState("");
 	const [verifiedName, setVerifiedName] = useState<string | null>(null);
 	const [verifyError, setVerifyError] = useState<string | null>(null);
 	const handleMutationError = useHandleMutationError();
+	const queryClient = useQueryClient();
 
 	function resetVerification() {
 		setVerifiedName(null);
@@ -217,7 +227,10 @@ function BankAccountSheet({
 
 	const saveMutation = useMutation({
 		mutationFn: () => savePayoutAccount({ data: { accountNumber, bankCode } }),
-		onSuccess: () => {
+		onSuccess: async () => {
+			await queryClient.invalidateQueries({
+				queryKey: payoutAccountQueryOptions().queryKey,
+			});
 			toast.success("Payout bank account saved");
 			onOpenChange(false);
 		},
@@ -232,7 +245,16 @@ function BankAccountSheet({
 			open={open}
 			onOpenChange={(next) => {
 				onOpenChange(next);
-				if (!next) {
+				if (next) {
+					// Pre-fill from the saved account, if one exists, instead of
+					// always starting blank.
+					setBankCode(payoutAccount.bankCode ?? "");
+					setAccountNumber(payoutAccount.accountNumber ?? "");
+					setVerifiedName(
+						payoutAccount.found ? payoutAccount.accountName : null,
+					);
+					setVerifyError(null);
+				} else {
 					setBankCode("");
 					setAccountNumber("");
 					resetVerification();

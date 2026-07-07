@@ -100,6 +100,22 @@ export const countPastDueSubscriptions = createServerFn({ method: "GET" })
 		return page.totalElements;
 	});
 
+// Same cheap-count trick, scoped to one plan — powers the "N active
+// subscriptions" link on the plan detail page. Was previously a hardcoded
+// placeholder (`plan.status === "published" ? 4 : 0`).
+export const countActiveSubscriptionsForPlan = createServerFn({
+	method: "GET",
+})
+	.middleware([requireSessionCookieMiddleware])
+	.validator(z.object({ planId: z.string().min(1) }))
+	.handler(async ({ data }) => {
+		const page = await backendRequest<PageResponse<SubscriptionEntityDto>>({
+			path: "/v1/subscriptions",
+			search: { status: "active", planId: data.planId, page: 0, size: 1 },
+		});
+		return page.totalElements;
+	});
+
 const searchSubscriptionsSchema = z.object({
 	status: z.string().optional(),
 	planId: z.string().optional(),

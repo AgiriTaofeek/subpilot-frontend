@@ -267,6 +267,7 @@ export interface PayoutBankLookupResultDto {
 	accountNumber: string | null;
 	accountName: string | null;
 	failureReason: string | null;
+	bankCode: string | null;
 }
 
 export type DisbursementStatusDto = "pending" | "succeeded" | "failed";

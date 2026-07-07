@@ -363,7 +363,14 @@ function SubscriptionDetailPage() {
 				<div>
 					<p className="m-0 text-(--ink-3)">Plan</p>
 					<p className="m-0 mt-0.5 font-medium text-(--ink)">
-						{plan.name} · {formatNGN(plan.amountKobo)} /{" "}
+						<Link
+							to="/plans/$planId"
+							params={{ planId: plan.id }}
+							className="text-(--brand) hover:underline"
+						>
+							{plan.name}
+						</Link>{" "}
+						· {formatNGN(plan.amountKobo)} /{" "}
 						{formatInterval(plan.interval).toLowerCase()}
 					</p>
 				</div>

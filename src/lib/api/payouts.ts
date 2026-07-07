@@ -25,6 +25,14 @@ const payoutAccountSchema = z.object({
 	bankCode: z.string().min(1),
 });
 
+export const getPayoutAccount = createServerFn({ method: "GET" })
+	.middleware([requireSessionCookieMiddleware])
+	.handler(async () => {
+		return backendRequest<PayoutBankLookupResultDto>({
+			path: "/v1/merchants/me/payout-account",
+		});
+	});
+
 export const lookupPayoutAccount = createServerFn({ method: "POST" })
 	.middleware([requireSessionCookieMiddleware])
 	.validator(payoutAccountSchema)
