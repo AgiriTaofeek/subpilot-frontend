@@ -14,3 +14,8 @@ todos.json
 
 sub-pilot/
 .gstack/
+.agents/
+.claude/
+
+# Internal working docs — not part of what's submitted/shown to judges.
+docs/

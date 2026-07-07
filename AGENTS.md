@@ -6,7 +6,7 @@ Standards for all contributors — human and AI. Writing this for an AI collabor
 
 ## The most important rule
 
-**Write the doc before the code.** See [DOCUMENTATION.md](../DOCUMENTATION.md) and the project's `docs/` folder. Any PR that changes product behaviour without updating the relevant doc does not merge.
+**Write the doc before the code.** See [DOCUMENTATION.md](docs/internal/DOCUMENTATION.md) and the project's `docs/` folder. Any PR that changes product behaviour without updating the relevant doc does not merge.
 
 ---
 
@@ -80,9 +80,9 @@ Standards for all contributors — human and AI. Writing this for an AI collabor
 - Do not use `as` casts except when parsing raw JSON (e.g., `JSON.parse(event.payload) as SomeType`).
 - Do not add comments that describe what code does — well-named functions do that. Only comment the _why_ when it is non-obvious.
 - Do not create a new Axios instance. Use the one exported from `src/lib/api/client.ts` via the domain API modules.
-- Do not add features not in the current milestone. If a feature is blocked by a backend gap, note it with a `TODO(blocked): <reason>` comment and link to BACKEND-GAPS.md.
-- Do not add a "Refund" action button until the backend exposes the refund endpoint. See [../BACKEND-GAPS.md](../BACKEND-GAPS.md) — Gap 1.
-- Do not add a "Request Payout" feature until the backend implements the Transfers disbursement flow. See BACKEND-GAPS.md — Gap 2.
+- Do not add features not in the current milestone. If a feature is blocked by a backend gap, note it with a `TODO(blocked): <reason>` comment and link to docs/internal/BACKEND-GAPS.md.
+- Do not add a "Refund" action button until the backend exposes the refund endpoint. See [docs/internal/BACKEND-GAPS.md](docs/internal/BACKEND-GAPS.md) — Gap 1.
+- Do not add a "Request Payout" feature until the backend implements the Transfers disbursement flow. See docs/internal/BACKEND-GAPS.md — Gap 2.
 
 ---
 
@@ -101,12 +101,12 @@ Standards for all contributors — human and AI. Writing this for an AI collabor
 
 | What you changed                | Doc to update                                                                |
 | ------------------------------- | ---------------------------------------------------------------------------- |
-| New screen or route             | `docs/roadmap.md` (milestone checklist), `docs/architecture.md` (route tree) |
+| New screen or route             | `docs/internal/roadmap.md` (milestone checklist), `docs/architecture.md` (route tree) |
 | New API field or response shape | `docs/data-modeling.md`                                                      |
 | New status value or badge       | `docs/event-taxonomy.md`                                                     |
 | New webhook event               | `docs/event-taxonomy.md` + `src/lib/constants/webhookEvents.ts`              |
 | New auth surface or token type  | `docs/auth-model.md`                                                         |
 | New domain concept              | `docs/glossary.md`                                                           |
 | New end-to-end flow             | `docs/how-it-works.md`                                                       |
-| Milestone complete              | `docs/roadmap.md` (check items), write `docs/milestone-N/README.md`          |
-| Unblocked backend gap           | Remove or update the relevant section in `../BACKEND-GAPS.md`                |
+| Milestone complete              | `docs/internal/roadmap.md` (check items), write `docs/milestone-N/README.md`          |
+| Unblocked backend gap           | Remove or update the relevant section in `docs/internal/BACKEND-GAPS.md`                |
