@@ -35,8 +35,49 @@ export const Route = createFileRoute("/pay/$merchantSlug/$planSlug")({
 		);
 	},
 	component: PublicCheckoutPage,
+	errorComponent: CheckoutErrorFallback,
 	head: () => ({ meta: [{ title: "Checkout | SubPilot" }] }),
 });
+
+function CheckoutErrorFallback({
+	error,
+	reset,
+}: {
+	error: Error;
+	reset: () => void;
+}) {
+	// A genuinely not-found plan/merchant slug means this checkout link will
+	// never work (typo, archived plan, wrong link shared) — a network blip
+	// or transient backend error is retryable and shouldn't tell the
+	// customer the link is dead.
+	const isNotFound = classifyError(error.message) === "not_found";
+
+	return (
+		<div className="flex min-h-screen items-center justify-center bg-(--surface) px-4">
+			<div className="max-w-sm flex flex-col gap-3 rounded-2xl border border-(--line) bg-(--surface-1) p-8 text-center shadow-sm">
+				<h1 className="text-lg font-semibold tracking-tight text-(--ink)">
+					{isNotFound
+						? "This checkout link is no longer valid"
+						: "Something went wrong"}
+				</h1>
+				<p className="text-sm text-(--ink-3)">
+					{isNotFound
+						? "Please contact the business to get an updated link."
+						: CATEGORY_COPY[classifyError(error.message)]}
+				</p>
+				{!isNotFound && (
+					<Button
+						variant="outline"
+						onClick={reset}
+						className="mx-auto w-fit border-(--line)"
+					>
+						Try again
+					</Button>
+				)}
+			</div>
+		</div>
+	);
+}
 
 const checkoutSchema = z.object({
 	fullName: z

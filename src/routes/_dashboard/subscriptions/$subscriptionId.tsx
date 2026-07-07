@@ -281,6 +281,8 @@ function SubscriptionDetailPage() {
 
 	const isTerminal =
 		subscription.status === "cancelled" || subscription.status === "expired";
+	const canPause =
+		subscriptionTransitions[subscription.status].includes("paused");
 
 	const alternativePlans = allPlans.filter(
 		(p) => p.status === "published" && p.id !== subscription.planId,
@@ -336,13 +338,15 @@ function SubscriptionDetailPage() {
 								)}
 							</Button>
 						) : (
-							<Button
-								variant="outline"
-								onClick={() => setPauseOpen(true)}
-								className="border-(--line)"
-							>
-								Pause
-							</Button>
+							canPause && (
+								<Button
+									variant="outline"
+									onClick={() => setPauseOpen(true)}
+									className="border-(--line)"
+								>
+									Pause
+								</Button>
+							)
 						)}
 						<Button
 							variant="outline"
@@ -530,9 +534,11 @@ function SubscriptionDetailPage() {
 									Resume
 								</DropdownMenuItem>
 							) : (
-								<DropdownMenuItem onClick={() => setPauseOpen(true)}>
-									Pause
-								</DropdownMenuItem>
+								canPause && (
+									<DropdownMenuItem onClick={() => setPauseOpen(true)}>
+										Pause
+									</DropdownMenuItem>
+								)
 							)}
 							<DropdownMenuItem onClick={() => setChangePlanOpen(true)}>
 								Change plan

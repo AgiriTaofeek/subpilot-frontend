@@ -19,8 +19,12 @@ import type {
 	PublicPlanResponseDto,
 } from "#/types/api.ts";
 
-// Mirrors the backend's PlanService.create merchant-status gate — a
-// merchant that isn't active yet (or no longer is) can't create new plans.
+// Mirrors the backend's merchant-status gate (PlanService.create and
+// friends) — a merchant that isn't active yet (or no longer is) can't
+// create plans, API keys, or webhook endpoints. `reason` is used by
+// RestrictedAction's per-action tooltip; `title`/`description` are the
+// account-wide banner shown on every dashboard page, so they must stay
+// generic rather than naming any one gated action.
 export const restrictedMerchantStatusCopy: Record<
 	Exclude<MerchantStatusDto, "active">,
 	{ reason: string; title: string; description: string }
@@ -28,12 +32,14 @@ export const restrictedMerchantStatusCopy: Record<
 	under_review: {
 		reason: "Your account is under review.",
 		title: "Account under review",
-		description: "Plan creation unlocks once your account is approved.",
+		description:
+			"Creating plans, API keys, and webhook endpoints unlocks once your account is approved.",
 	},
 	suspended: {
 		reason: "Your account is suspended.",
 		title: "Account suspended",
-		description: "Plan creation is disabled while your account is suspended.",
+		description:
+			"Creating plans, API keys, and webhook endpoints is disabled while your account is suspended. Contact admin@subpilot.co for assistance.",
 	},
 };
 
