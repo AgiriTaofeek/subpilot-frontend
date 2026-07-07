@@ -5,7 +5,10 @@ export interface DocsNavSection {
 
 export function DocsSidebarNav({ sections }: { sections: DocsNavSection[] }) {
 	return (
-		<nav className="sticky top-24 hidden max-h-[calc(100vh-7rem)] w-48 shrink-0 flex-col gap-1 overflow-y-auto lg:flex">
+		<nav
+			className="sticky hidden w-48 shrink-0 flex-col gap-1 overflow-y-auto lg:flex"
+			style={{ top: "6rem", maxHeight: "calc(100vh - 7rem)" }}
+		>
 			{sections.map((section) => (
 				<a
 					key={section.id}

@@ -121,17 +121,18 @@ export function StateMachineGraph() {
 									opacity={isActive ? 1 : 0.45}
 									className="transition-[stroke,stroke-width,opacity] duration-500 ease-out"
 								/>
-								<text
-									x={labelX}
-									y={labelY}
-									textAnchor="middle"
-									className="font-heading transition-[fill,opacity] duration-500 ease-out"
-									style={{ fontSize: 9 }}
-									fill={isActive ? "var(--brand)" : "var(--pitch-fg-3)"}
-									opacity={isActive ? 1 : 0.7}
-								>
-									{edge.label}
-								</text>
+								{isActive ? (
+									<text
+										x={labelX}
+										y={labelY}
+										textAnchor="middle"
+										className="font-heading"
+										style={{ fontSize: 10 }}
+										fill="var(--brand)"
+									>
+										{edge.label}
+									</text>
+								) : null}
 							</g>
 						);
 					})}
@@ -169,20 +170,39 @@ export function StateMachineGraph() {
 					)}
 				</svg>
 
-				<div className="flex h-8 items-center justify-center px-3 pt-1">
+				{/* Always names the current state plainly, and — only while a
+				    transition is animating — adds the destination state and the
+				    trigger that causes it, each clearly labeled. Never shows a bare
+				    trigger word (e.g. "pause") on its own: on its own it reads like
+				    a state name, which is exactly how "pause" got misread as
+				    "Paused" before. */}
+				<div className="flex min-h-11 flex-col items-center justify-center gap-0.5 px-3 py-1.5">
 					<AnimatePresence mode="wait">
-						<motion.span
-							key={activeEdgeLabel ?? current}
+						<motion.div
+							key={current}
 							initial={reducedMotion ? false : { opacity: 0, y: 4 }}
 							animate={{ opacity: 1, y: 0 }}
 							exit={reducedMotion ? undefined : { opacity: 0, y: -4 }}
 							transition={{ duration: 0.35 }}
-							className="font-heading text-[0.65rem] text-(--pitch-fg-2)"
+							className="flex flex-col items-center gap-0.5"
 						>
-							{activeEdgeLabel
-								? `Now: ${activeEdgeLabel}`
-								: `Steady state: ${subscriptionStatusLabel[current]}`}
-						</motion.span>
+							<span className="font-heading text-[0.68rem] text-(--pitch-fg)">
+								{activeEdgeLabel ? (
+									<>
+										{subscriptionStatusLabel[current]}
+										<span className="mx-1.5 text-(--brand)">→</span>
+										{subscriptionStatusLabel[next as SubscriptionStatus]}
+									</>
+								) : (
+									subscriptionStatusLabel[current]
+								)}
+							</span>
+							{activeEdgeLabel ? (
+								<span className="font-heading text-[0.58rem] text-(--pitch-fg-3)">
+									trigger: {activeEdgeLabel}
+								</span>
+							) : null}
+						</motion.div>
 					</AnimatePresence>
 				</div>
 			</div>
