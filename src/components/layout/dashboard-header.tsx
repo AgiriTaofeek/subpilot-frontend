@@ -46,22 +46,25 @@ export function DashboardHeader({
 		return () => window.removeEventListener("scroll", onScroll);
 	}, []);
 
-	async function handleLogout() {
+	function handleLogout() {
+		if (isLoggingOut) return;
 		setIsLoggingOut(true);
-		try {
-			await logoutMerchant();
-			// See DashboardSidebar's previous handleLogout for why this must
-			// clear the whole cache, not just the auth-gate query: every
-			// business-data query lives under static, account-unscoped keys.
-			queryClient.clear();
-			toast.success("Logged out");
-			await navigate({ to: "/auth/login" });
-		} catch (error) {
-			setIsLoggingOut(false);
-			toast.error(
-				error instanceof Error ? error.message : "Couldn't log you out.",
-			);
-		}
+		toast.promise(
+			logoutMerchant().then(async () => {
+				// See DashboardSidebar's previous handleLogout for why this must
+				// clear the whole cache, not just the auth-gate query: every
+				// business-data query lives under static, account-unscoped keys.
+				queryClient.clear();
+				await navigate({ to: "/auth/login" });
+			}),
+			{
+				loading: "Logging out…",
+				success: "Logged out",
+				error: (error) =>
+					error instanceof Error ? error.message : "Couldn't log you out.",
+				finally: () => setIsLoggingOut(false),
+			},
+		);
 	}
 
 	const section = currentSection(pathname);

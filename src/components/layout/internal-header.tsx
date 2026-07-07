@@ -18,19 +18,22 @@ export function InternalHeader({
 	const queryClient = useQueryClient();
 	const [isLoggingOut, setIsLoggingOut] = useState(false);
 
-	async function handleLogout() {
+	function handleLogout() {
+		if (isLoggingOut) return;
 		setIsLoggingOut(true);
-		try {
-			await logoutInternalAdmin();
-			queryClient.clear();
-			toast.success("Logged out");
-			await navigate({ to: "/internal/login" });
-		} catch (error) {
-			setIsLoggingOut(false);
-			toast.error(
-				error instanceof Error ? error.message : "Couldn't log you out.",
-			);
-		}
+		toast.promise(
+			logoutInternalAdmin().then(async () => {
+				queryClient.clear();
+				await navigate({ to: "/internal/login" });
+			}),
+			{
+				loading: "Logging out…",
+				success: "Logged out",
+				error: (error) =>
+					error instanceof Error ? error.message : "Couldn't log you out.",
+				finally: () => setIsLoggingOut(false),
+			},
+		);
 	}
 
 	return (
