@@ -140,7 +140,6 @@ function InvoiceDetailPage() {
 	const handleMutationError = useHandleMutationError();
 
 	const voidState = voidButtonState(invoice.status);
-	const feePercent = Math.round(invoice.grossKobo * 0.015);
 
 	const voidMutation = useMutation({
 		mutationFn: () => voidInvoice({ data: { invoiceId } }),
@@ -293,18 +292,22 @@ function InvoiceDetailPage() {
 						<p className="mt-1 text-lg font-semibold text-(--ink)">
 							{invoice.status === "paid" ? formatNGN(invoice.feeKobo) : "—"}
 						</p>
-						{invoice.status === "paid" && (
-							<Tooltip>
-								<TooltipTrigger asChild>
-									<p className="mt-0.5 cursor-help text-xs text-(--ink-3) underline decoration-dotted underline-offset-2">
-										{formatNGN(feePercent)} (1.5% + ₦100 fixed)
-									</p>
-								</TooltipTrigger>
-								<TooltipContent>
-									SubPilot charges 1.5% + ₦100 per successful payment.
-								</TooltipContent>
-							</Tooltip>
-						)}
+						{invoice.status === "paid" &&
+							invoice.feeBpsApplied != null &&
+							invoice.feeFixedApplied != null && (
+								<Tooltip>
+									<TooltipTrigger asChild>
+										<p className="mt-0.5 cursor-help text-xs text-(--ink-3) underline decoration-dotted underline-offset-2">
+											{invoice.feeBpsApplied / 100}% +{" "}
+											{formatNGN(invoice.feeFixedApplied)} fixed
+										</p>
+									</TooltipTrigger>
+									<TooltipContent>
+										SubPilot charged {invoice.feeBpsApplied / 100}% +{" "}
+										{formatNGN(invoice.feeFixedApplied)} on this invoice.
+									</TooltipContent>
+								</Tooltip>
+							)}
 					</CardContent>
 				</Card>
 				<Card className="border border-(--line) bg-(--surface-1) shadow-none">

@@ -23,6 +23,8 @@ export interface InvoiceSummary {
 	grossKobo: number;
 	feeKobo: number;
 	netKobo: number;
+	feeBpsApplied: number | null;
+	feeFixedApplied: number | null;
 	periodStart: string;
 	periodEnd: string;
 	createdAt: string;

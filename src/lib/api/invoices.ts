@@ -73,6 +73,8 @@ function mapInvoiceSummary(
 		grossKobo: invoice.amount,
 		feeKobo: invoice.platformFeeAmount,
 		netKobo: invoice.netAmount,
+		feeBpsApplied: invoice.feeBpsApplied,
+		feeFixedApplied: invoice.feeFixedApplied,
 		periodStart: invoice.periodStart,
 		periodEnd: invoice.periodEnd,
 		createdAt: invoice.createdAt,
