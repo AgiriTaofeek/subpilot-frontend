@@ -39,6 +39,7 @@ import {
 } from "#/components/ui/password-strength.tsx";
 import { Spinner } from "#/components/ui/spinner.tsx";
 import { plansQueryOptions } from "#/data/plans.ts";
+import { useCopyToClipboard } from "#/hooks/use-copy-to-clipboard.ts";
 import { changePasswordMerchant, logoutMerchant } from "#/lib/api/auth.ts";
 import { CATEGORY_COPY, classifyError } from "#/lib/api/classify-error.ts";
 
@@ -254,19 +255,11 @@ export const Route = createFileRoute("/_dashboard/settings/account")({
 	head: () => ({ meta: [{ title: "Account | SubPilot" }] }),
 });
 
-async function copySlugPrefix(merchantSlug: string) {
-	try {
-		await navigator.clipboard.writeText(`/pay/${merchantSlug}/`);
-		toast.success("Checkout link prefix copied", { duration: 2000 });
-	} catch {
-		toast.error("Couldn't copy to clipboard.");
-	}
-}
-
 function SettingsAccountPage() {
 	const { merchantSession } = dashboardRouteApi.useRouteContext();
 	const { data: allPlans } = useSuspenseQuery(plansQueryOptions());
 	const merchantSlug = allPlans[0]?.merchantSlug ?? null;
+	const copyToClipboard = useCopyToClipboard();
 
 	return (
 		<div className="flex flex-1 flex-col gap-6 p-6">
@@ -318,7 +311,12 @@ function SettingsAccountPage() {
 										<Button
 											variant="ghost"
 											size="icon-sm"
-											onClick={() => copySlugPrefix(merchantSlug)}
+											onClick={() =>
+												copyToClipboard(`/pay/${merchantSlug}/`, {
+													successMessage: "Checkout link prefix copied",
+													duration: 2000,
+												})
+											}
 											className="shrink-0 text-(--ink-3) hover:text-(--ink)"
 										>
 											<CopyIcon className="size-4" />

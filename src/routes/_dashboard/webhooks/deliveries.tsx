@@ -6,7 +6,6 @@ import {
 	useNavigate,
 } from "@tanstack/react-router";
 import { useState } from "react";
-import { toast } from "sonner";
 import { z } from "zod";
 
 import { Button } from "#/components/ui/button.tsx";
@@ -65,6 +64,7 @@ import {
 	webhookDeliveriesListQueryOptions,
 } from "#/data/webhook-deliveries.ts";
 import { webhookEndpointsListQueryOptions } from "#/data/webhooks.ts";
+import { useCopyToClipboard } from "#/hooks/use-copy-to-clipboard.ts";
 import { pageSizeSchema } from "#/lib/pagination-sizes.ts";
 import type { WebhookDeliveryStatusDto } from "#/types/api.ts";
 
@@ -123,16 +123,8 @@ function formatDateTime(iso: string | null): string {
 	});
 }
 
-async function copyText(text: string, label: string) {
-	try {
-		await navigator.clipboard.writeText(text);
-		toast.success(`${label} copied`, { duration: 2000 });
-	} catch {
-		toast.error("Couldn't copy to clipboard.");
-	}
-}
-
 function EventIdCell({ id }: { id: string }) {
+	const copyToClipboard = useCopyToClipboard();
 	const truncated = id.length > 14 ? `${id.slice(0, 14)}…` : id;
 	return (
 		<Tooltip>
@@ -141,7 +133,10 @@ function EventIdCell({ id }: { id: string }) {
 					type="button"
 					onClick={(e) => {
 						e.stopPropagation();
-						copyText(id, "Event ID");
+						copyToClipboard(id, {
+							successMessage: "Event ID copied",
+							duration: 2000,
+						});
 					}}
 					className="font-heading text-xs text-(--ink-2) hover:text-(--ink)"
 				>
@@ -154,6 +149,7 @@ function EventIdCell({ id }: { id: string }) {
 }
 
 function CodeBlock({ label, content }: { label: string; content: string }) {
+	const copyToClipboard = useCopyToClipboard();
 	return (
 		<div>
 			<div className="flex items-center justify-between">
@@ -161,7 +157,12 @@ function CodeBlock({ label, content }: { label: string; content: string }) {
 				<Button
 					variant="ghost"
 					size="icon-sm"
-					onClick={() => copyText(content, label)}
+					onClick={() =>
+						copyToClipboard(content, {
+							successMessage: `${label} copied`,
+							duration: 2000,
+						})
+					}
 					className="text-(--ink-3) hover:text-(--ink)"
 				>
 					<CopyIcon className="size-3.5" />

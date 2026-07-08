@@ -1,6 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 
-import DocsPage from "#/components/layout/docs-page.tsx";
+import { DocsPage } from "#/components/layout/docs-page.tsx";
 
 export const Route = createFileRoute("/_marketing/docs")({
 	component: DocsPage,

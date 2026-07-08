@@ -5,7 +5,6 @@ import {
 	useNavigate,
 } from "@tanstack/react-router";
 import { useState } from "react";
-import { toast } from "sonner";
 import { z } from "zod";
 
 import { SettingsTabs } from "#/components/layout/settings-tabs.tsx";
@@ -64,6 +63,7 @@ import {
 	auditLogsQueryOptions,
 	parseSnapshot,
 } from "#/data/audit-logs.ts";
+import { useCopyToClipboard } from "#/hooks/use-copy-to-clipboard.ts";
 import { useDebouncedSearchInput } from "#/hooks/use-debounced-search-input.ts";
 import { formatDateTime, formatRelativeTime } from "#/lib/date.ts";
 import { pageSizeSchema } from "#/lib/pagination-sizes.ts";
@@ -98,16 +98,8 @@ export const Route = createFileRoute("/_dashboard/settings/audit-log")({
 	head: () => ({ meta: [{ title: "Audit log | SubPilot" }] }),
 });
 
-async function copyText(text: string, label: string) {
-	try {
-		await navigator.clipboard.writeText(text);
-		toast.success(`${label} copied`, { duration: 2000 });
-	} catch {
-		toast.error("Couldn't copy to clipboard.");
-	}
-}
-
 function ResourceIdCell({ id }: { id: string }) {
+	const copyToClipboard = useCopyToClipboard();
 	const truncated = id.length > 14 ? `${id.slice(0, 14)}…` : id;
 	return (
 		<Tooltip>
@@ -116,7 +108,10 @@ function ResourceIdCell({ id }: { id: string }) {
 					type="button"
 					onClick={(e) => {
 						e.stopPropagation();
-						copyText(id, "Resource ID");
+						copyToClipboard(id, {
+							successMessage: "Resource ID copied",
+							duration: 2000,
+						});
 					}}
 					className="font-heading text-xs text-(--ink-2) hover:text-(--ink)"
 				>

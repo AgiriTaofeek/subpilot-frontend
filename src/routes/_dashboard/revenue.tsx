@@ -92,6 +92,14 @@ function windowLabelText(window: RevenueWindow): string {
 	return window === "7d" ? "7 days" : window === "30d" ? "30 days" : "90 days";
 }
 
+// Invoice number/date/amounts/status are all backend-controlled today, but
+// quoting unconditionally means this export never silently breaks if a
+// free-text field (e.g. a customer-supplied cancellation reason) is ever
+// added to this row.
+function csvField(value: string | number): string {
+	return `"${String(value).replace(/"/g, '""')}"`;
+}
+
 function RevenuePage() {
 	const { window } = Route.useSearch();
 	const navigate = useNavigate({ from: Route.fullPath });
@@ -119,7 +127,9 @@ function RevenuePage() {
 				i.feeKobo / 100,
 				i.netKobo / 100,
 				i.status,
-			].join(","),
+			]
+				.map(csvField)
+				.join(","),
 		);
 		const csv = [header, ...rows].join("\n");
 		const blob = new Blob([csv], { type: "text/csv" });

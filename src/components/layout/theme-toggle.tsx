@@ -39,7 +39,7 @@ const nextMode: Record<ThemeMode, ThemeMode> = {
 	auto: "light",
 };
 
-export default function ThemeToggle() {
+export function ThemeToggle() {
 	// SSR always starts at "auto" to match server render; corrected post-hydration.
 	const [mode, setMode] = useState<ThemeMode>("auto");
 

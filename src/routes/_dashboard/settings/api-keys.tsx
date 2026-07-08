@@ -57,6 +57,7 @@ import {
 	TableRow,
 } from "#/components/ui/table.tsx";
 import { apiKeysListQueryOptions } from "#/data/api-keys.ts";
+import { useCopyToClipboard } from "#/hooks/use-copy-to-clipboard.ts";
 import { useHandleMutationError } from "#/hooks/use-handle-mutation-error.ts";
 import { createApiKey, revokeApiKey } from "#/lib/api/api-keys.ts";
 import { formatDate } from "#/lib/date.ts";
@@ -88,6 +89,7 @@ function SettingsApiKeysPage() {
 		null,
 	);
 	const handleMutationError = useHandleMutationError();
+	const copyToClipboard = useCopyToClipboard();
 
 	const createMutation = useMutation({
 		mutationFn: () => createApiKey({ data: { label: label.trim() } }),
@@ -126,13 +128,11 @@ function SettingsApiKeysPage() {
 
 	async function copyRawKey() {
 		if (!newKey) return;
-		try {
-			await navigator.clipboard.writeText(newKey.raw);
-			setCopyStatus("copied");
-			toast.success("Key copied");
-		} catch {
-			setCopyStatus("failed");
-		}
+		const copied = await copyToClipboard(newKey.raw, {
+			successMessage: "Key copied",
+			onError: () => setCopyStatus("failed"),
+		});
+		if (copied) setCopyStatus("copied");
 	}
 
 	function handleRevoke() {

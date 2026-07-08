@@ -2,7 +2,7 @@ import { ListIcon } from "@phosphor-icons/react";
 import { Link, useLocation } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 
-import ThemeToggle from "#/components/ThemeToggle.tsx";
+import { ThemeToggle } from "#/components/layout/theme-toggle.tsx";
 import { Button } from "#/components/ui/button.tsx";
 import {
 	NavigationMenu,
@@ -68,7 +68,7 @@ function HeaderCtas() {
 	);
 }
 
-export default function MarketingHeader() {
+export function MarketingHeader() {
 	const [scrolled, setScrolled] = useState(false);
 	const isHome = useLocation({
 		select: (location) => location.pathname === "/",

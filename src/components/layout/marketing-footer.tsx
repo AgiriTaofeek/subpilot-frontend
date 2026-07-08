@@ -9,7 +9,7 @@ const footerLinks = [
 	{ label: "Webhooks", href: "#webhooks" },
 ] as const;
 
-export default function MarketingFooter() {
+export function MarketingFooter() {
 	const year = new Date().getFullYear();
 	const isHome = useLocation({
 		select: (location) => location.pathname === "/",

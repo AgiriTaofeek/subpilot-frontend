@@ -7,6 +7,7 @@ import {
 	RouteErrorFallback,
 	SessionExpiredFallback,
 } from "#/components/layout/route-error-fallback.tsx";
+import { SkipToContentLink } from "#/components/layout/skip-to-content-link.tsx";
 import { Button } from "#/components/ui/button.tsx";
 import {
 	SIDEBAR_COOKIE_NAME,
@@ -83,10 +84,11 @@ function InternalLayout() {
 
 	return (
 		<SidebarProvider defaultOpen={sidebarOpen}>
+			<SkipToContentLink />
 			<InternalSidebar internalAdminSession={internalAdminSession} />
 			<SidebarInset>
 				<InternalHeader internalAdminSession={internalAdminSession} />
-				<div className="flex flex-1 flex-col">
+				<div id="main-content" tabIndex={-1} className="flex flex-1 flex-col">
 					<Outlet />
 				</div>
 			</SidebarInset>

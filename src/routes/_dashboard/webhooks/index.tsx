@@ -71,6 +71,7 @@ import {
 	eventTypeGroups,
 	webhookEndpointsListQueryOptions,
 } from "#/data/webhooks.ts";
+import { useCopyToClipboard } from "#/hooks/use-copy-to-clipboard.ts";
 import { useHandleMutationError } from "#/hooks/use-handle-mutation-error.ts";
 import {
 	deleteWebhookEndpoint,
@@ -121,6 +122,7 @@ function WebhookEndpointsPage() {
 		null,
 	);
 	const handleMutationError = useHandleMutationError();
+	const copyToClipboard = useCopyToClipboard();
 
 	const registerMutation = useMutation({
 		mutationFn: (value: {
@@ -169,12 +171,9 @@ function WebhookEndpointsPage() {
 
 	async function copySecret() {
 		if (!secretTarget) return;
-		try {
-			await navigator.clipboard.writeText(secretTarget.signingSecretHash);
-			toast.success("Signing secret copied");
-		} catch {
-			toast.error("Couldn't copy to clipboard.");
-		}
+		await copyToClipboard(secretTarget.signingSecretHash, {
+			successMessage: "Signing secret copied",
+		});
 	}
 
 	const hasEndpoints = endpoints.length > 0;

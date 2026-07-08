@@ -772,7 +772,7 @@ function Section({
 
 // ─── Root component ───────────────────────────────────────────────────────────
 
-export default function MarketingHome() {
+export function MarketingHome() {
 	return (
 		<>
 			{/* Hero — full-width forced dark, outside page-wrap */}

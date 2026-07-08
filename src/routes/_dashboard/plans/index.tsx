@@ -83,6 +83,7 @@ import {
 	publishPlan,
 	statusTone,
 } from "#/data/plans.ts";
+import { useCopyToClipboard } from "#/hooks/use-copy-to-clipboard.ts";
 import { useDebouncedSearchInput } from "#/hooks/use-debounced-search-input.ts";
 import { useHandleMutationError } from "#/hooks/use-handle-mutation-error.ts";
 import { activatableRowProps } from "#/lib/activatable-row.ts";
@@ -150,6 +151,7 @@ function PlansListPage() {
 		plansListQueryOptions({ page, status, q, sort, order, size }),
 	);
 	const handleMutationError = useHandleMutationError();
+	const copyToClipboard = useCopyToClipboard();
 	const [publishConfirmPlan, setPublishConfirmPlan] = useState<Plan | null>(
 		null,
 	);
@@ -232,15 +234,16 @@ function PlansListPage() {
 		[navigate],
 	);
 
-	const handleCopy = useCallback(async (plan: Plan) => {
-		const url = `${window.location.origin}${checkoutUrl(plan)}`;
-		try {
-			await navigator.clipboard.writeText(url);
-			toast.success("Checkout link copied", { duration: 2000 });
-		} catch {
-			toast.error("Couldn't copy to clipboard.");
-		}
-	}, []);
+	const handleCopy = useCallback(
+		async (plan: Plan) => {
+			const url = `${window.location.origin}${checkoutUrl(plan)}`;
+			await copyToClipboard(url, {
+				successMessage: "Checkout link copied",
+				duration: 2000,
+			});
+		},
+		[copyToClipboard],
+	);
 
 	const goToPlan = useCallback(
 		(planId: string) => {

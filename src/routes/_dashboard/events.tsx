@@ -6,7 +6,6 @@ import {
 	useNavigate,
 } from "@tanstack/react-router";
 import { useState } from "react";
-import { toast } from "sonner";
 import { z } from "zod";
 
 import { Button } from "#/components/ui/button.tsx";
@@ -64,6 +63,7 @@ import {
 	payloadPreview,
 	resourceTypeLabel,
 } from "#/data/events.ts";
+import { useCopyToClipboard } from "#/hooks/use-copy-to-clipboard.ts";
 import { useDebouncedSearchInput } from "#/hooks/use-debounced-search-input.ts";
 import { formatDateTime, formatRelativeTime } from "#/lib/date.ts";
 import { pageSizeSchema } from "#/lib/pagination-sizes.ts";
@@ -103,16 +103,8 @@ export const Route = createFileRoute("/_dashboard/events")({
 	head: () => ({ meta: [{ title: "Events | SubPilot" }] }),
 });
 
-async function copyText(text: string, label: string) {
-	try {
-		await navigator.clipboard.writeText(text);
-		toast.success(`${label} copied`, { duration: 2000 });
-	} catch {
-		toast.error("Couldn't copy to clipboard.");
-	}
-}
-
 function ResourceIdCell({ id }: { id: string }) {
+	const copyToClipboard = useCopyToClipboard();
 	const truncated = id.length > 14 ? `${id.slice(0, 14)}…` : id;
 	return (
 		<Tooltip>
@@ -121,7 +113,10 @@ function ResourceIdCell({ id }: { id: string }) {
 					type="button"
 					onClick={(e) => {
 						e.stopPropagation();
-						copyText(id, "Resource ID");
+						copyToClipboard(id, {
+							successMessage: "Resource ID copied",
+							duration: 2000,
+						});
 					}}
 					className="font-heading text-xs text-(--ink-2) hover:text-(--ink)"
 				>
@@ -147,6 +142,7 @@ function TimestampCell({ iso }: { iso: string }) {
 function EventsPage() {
 	const { eventType, q, page, size } = Route.useSearch();
 	const navigate = useNavigate({ from: Route.fullPath });
+	const copyToClipboard = useCopyToClipboard();
 	const [selectedId, setSelectedId] = useState<string | null>(null);
 	const { data: eventsPage, isPlaceholderData } = useQuery(
 		eventsListQueryOptions({ eventType, q, page, size }),
@@ -415,13 +411,13 @@ function EventsPage() {
 											variant="ghost"
 											size="icon-sm"
 											onClick={() =>
-												copyText(
+												copyToClipboard(
 													JSON.stringify(
 														parsePayload(selectedEvent.payload),
 														null,
 														2,
 													),
-													"Payload",
+													{ successMessage: "Payload copied", duration: 2000 },
 												)
 											}
 											className="text-(--ink-3) hover:text-(--ink)"

@@ -51,6 +51,7 @@ import {
 	updatePlan,
 } from "#/data/plans.ts";
 import { activeSubscriptionsCountForPlanQueryOptions } from "#/data/subscriptions.ts";
+import { useCopyToClipboard } from "#/hooks/use-copy-to-clipboard.ts";
 import { useHandleMutationError } from "#/hooks/use-handle-mutation-error.ts";
 import { classifyError } from "#/lib/api/classify-error.ts";
 import { isSessionError } from "#/lib/api/is-session-error.ts";
@@ -130,6 +131,7 @@ function PlanDetailPage() {
 	const [archiveDialogOpen, setArchiveDialogOpen] = useState(false);
 
 	const handleMutationError = useHandleMutationError();
+	const copyToClipboard = useCopyToClipboard();
 
 	const updateMutation = useMutation({
 		mutationFn: (nextPlan: Pick<Plan, "description" | "name" | "trialDays">) =>
@@ -223,12 +225,10 @@ function PlanDetailPage() {
 	async function handleCopyUrl() {
 		if (!plan) return;
 		const url = `${window.location.origin}${checkoutUrl(plan)}`;
-		try {
-			await navigator.clipboard.writeText(url);
-			toast.success("Checkout link copied", { duration: 2000 });
-		} catch {
-			toast.error("Couldn't copy to clipboard.");
-		}
+		await copyToClipboard(url, {
+			successMessage: "Checkout link copied",
+			duration: 2000,
+		});
 	}
 
 	return (

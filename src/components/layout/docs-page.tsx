@@ -17,7 +17,7 @@ const navSections = [
 	{ id: "webhook-events", label: "Webhook events" },
 ];
 
-export default function DocsPage() {
+export function DocsPage() {
 	return (
 		<div className="px-6">
 			<div className="page-wrap flex flex-col gap-10 py-12 sm:py-16">

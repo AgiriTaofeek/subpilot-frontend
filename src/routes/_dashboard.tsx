@@ -9,6 +9,7 @@ import {
 	RouteErrorFallback,
 	SessionExpiredFallback,
 } from "#/components/layout/route-error-fallback.tsx";
+import { SkipToContentLink } from "#/components/layout/skip-to-content-link.tsx";
 import { Button } from "#/components/ui/button.tsx";
 import {
 	SIDEBAR_COOKIE_NAME,
@@ -99,11 +100,12 @@ function DashboardLayout() {
 
 	return (
 		<SidebarProvider defaultOpen={sidebarOpen}>
+			<SkipToContentLink />
 			<DashboardSidebar />
 			<SidebarInset>
 				<DashboardHeader merchantSession={merchantSession} />
 				<MerchantStatusBanner status={merchantSession.status} />
-				<div className="flex flex-1 flex-col">
+				<div id="main-content" tabIndex={-1} className="flex flex-1 flex-col">
 					<Outlet />
 				</div>
 			</SidebarInset>
