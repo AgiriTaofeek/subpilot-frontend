@@ -156,7 +156,7 @@ function InternalLoginPage() {
 												>
 													Password
 												</FieldLabel>
-												<InputGroup className="rounded-md border-(--line) bg-(--surface) px-3">
+												<InputGroup className="border-(--line) bg-(--surface) px-3">
 													<InputGroupInput
 														id="password"
 														name={field.name}

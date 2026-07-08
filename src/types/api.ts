@@ -144,6 +144,34 @@ export interface CustomerEntityDto {
 	updatedAt: string;
 }
 
+export interface SavedCardDto {
+	tokenKey: string;
+	cardType: string;
+	cardPan: string;
+	tokenExpirationDate: string;
+}
+
+/**
+ * GET /v1/customers/{id} — unlike CustomerEntityDto (used by the list
+ * endpoint), this has no updatedAt and adds savedCards: live-fetched from
+ * Nomba by email, so it can legitimately differ from this customer's
+ * locally-cached cardToken/cardLast4/cardBrand columns.
+ */
+export interface CustomerDetailResponseDto {
+	id: string;
+	merchantId: string;
+	fullName: string;
+	email: string;
+	phone: string | null;
+	nombaCustomerId: string | null;
+	cardToken: string | null;
+	cardLast4: string | null;
+	cardExpiry: string | null;
+	cardBrand: string | null;
+	createdAt: string;
+	savedCards: SavedCardDto[];
+}
+
 export interface CancelSubscriptionRequestDto {
 	reason?: string;
 	immediate: boolean;

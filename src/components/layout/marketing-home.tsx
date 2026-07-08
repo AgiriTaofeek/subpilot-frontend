@@ -411,7 +411,12 @@ function CapabilityBands() {
 							))}
 						</div>
 					</div>
-					<div>{band.mockup}</div>
+					<div className="relative">
+						<span className="pointer-events-none absolute top-3 right-3 z-10 rounded-full border border-(--line) bg-(--surface-1)/80 px-2 py-0.5 font-heading text-[0.6rem] tracking-wide text-(--ink-3) backdrop-blur-sm">
+							Sample
+						</span>
+						{band.mockup}
+					</div>
 				</div>
 			))}
 		</div>
@@ -601,29 +606,42 @@ function WebhooksSection() {
 					</Link>
 				</div>
 
-				<div className="grid gap-6 rounded-2xl border border-(--pitch-line) bg-(--pitch-1) px-6 py-6 sm:grid-cols-3">
-					<AnimatedStat value={1284} label="Active subscriptions" />
-					<AnimatedStat
-						value={12.4}
-						decimals={1}
-						prefix="₦"
-						suffix="M"
-						label="Net revenue / 30d"
-					/>
-					<AnimatedStat
-						value={99.98}
-						decimals={2}
-						suffix="%"
-						label="Webhook delivery"
-					/>
+				<div className="flex flex-col gap-3 rounded-2xl border border-(--pitch-line) bg-(--pitch-1) px-6 py-6">
+					<div className="grid gap-6 sm:grid-cols-3">
+						<AnimatedStat value={1284} label="Active subscriptions" />
+						<AnimatedStat
+							value={12.4}
+							decimals={1}
+							prefix="₦"
+							suffix="M"
+							label="Net revenue / 30d"
+						/>
+						<AnimatedStat
+							value={99.98}
+							decimals={2}
+							suffix="%"
+							label="Webhook delivery"
+						/>
+					</div>
+					<p className="m-0 text-xs text-(--pitch-fg-3)">
+						Illustrative example — every new SubPilot dashboard starts at zero.
+					</p>
 				</div>
 
 				<div className="grid gap-4 lg:grid-cols-[0.95fr_1.05fr]">
 					<Card className="border border-(--pitch-line) bg-(--pitch-2) py-0 shadow-none">
 						<CardHeader className="px-5 py-5">
-							<CardTitle className="font-sans text-xl normal-case tracking-tight text-(--pitch-fg)">
-								API keys + event visibility
-							</CardTitle>
+							<div className="flex items-center gap-2">
+								<CardTitle className="font-sans text-xl normal-case tracking-tight text-(--pitch-fg)">
+									API keys + event visibility
+								</CardTitle>
+								<Badge
+									variant="outline"
+									className="border-(--pitch-line) text-(--pitch-fg-3)"
+								>
+									Sample data
+								</Badge>
+							</div>
 							<CardDescription className="text-(--pitch-fg-2)">
 								Use SubPilot operationally in the dashboard, then wire it into
 								downstream systems cleanly.

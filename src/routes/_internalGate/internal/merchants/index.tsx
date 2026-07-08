@@ -47,6 +47,7 @@ import {
 	merchantStatusTone,
 } from "#/data/internal-merchants.ts";
 import { useDebouncedSearchInput } from "#/hooks/use-debounced-search-input.ts";
+import { activatableRowProps } from "#/lib/activatable-row.ts";
 import { formatDate } from "#/lib/date.ts";
 import { pageSizeSchema } from "#/lib/pagination-sizes.ts";
 
@@ -129,6 +130,13 @@ function InternalMerchantsPage() {
 		});
 	});
 
+	function goToMerchant(merchantId: string) {
+		navigate({
+			to: "/internal/merchants/$merchantId",
+			params: { merchantId },
+		});
+	}
+
 	if (!merchantsPage) {
 		return <ListPageSkeleton columns={4} />;
 	}
@@ -188,7 +196,8 @@ function InternalMerchantsPage() {
 							: "flex flex-col gap-6"
 					}
 				>
-					<div className="overflow-hidden rounded-2xl border border-(--line) bg-(--surface-1)">
+					{/* Desktop table */}
+					<div className="hidden overflow-hidden rounded-2xl border border-(--line) bg-(--surface-1) md:block">
 						<Table>
 							<TableHeader>
 								<TableRow className="border-(--line) hover:bg-transparent">
@@ -237,6 +246,37 @@ function InternalMerchantsPage() {
 								))}
 							</TableBody>
 						</Table>
+					</div>
+
+					{/* Mobile cards */}
+					<div className="flex flex-col gap-3 md:hidden">
+						{merchants.map((merchant) => (
+							<div
+								key={merchant.merchantId}
+								{...activatableRowProps(() =>
+									goToMerchant(merchant.merchantId),
+								)}
+								className="flex cursor-pointer flex-col gap-2 rounded-2xl border border-(--line) bg-(--surface-1) p-4"
+							>
+								<div className="flex items-start justify-between gap-2">
+									<div>
+										<p className="m-0 font-medium text-(--ink)">
+											{merchant.businessName}
+										</p>
+										<p className="m-0 text-xs text-(--ink-3)">
+											{merchant.email}
+										</p>
+									</div>
+									<StatusBadge tone={merchantStatusTone[merchant.status]}>
+										{merchantStatusLabel[merchant.status]}
+									</StatusBadge>
+								</div>
+								<div className="text-sm text-(--ink-2)">
+									{merchant.feeSource === "override" ? "Override" : "Default"}{" "}
+									fees · {formatDate(merchant.createdAt)}
+								</div>
+							</div>
+						))}
 					</div>
 
 					<div className="flex items-center justify-between gap-3">

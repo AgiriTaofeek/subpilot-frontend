@@ -6,6 +6,7 @@ import {
 	requireSessionCookieMiddleware,
 } from "#/lib/api/backend.ts";
 import type {
+	CustomerDetailResponseDto,
 	CustomerEntityDto,
 	PageResponse,
 	PlanResponseDto,
@@ -106,7 +107,7 @@ export const getCustomerDetail = createServerFn({ method: "GET" })
 	.validator(customerIdSchema)
 	.handler(async ({ data }) => {
 		const [customer, subscriptions] = await Promise.all([
-			backendRequest<CustomerEntityDto>({
+			backendRequest<CustomerDetailResponseDto>({
 				path: `/v1/customers/${data.customerId}`,
 			}),
 			fetchSubscriptionsForCustomer(data.customerId),
@@ -134,6 +135,10 @@ export const getCustomerDetail = createServerFn({ method: "GET" })
 				cardLast4: customer.cardLast4 ?? "----",
 				cardExpiry: customer.cardExpiry ?? "—",
 				createdAt: customer.createdAt,
+				// Nomba's tokenized-card list can include incomplete records (no
+				// PAN) from abandoned/failed tokenization attempts — not a real
+				// saved card a merchant should see.
+				savedCards: customer.savedCards.filter((card) => card.cardPan),
 			},
 			subscriptions: subscriptions.map((subscription) => {
 				const plan = plansById.get(subscription.planId);

@@ -61,6 +61,7 @@ import {
 	formatInterval,
 	restrictedMerchantStatusCopy,
 } from "#/data/plans.ts";
+import { CATEGORY_COPY, classifyError } from "#/lib/api/classify-error.ts";
 import { formatNGN } from "#/lib/currency.ts";
 
 const dashboardRouteApi = getRouteApi("/_dashboard");
@@ -152,11 +153,9 @@ function NewPlanPage() {
 				await navigate({ to: "/plans/$planId", params: { planId: plan.id } });
 				toast.success("Plan created");
 			} catch (error) {
-				toast.error(
-					error instanceof Error
-						? error.message
-						: "Couldn't create the plan. Try again.",
-				);
+				const message =
+					error instanceof Error ? error.message : "Unknown error";
+				toast.error(CATEGORY_COPY[classifyError(message)]);
 				return;
 			}
 		},

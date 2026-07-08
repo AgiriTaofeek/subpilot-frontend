@@ -164,6 +164,37 @@ function CustomerDetailPage() {
 				</Card>
 			</div>
 
+			<Card className="border border-(--line) bg-(--surface-1) shadow-none">
+				<CardHeader>
+					<CardTitle className="font-sans text-base normal-case tracking-tight text-(--ink)">
+						Saved cards on Nomba
+					</CardTitle>
+				</CardHeader>
+				<CardContent>
+					{customer.savedCards.length === 0 ? (
+						<p className="text-sm text-(--ink-3)">
+							No cards saved with Nomba for this customer&apos;s email.
+						</p>
+					) : (
+						<div className="flex flex-col divide-y divide-(--line)">
+							{customer.savedCards.map((card) => (
+								<div
+									key={card.tokenKey}
+									className="flex items-center justify-between gap-3 py-2.5 text-sm first:pt-0 last:pb-0"
+								>
+									<span className="text-(--ink)">
+										{card.cardType} {card.cardPan}
+									</span>
+									<span className="text-(--ink-3)">
+										Exp. {card.tokenExpirationDate}
+									</span>
+								</div>
+							))}
+						</div>
+					)}
+				</CardContent>
+			</Card>
+
 			<Card
 				id="subscriptions-list"
 				className="scroll-mt-6 border border-(--line) bg-(--surface-1) shadow-none"

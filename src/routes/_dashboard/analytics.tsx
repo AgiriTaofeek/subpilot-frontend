@@ -1,12 +1,14 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import {
 	createFileRoute,
+	Link,
 	stripSearchParams,
 	useNavigate,
 } from "@tanstack/react-router";
 import { Area, AreaChart, CartesianGrid, XAxis, YAxis } from "recharts";
 import { z } from "zod";
 
+import { Button } from "#/components/ui/button.tsx";
 import {
 	Card,
 	CardContent,
@@ -19,6 +21,13 @@ import {
 	ChartTooltip,
 	ChartTooltipContent,
 } from "#/components/ui/chart.tsx";
+import {
+	Empty,
+	EmptyContent,
+	EmptyDescription,
+	EmptyHeader,
+	EmptyTitle,
+} from "#/components/ui/empty.tsx";
 import { StatusBadge } from "#/components/ui/status-badge.tsx";
 import { ToggleGroup, ToggleGroupItem } from "#/components/ui/toggle-group.tsx";
 import {
@@ -115,6 +124,37 @@ function AnalyticsPage() {
 			search: (prev) => ({ ...prev, window: value as AnalyticsWindow }),
 			resetScroll: false,
 		});
+	}
+
+	const hasAnyActivity =
+		summary.mrr > 0 ||
+		summary.activeSubscribers > 0 ||
+		summary.newSubscribersInRange > 0;
+
+	if (!hasAnyActivity) {
+		return (
+			<div className="flex flex-1 items-center justify-center p-10">
+				<Empty className="max-w-sm rounded-2xl border border-dashed border-(--line) bg-(--surface-1)">
+					<EmptyHeader>
+						<EmptyTitle className="font-sans text-lg normal-case tracking-tight text-(--ink)">
+							No analytics yet
+						</EmptyTitle>
+						<EmptyDescription className="text-(--ink-3)">
+							Publish a plan and get your first subscriber to start seeing MRR,
+							growth, and payment health here.
+						</EmptyDescription>
+					</EmptyHeader>
+					<EmptyContent>
+						<Button
+							asChild
+							className="border-0 bg-(--brand) text-(--brand-fg) hover:bg-(--brand)/90"
+						>
+							<Link to="/plans">View plans</Link>
+						</Button>
+					</EmptyContent>
+				</Empty>
+			</div>
+		);
 	}
 
 	return (

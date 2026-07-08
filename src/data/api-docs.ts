@@ -296,6 +296,35 @@ export const apiResourceGroups: ApiResourceGroup[] = [
 		],
 	},
 	{
+		id: "payouts",
+		title: "Payouts",
+		description:
+			"Your net revenue (gross minus SubPilot's platform fee) settles to your bank account on a rolling schedule — list past payouts here.",
+		endpoints: [
+			{
+				method: "GET",
+				path: "/v1/payouts",
+				summary: "List payouts",
+				responseExample: `{
+  "data": [
+    {
+      "id": "01JH8W3D0P6R8T2UVX4BCD9F",
+      "amount": 12400000,
+      "currency": "NGN",
+      "status": "succeeded",
+      "invoiceCount": 38,
+      "periodStart": "2025-06-01T00:00:00Z",
+      "periodEnd": "2025-06-30T00:00:00Z",
+      "nombaTransferReference": "NMB-TRF-XYZ",
+      "createdAt": "2025-07-01T06:00:00Z",
+      "resolvedAt": "2025-07-01T06:02:00Z"
+    }
+  ]
+}`,
+			},
+		],
+	},
+	{
 		id: "webhooks",
 		title: "Webhook endpoints",
 		description:
