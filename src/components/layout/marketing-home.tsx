@@ -412,9 +412,12 @@ function CapabilityBands() {
 						</div>
 					</div>
 					<div className="relative">
-						<span className="pointer-events-none absolute top-3 right-3 z-10 rounded-full border border-(--line) bg-(--surface-1)/80 px-2 py-0.5 font-heading text-[0.6rem] tracking-wide text-(--ink-3) backdrop-blur-sm">
+						<Badge
+							variant="outline"
+							className="pointer-events-none absolute top-3 right-3 z-10 rounded-full border-(--line) bg-(--surface-1)/80 px-2 py-0.5 text-(--ink-3) backdrop-blur-sm"
+						>
 							Sample
-						</span>
+						</Badge>
 						{band.mockup}
 					</div>
 				</div>
