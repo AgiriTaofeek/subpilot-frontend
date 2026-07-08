@@ -1,7 +1,10 @@
 import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
-import { requireSessionCookieMiddleware } from "#/lib/api/backend.ts";
+import {
+	isUnauthenticatedBackendError,
+	requireSessionCookieMiddleware,
+} from "#/lib/api/backend.ts";
 import { internalBackendRequest } from "#/lib/api/internal-backend.ts";
 import type { InternalAdminSessionDto } from "#/types/api.ts";
 
@@ -20,13 +23,32 @@ export const loginInternalAdmin = createServerFn({ method: "POST" })
 		});
 	});
 
+async function getInternalAdminSessionRequest() {
+	return internalBackendRequest<InternalAdminSessionDto>({
+		path: "/v1/internal/auth/me",
+	});
+}
+
 export const getInternalAdminSession = createServerFn({ method: "GET" })
 	.middleware([requireSessionCookieMiddleware])
-	.handler(async () => {
-		return internalBackendRequest<InternalAdminSessionDto>({
-			path: "/v1/internal/auth/me",
-		});
-	});
+	.handler(async () => getInternalAdminSessionRequest());
+
+// Absence of a cookie (or a rejected one) is a valid "logged out" result
+// here, not an error — mirrors getOptionalMerchantSession in auth.ts, used
+// by internal.login.tsx to redirect an already-authenticated staff member
+// away from the login form instead of showing it again.
+export const getOptionalInternalAdminSession = createServerFn({
+	method: "GET",
+}).handler(async () => {
+	try {
+		return await getInternalAdminSessionRequest();
+	} catch (error) {
+		if (isUnauthenticatedBackendError(error)) {
+			return null;
+		}
+		throw error;
+	}
+});
 
 export const logoutInternalAdmin = createServerFn({ method: "POST" })
 	.middleware([requireSessionCookieMiddleware])

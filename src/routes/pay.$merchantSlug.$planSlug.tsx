@@ -181,6 +181,7 @@ function PublicCheckoutPage() {
 							<form
 								onSubmit={(e) => {
 									e.preventDefault();
+									e.stopPropagation();
 									form.handleSubmit();
 								}}
 								noValidate

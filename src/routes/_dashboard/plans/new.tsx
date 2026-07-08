@@ -215,6 +215,7 @@ function NewPlanPage() {
 			<form
 				onSubmit={(e) => {
 					e.preventDefault();
+					e.stopPropagation();
 					form.handleSubmit();
 				}}
 				noValidate
@@ -359,6 +360,7 @@ function NewPlanPage() {
 												size="sm"
 												value={currentKind}
 												onValueChange={(value) => {
+													field.handleBlur();
 													if (!value) return;
 													if (value === "custom") {
 														field.handleChange({
@@ -488,9 +490,10 @@ function NewPlanPage() {
 										</FieldLabel>
 										<RadioGroup
 											value={field.state.value}
-											onValueChange={(v) =>
-												field.handleChange(v as "none" | "credit" | "charge")
-											}
+											onValueChange={(v) => {
+												field.handleChange(v as "none" | "credit" | "charge");
+												field.handleBlur();
+											}}
 										>
 											{prorationOptions.map((opt) => (
 												<FieldLabel

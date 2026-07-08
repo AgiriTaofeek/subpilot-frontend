@@ -221,6 +221,7 @@ function WebhookEndpointsPage() {
 								<form
 									onSubmit={(e) => {
 										e.preventDefault();
+										e.stopPropagation();
 										form.handleSubmit();
 									}}
 									noValidate

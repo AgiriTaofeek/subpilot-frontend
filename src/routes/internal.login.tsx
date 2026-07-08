@@ -1,7 +1,7 @@
 import { EyeIcon, EyeSlashIcon } from "@phosphor-icons/react";
 import { useForm } from "@tanstack/react-form";
 import { useQueryClient } from "@tanstack/react-query";
-import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { createFileRoute, redirect, useNavigate } from "@tanstack/react-router";
 import { useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
@@ -27,9 +27,19 @@ import {
 } from "#/components/ui/input-group.tsx";
 import { Spinner } from "#/components/ui/spinner.tsx";
 import { CATEGORY_COPY, classifyError } from "#/lib/api/classify-error.ts";
-import { loginInternalAdmin } from "#/lib/api/internal-auth.ts";
+import {
+	getOptionalInternalAdminSession,
+	loginInternalAdmin,
+} from "#/lib/api/internal-auth.ts";
 
 export const Route = createFileRoute("/internal/login")({
+	beforeLoad: async () => {
+		const internalAdminSession = await getOptionalInternalAdminSession();
+
+		if (internalAdminSession) {
+			throw redirect({ to: "/internal" });
+		}
+	},
 	component: InternalLoginPage,
 	head: () => ({ meta: [{ title: "Internal sign in | SubPilot" }] }),
 });
@@ -97,6 +107,7 @@ function InternalLoginPage() {
 						<form
 							onSubmit={(e) => {
 								e.preventDefault();
+								e.stopPropagation();
 								form.handleSubmit();
 							}}
 							noValidate
