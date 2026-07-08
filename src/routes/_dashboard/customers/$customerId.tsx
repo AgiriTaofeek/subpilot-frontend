@@ -23,18 +23,39 @@ import {
 } from "#/components/ui/table.tsx";
 import { customerDetailQueryOptions } from "#/data/customers.ts";
 import {
+	invoiceStatusLabel,
+	invoiceStatusTone,
+	invoicesListPageQueryOptions,
+} from "#/data/invoices.ts";
+import {
 	formatRelativeBillingDate,
 	subscriptionStatusLabel,
 	subscriptionStatusTone,
 } from "#/data/subscriptions.ts";
+import { activatableRowProps } from "#/lib/activatable-row.ts";
 import { classifyError } from "#/lib/api/classify-error.ts";
 import { isSessionError } from "#/lib/api/is-session-error.ts";
 import { formatNGN } from "#/lib/currency.ts";
+import { formatDate } from "#/lib/date.ts";
+
+// 10 is the smallest allowed PageSize (see pagination-sizes.ts) — this is a
+// preview, not a paginated list, so "View all invoices" below covers the rest.
+const RECENT_INVOICES_PREVIEW_SIZE = 10;
 
 export const Route = createFileRoute("/_dashboard/customers/$customerId")({
 	loader: async ({ context, params }) => {
-		await context.queryClient.ensureQueryData(
+		const { customer } = await context.queryClient.ensureQueryData(
 			customerDetailQueryOptions(params.customerId),
+		);
+		// Same q=email pattern the "View all invoices" link already relies on
+		// (invoice search matches on the customer's email) — a bounded preview,
+		// not the over-fetching whole-table pattern fixed elsewhere.
+		await context.queryClient.ensureQueryData(
+			invoicesListPageQueryOptions({
+				q: customer.email,
+				page: 1,
+				size: RECENT_INVOICES_PREVIEW_SIZE,
+			}),
 		);
 	},
 	component: CustomerDetailPage,
@@ -86,6 +107,14 @@ function CustomerDetailPage() {
 	const { data } = useSuspenseQuery(customerDetailQueryOptions(customerId));
 	const { customer, subscriptions: subs } = data;
 	const pastDueCount = subs.filter((s) => s.status === "past_due").length;
+	const { data: invoicesPage } = useSuspenseQuery(
+		invoicesListPageQueryOptions({
+			q: customer.email,
+			page: 1,
+			size: RECENT_INVOICES_PREVIEW_SIZE,
+		}),
+	);
+	const recentInvoices = invoicesPage.content;
 
 	function goToSubscription(subscriptionId: string) {
 		navigate({
@@ -212,15 +241,10 @@ function CustomerDetailPage() {
 								{subs.map((sub) => (
 									<div
 										key={sub.id}
-										className="relative flex flex-col gap-1.5 rounded-md border border-(--line) p-3"
+										{...activatableRowProps(() => goToSubscription(sub.id))}
+										className="flex cursor-pointer flex-col gap-1.5 rounded-md border border-(--line) p-3"
 									>
-										<button
-											type="button"
-											onClick={() => goToSubscription(sub.id)}
-											aria-label={`View ${sub.planName} subscription`}
-											className="absolute inset-0 z-0 rounded-md"
-										/>
-										<div className="relative z-10 flex items-center justify-between gap-2">
+										<div className="flex items-center justify-between gap-2">
 											<span className="font-medium text-(--ink)">
 												{sub.planName}
 											</span>
@@ -228,7 +252,7 @@ function CustomerDetailPage() {
 												{subscriptionStatusLabel[sub.status]}
 											</StatusBadge>
 										</div>
-										<div className="relative z-10 text-sm text-(--ink-2)">
+										<div className="text-sm text-(--ink-2)">
 											{formatNGN(sub.amountKobo)} · Next:{" "}
 											{formatRelativeBillingDate(sub.nextBillingDate)}
 										</div>
@@ -247,7 +271,33 @@ function CustomerDetailPage() {
 					</CardTitle>
 				</CardHeader>
 				<CardContent className="flex flex-col gap-3">
-					<p className="text-sm text-(--ink-3)">No invoices yet.</p>
+					{recentInvoices.length === 0 ? (
+						<p className="text-sm text-(--ink-3)">No invoices yet.</p>
+					) : (
+						<div className="flex flex-col divide-y divide-(--line)">
+							{recentInvoices.map((invoice) => (
+								<Link
+									key={invoice.id}
+									to="/invoices/$invoiceId"
+									params={{ invoiceId: invoice.id }}
+									className="flex items-center justify-between gap-3 py-2.5 text-sm no-underline first:pt-0 last:pb-0"
+								>
+									<span className="font-heading text-xs text-(--ink)">
+										{invoice.number}
+									</span>
+									<span className="text-(--ink-3)">
+										{formatDate(invoice.createdAt)}
+									</span>
+									<span className="text-(--ink-2)">
+										{formatNGN(invoice.grossKobo)}
+									</span>
+									<StatusBadge tone={invoiceStatusTone[invoice.status]}>
+										{invoiceStatusLabel[invoice.status]}
+									</StatusBadge>
+								</Link>
+							))}
+						</div>
+					)}
 
 					<Link
 						to="/invoices"

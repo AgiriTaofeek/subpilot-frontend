@@ -14,6 +14,7 @@ import {
 } from "#/components/ui/card.tsx";
 import {
 	Field,
+	FieldDescription,
 	FieldError,
 	FieldGroup,
 	FieldLabel,
@@ -254,6 +255,11 @@ function SignupPage() {
 												</InputGroupButton>
 											</InputGroupAddon>
 										</InputGroup>
+
+										<FieldDescription className="text-xs">
+											8-100 characters, with an uppercase letter, a lowercase
+											letter, and a number.
+										</FieldDescription>
 
 										{field.state.value.length > 0 && (
 											<PasswordStrength strength={strength}>

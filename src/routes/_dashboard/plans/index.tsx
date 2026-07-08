@@ -21,12 +21,20 @@ import {
 	getCoreRowModel,
 	useReactTable,
 } from "@tanstack/react-table";
-import { useCallback, useMemo } from "react";
+import { useCallback, useMemo, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
 
 import { RestrictedAction } from "#/components/layout/restricted-action.tsx";
 import { Button } from "#/components/ui/button.tsx";
+import {
+	Dialog,
+	DialogContent,
+	DialogDescription,
+	DialogFooter,
+	DialogHeader,
+	DialogTitle,
+} from "#/components/ui/dialog.tsx";
 import {
 	DropdownMenu,
 	DropdownMenuContent,
@@ -52,6 +60,7 @@ import {
 	PaginationNext,
 	PaginationPrevious,
 } from "#/components/ui/pagination.tsx";
+import { Spinner } from "#/components/ui/spinner.tsx";
 import { StatusBadge } from "#/components/ui/status-badge.tsx";
 import {
 	Table,
@@ -141,6 +150,12 @@ function PlansListPage() {
 		plansListQueryOptions({ page, status, q, sort, order, size }),
 	);
 	const handleMutationError = useHandleMutationError();
+	const [publishConfirmPlan, setPublishConfirmPlan] = useState<Plan | null>(
+		null,
+	);
+	const [archiveConfirmPlan, setArchiveConfirmPlan] = useState<Plan | null>(
+		null,
+	);
 
 	function handleSizeChange(nextSize: number) {
 		navigate({
@@ -157,6 +172,7 @@ function PlansListPage() {
 				planDetailQueryOptions(updatedPlan.id).queryKey,
 				updatedPlan,
 			);
+			setPublishConfirmPlan(null);
 			toast.success("Plan published");
 		},
 		onError: (error) =>
@@ -173,6 +189,7 @@ function PlansListPage() {
 				planDetailQueryOptions(updatedPlan.id).queryKey,
 				updatedPlan,
 			);
+			setArchiveConfirmPlan(null);
 			toast.success("Plan archived");
 		},
 		onError: (error) =>
@@ -349,10 +366,8 @@ function PlansListPage() {
 								</DropdownMenuItem>
 								{plan.status === "draft" && (
 									<DropdownMenuItem
-										disabled={
-											isPublishPending || merchantSession.status !== "active"
-										}
-										onClick={() => publishPlanMutate(plan.id)}
+										disabled={merchantSession.status !== "active"}
+										onClick={() => setPublishConfirmPlan(plan)}
 									>
 										Publish
 									</DropdownMenuItem>
@@ -360,8 +375,7 @@ function PlansListPage() {
 								{plan.status !== "archived" && (
 									<DropdownMenuItem
 										variant="destructive"
-										disabled={isArchivePending}
-										onClick={() => archivePlanMutate(plan.id)}
+										onClick={() => setArchiveConfirmPlan(plan)}
 									>
 										Archive
 									</DropdownMenuItem>
@@ -378,10 +392,6 @@ function PlansListPage() {
 		handleSortToggle,
 		handleCopy,
 		goToPlan,
-		isPublishPending,
-		publishPlanMutate,
-		isArchivePending,
-		archivePlanMutate,
 		merchantSession.status,
 	]);
 
@@ -665,6 +675,86 @@ function PlansListPage() {
 					</div>
 				</div>
 			)}
+
+			<Dialog
+				open={publishConfirmPlan !== null}
+				onOpenChange={(open) => !open && setPublishConfirmPlan(null)}
+			>
+				<DialogContent>
+					<DialogHeader>
+						<DialogTitle>Publish this plan?</DialogTitle>
+						<DialogDescription>
+							Once published, your plan is live at its checkout link. Amount and
+							billing interval cannot be changed after publishing.
+						</DialogDescription>
+					</DialogHeader>
+					<DialogFooter>
+						<Button
+							variant="outline"
+							onClick={() => setPublishConfirmPlan(null)}
+							className="border-(--line)"
+						>
+							Cancel
+						</Button>
+						<Button
+							onClick={() =>
+								publishConfirmPlan && publishPlanMutate(publishConfirmPlan.id)
+							}
+							disabled={isPublishPending}
+							className="border-0 bg-(--brand) text-(--brand-fg) hover:bg-(--brand)/90"
+						>
+							{isPublishPending ? (
+								<>
+									<Spinner data-icon="inline-start" />
+									Publishing…
+								</>
+							) : (
+								"Publish"
+							)}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
+
+			<Dialog
+				open={archiveConfirmPlan !== null}
+				onOpenChange={(open) => !open && setArchiveConfirmPlan(null)}
+			>
+				<DialogContent>
+					<DialogHeader>
+						<DialogTitle>Archive this plan?</DialogTitle>
+						<DialogDescription>
+							Archived plans cannot receive new subscribers. Existing
+							subscriptions are not affected.
+						</DialogDescription>
+					</DialogHeader>
+					<DialogFooter>
+						<Button
+							variant="outline"
+							onClick={() => setArchiveConfirmPlan(null)}
+							className="border-(--line)"
+						>
+							Cancel
+						</Button>
+						<Button
+							variant="destructive"
+							onClick={() =>
+								archiveConfirmPlan && archivePlanMutate(archiveConfirmPlan.id)
+							}
+							disabled={isArchivePending}
+						>
+							{isArchivePending ? (
+								<>
+									<Spinner data-icon="inline-start" />
+									Archiving…
+								</>
+							) : (
+								"Archive"
+							)}
+						</Button>
+					</DialogFooter>
+				</DialogContent>
+			</Dialog>
 		</div>
 	);
 }
