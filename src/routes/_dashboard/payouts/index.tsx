@@ -81,6 +81,7 @@ import {
 	payoutBanksQueryOptions,
 } from "#/data/payouts.ts";
 import { useHandleMutationError } from "#/hooks/use-handle-mutation-error.ts";
+import { getBackendErrorDetails } from "#/lib/api/classify-error.ts";
 import { isSessionError } from "#/lib/api/is-session-error.ts";
 import {
 	lookupPayoutAccount,
@@ -428,7 +429,8 @@ function PayoutsPage() {
 		onError: (error) => {
 			setTriggerConfirmOpen(false);
 			const message = error instanceof Error ? error.message : String(error);
-			if (message.includes(PAYOUT_ACCOUNT_NOT_CONFIGURED_MESSAGE)) {
+			const { displayMessage } = getBackendErrorDetails(message);
+			if (displayMessage.includes(PAYOUT_ACCOUNT_NOT_CONFIGURED_MESSAGE)) {
 				toast.error("Set up your payout bank account first.");
 				setBankSheetOpen(true);
 				return;

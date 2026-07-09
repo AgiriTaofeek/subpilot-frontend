@@ -51,7 +51,16 @@ export const auditEventTypeGroups: Array<{
 	{ group: "Webhook", events: ["WEBHOOK_DELIVERED", "WEBHOOK_FAILED"] },
 	{
 		group: "Refund",
-		events: ["REFUND_CREATED", "REFUND_SUCCEEDED", "REFUND_FAILED"],
+		events: [
+			"REFUND_CREATED",
+			"REFUND_SUCCEEDED",
+			"REFUND_FAILED",
+			"REFUND_REJECTED",
+		],
+	},
+	{
+		group: "Payout",
+		events: ["PAYOUT_TRIGGERED", "PAYOUT_SUCCEEDED", "PAYOUT_FAILED"],
 	},
 ];
 

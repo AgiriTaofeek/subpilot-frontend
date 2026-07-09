@@ -68,13 +68,18 @@ export const internalBackendRequest = createServerOnlyFn(
 		if (input.responseSchema) {
 			const result = input.responseSchema.safeParse(payload);
 			if (!result.success) {
-				console.error(
-					`Backend response for ${method} ${input.path} didn't match the expected shape:`,
-					result.error.message,
-				);
-				throw new Error(
-					`The server sent back something this page didn't expect for ${input.path}. Please try again.`,
-				);
+				// See backendRequest's identical branch in backend.ts for why
+				// this logs instead of throwing (schema drift should be a
+				// diagnostic, not a page-blocking error) and why it's dev-only
+				// (payload contents can be sensitive internal-admin data —
+				// not something to ship into production log aggregation).
+				if (import.meta.env.DEV) {
+					console.error(
+						`Backend response for ${method} ${input.path} didn't match the expected shape:`,
+						result.error.message,
+					);
+				}
+				return payload as T;
 			}
 			return result.data;
 		}

@@ -5,8 +5,16 @@ import { z } from "zod";
 // those interfaces (which themselves mirror the Java backend's response
 // records) — passed as `responseSchema` to backendRequest/internalBackendRequest
 // so a drift between what Java actually returns and what this app assumes
-// throws a caught, classifiable error instead of silently reaching the
-// browser as `undefined` somewhere.
+// gets logged (dev-only — see backend.ts) instead of silently reaching the
+// browser as `undefined` somewhere with no trace of why. As of the "never
+// block on schema drift" change in backend.ts, a mismatch here is
+// diagnostic-only: it does NOT throw or drop the response — the raw payload
+// still reaches the caller, cast to the declared type. Treat every field
+// here as "the shape we currently believe is true and want a dev-console
+// warning if it changes," not as an enforced runtime contract — a stale
+// `required` on a field Java has since made nullable no longer breaks a
+// page in any environment, but it's still worth fixing when you spot one
+// locally so the type stays honest for callers relying on it.
 //
 // Every object schema uses .passthrough(): a bare z.object() strips any key
 // it doesn't recognize, which would mean validating a response also narrows
@@ -188,7 +196,10 @@ export const customerEntitySchema = createServerOnlyFn(() =>
 			email: z.string(),
 			phone: z.string().nullable(),
 			nombaCustomerId: z.string().nullable(),
-			cardToken: z.string().nullable(),
+			// @JsonIgnore on Customer.cardToken (co.subpilot.customer.entity.Customer)
+			// — the raw-entity list response never includes this key at all,
+			// not even as null, so it must be optional here, not just nullable.
+			cardToken: z.string().nullable().optional(),
 			cardLast4: z.string().nullable(),
 			cardExpiry: z.string().nullable(),
 			cardBrand: z.string().nullable(),
@@ -198,12 +209,17 @@ export const customerEntitySchema = createServerOnlyFn(() =>
 		.passthrough(),
 );
 
+// NombaGatewayImpl#listTokenizedCards reads every one of these off Nomba's
+// external API response via `.asText(null)` (JsonNode.path(...).asText(null)),
+// so any of them — not just the one that happened to trip validation first —
+// is null whenever Nomba's response is missing or malformed for that key.
+// None of these fields have a backend-side guarantee of being present.
 const savedCardSchema = z
 	.object({
-		tokenKey: z.string(),
-		cardType: z.string(),
-		cardPan: z.string(),
-		tokenExpirationDate: z.string(),
+		tokenKey: z.string().nullable(),
+		cardType: z.string().nullable(),
+		cardPan: z.string().nullable(),
+		tokenExpirationDate: z.string().nullable(),
 	})
 	.passthrough();
 
@@ -272,46 +288,22 @@ export const invoiceEntitySchema = createServerOnlyFn(() =>
 		.passthrough(),
 );
 
-const auditEventTypeSchema = z.enum([
-	"MERCHANT_CREATED",
-	"PLAN_CREATED",
-	"PLAN_UPDATED",
-	"PLAN_PUBLISHED",
-	"PLAN_ARCHIVED",
-	"SUBSCRIPTION_CREATED",
-	"SUBSCRIPTION_ACTIVATED",
-	"SUBSCRIPTION_RENEWED",
-	"SUBSCRIPTION_PAUSED",
-	"SUBSCRIPTION_RESUMED",
-	"SUBSCRIPTION_CANCELLED",
-	"SUBSCRIPTION_EXPIRED",
-	"SUBSCRIPTION_PAST_DUE",
-	"SUBSCRIPTION_SUSPENDED",
-	"PAYMENT_INITIATED",
-	"PAYMENT_SUCCEEDED",
-	"PAYMENT_FAILED",
-	"INVOICE_CREATED",
-	"INVOICE_PAID",
-	"INVOICE_VOIDED",
-	"DUNNING_STARTED",
-	"DUNNING_STEP_EXECUTED",
-	"DUNNING_RESOLVED",
-	"DUNNING_EXHAUSTED",
-	"DUNNING_RECOVERED",
-	"PRORATION_APPLIED",
-	"WEBHOOK_DELIVERED",
-	"WEBHOOK_FAILED",
-	"REFUND_CREATED",
-	"REFUND_SUCCEEDED",
-	"REFUND_FAILED",
-]);
-
 export const auditEventSchema = createServerOnlyFn(() =>
 	z
 		.object({
 			id: z.string(),
 			merchantId: z.string(),
-			type: auditEventTypeSchema,
+			// Java's `Event.type` (co.subpilot.event.entity.Event) is a plain
+			// `String` column — EventType is just a bag of String constants,
+			// not a real Java `enum` — so nothing on the backend guarantees
+			// this only ever holds one of the values in AuditEventTypeDto.
+			// A closed z.enum() here meant any legacy/unrecognized value
+			// (old data predating a rename, a value added server-side that
+			// this file hasn't caught up on) failed safeParse and dropped
+			// the entire events page, not just that one row. UI call sites
+			// only ever render `event.type` as raw text, never look it up
+			// in a map keyed by AuditEventTypeDto, so a plain string is safe.
+			type: z.string(),
 			resourceType: z.string(),
 			resourceId: z.string(),
 			subscriptionId: z.string().nullable(),
@@ -389,7 +381,12 @@ export const apiKeyResponseSchema = createServerOnlyFn(() =>
 			id: z.string(),
 			label: z.string(),
 			prefix: z.string(),
-			rawKey: z.string().optional(),
+			// AuthService.toApiKeyResponse always sets this field, but it's
+			// explicitly `null` (not omitted) for every entry from the list
+			// endpoint — only the create-key response has a real value. Jackson
+			// serializes that as a literal `null`, which .optional() alone
+			// rejects (it only accepts a missing key), so list calls threw.
+			rawKey: z.string().nullable().optional(),
 			createdAt: z.string(),
 			lastUsedAt: z.string().nullable(),
 			active: z.boolean(),
@@ -651,7 +648,11 @@ export const internalDefaultFeeResponseSchema = createServerOnlyFn(() =>
 			feeBps: z.number(),
 			fixedFeeMinor: z.number(),
 			updatedAt: z.string(),
-			updatedByAdminId: z.string(),
+			// PlatformFeeDefault.updatedByAdminId has no not-null DB constraint
+			// and getOrBootstrap() never sets it — a never-touched default row
+			// (fresh deploy, or one that just migrated to this feature) returns
+			// it as a literal `null`, not a missing key.
+			updatedByAdminId: z.string().nullable(),
 		})
 		.passthrough(),
 );

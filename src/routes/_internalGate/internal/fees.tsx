@@ -73,7 +73,8 @@ function InternalFeesPage() {
 				<CardContent className="flex flex-col gap-4">
 					<p className="m-0 text-xs text-(--ink-3)">
 						Applies to every merchant without a per-merchant override. Last
-						updated {formatDate(fee.updatedAt)} by {fee.updatedByAdminId}.
+						updated {formatDate(fee.updatedAt)}
+						{fee.updatedByAdminId ? ` by ${fee.updatedByAdminId}` : ""}.
 					</p>
 
 					<Field>

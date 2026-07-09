@@ -7,14 +7,17 @@ import {
 } from "#/lib/api/backend.ts";
 import { fetchAllPages } from "#/lib/api/pagination.ts";
 import {
+	customerDetailResponseSchema,
 	customerEntitySchema,
 	invoiceEntitySchema,
+	messageResponseSchema,
 	pageResponseSchema,
 	planResponseSchema,
 	refundResponseSchema,
 	subscriptionEntitySchema,
 } from "#/lib/api/response-schemas.ts";
 import type {
+	CustomerDetailResponseDto,
 	CustomerEntityDto,
 	InvoiceEntityDto,
 	PageResponse,
@@ -31,10 +34,14 @@ export const voidInvoice = createServerFn({ method: "POST" })
 	.middleware([requireSessionCookieMiddleware])
 	.validator(invoiceIdSchema)
 	.handler(async ({ data }) => {
-		return backendRequest<InvoiceEntityDto>({
+		// Java's InvoiceController#voidInvoice returns a plain
+		// { message: string } ack, not the updated invoice entity — callers
+		// re-fetch the invoice via query invalidation instead of using this
+		// return value.
+		return backendRequest<{ message: string }>({
 			path: `/v1/invoices/${data.invoiceId}/void`,
 			method: "POST",
-			responseSchema: invoiceEntitySchema(),
+			responseSchema: messageResponseSchema(),
 		});
 	});
 
@@ -68,7 +75,11 @@ export const listInvoiceRefunds = createServerFn({ method: "GET" })
 
 function mapInvoiceSummary(
 	invoice: InvoiceEntityDto,
-	customersById: Map<string, CustomerEntityDto>,
+	// Only fullName/email are ever read here, so this accepts whichever
+	// customer shape the caller happened to fetch (the by-ID detail shape
+	// in fetchInvoiceJoinDataForPage, or the list shape in
+	// fetchInvoiceJoinData) without forcing them to agree on one DTO.
+	customersById: Map<string, { fullName: string; email: string }>,
 	planNameBySubscriptionId: Map<string, string>,
 ) {
 	const customer = customersById.get(invoice.customerId);
@@ -100,9 +111,9 @@ async function fetchInvoiceJoinDataForPage(invoices: InvoiceEntityDto[]) {
 	const [customers, subscriptions] = await Promise.all([
 		Promise.all(
 			customerIds.map((id) =>
-				backendRequest<CustomerEntityDto>({
+				backendRequest<CustomerDetailResponseDto>({
 					path: `/v1/customers/${id}`,
-					responseSchema: customerEntitySchema(),
+					responseSchema: customerDetailResponseSchema(),
 				}),
 			),
 		),

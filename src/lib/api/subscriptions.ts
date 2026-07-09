@@ -8,6 +8,7 @@ import {
 import { fetchAllPages } from "#/lib/api/pagination.ts";
 import {
 	changePlanResponseSchema,
+	customerDetailResponseSchema,
 	customerEntitySchema,
 	pageResponseSchema,
 	planResponseSchema,
@@ -17,6 +18,7 @@ import type {
 	CancelSubscriptionRequestDto,
 	ChangePlanRequestDto,
 	ChangePlanResponseDto,
+	CustomerDetailResponseDto,
 	CustomerEntityDto,
 	PageResponse,
 	PlanResponseDto,
@@ -172,9 +174,9 @@ export const searchSubscriptionSummaries = createServerFn({
 		const [customers, plans] = await Promise.all([
 			Promise.all(
 				customerIds.map((id) =>
-					backendRequest<CustomerEntityDto>({
+					backendRequest<CustomerDetailResponseDto>({
 						path: `/v1/customers/${id}`,
-						responseSchema: customerEntitySchema(),
+						responseSchema: customerDetailResponseSchema(),
 					}),
 				),
 			),
@@ -230,9 +232,9 @@ export const getSubscriptionDetail = createServerFn({ method: "GET" })
 		});
 
 		const [customer, plan] = await Promise.all([
-			backendRequest<CustomerEntityDto>({
+			backendRequest<CustomerDetailResponseDto>({
 				path: `/v1/customers/${subscription.customerId}`,
-				responseSchema: customerEntitySchema(),
+				responseSchema: customerDetailResponseSchema(),
 			}),
 			backendRequest<PlanResponseDto>({
 				path: `/v1/plans/${subscription.planId}`,

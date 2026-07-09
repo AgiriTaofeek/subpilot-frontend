@@ -1,7 +1,10 @@
 import { useNavigate } from "@tanstack/react-router";
 import { toast } from "sonner";
 
-import { CATEGORY_COPY, classifyError } from "#/lib/api/classify-error.ts";
+import {
+	CATEGORY_COPY,
+	getBackendErrorDetails,
+} from "#/lib/api/classify-error.ts";
 
 /**
  * Shared mutation error handler. Query/loader failures already get clean
@@ -18,7 +21,8 @@ export function useHandleMutationError() {
 
 	return (error: unknown, options?: { fallbackMessage?: string }) => {
 		const message = error instanceof Error ? error.message : String(error);
-		const category = classifyError(message);
+		const { category, displayMessage, requestId } =
+			getBackendErrorDetails(message);
 
 		if (category === "auth_expired") {
 			toast.error(CATEGORY_COPY.auth_expired);
@@ -31,6 +35,12 @@ export function useHandleMutationError() {
 			return;
 		}
 
-		toast.error(message || options?.fallbackMessage || CATEGORY_COPY.server);
+		toast.error(
+			displayMessage || options?.fallbackMessage || CATEGORY_COPY.server,
+		);
+
+		if (requestId && import.meta.env.DEV) {
+			console.error(`[backend-error] request_id=${requestId}`);
+		}
 	};
 }

@@ -177,16 +177,16 @@ function CustomerDetailPage() {
 						</p>
 					) : (
 						<div className="flex flex-col divide-y divide-(--line)">
-							{customer.savedCards.map((card) => (
+							{customer.savedCards.map((card, index) => (
 								<div
-									key={card.tokenKey}
+									key={card.tokenKey ?? index}
 									className="flex items-center justify-between gap-3 py-2.5 text-sm first:pt-0 last:pb-0"
 								>
 									<span className="text-(--ink)">
-										{card.cardType} {card.cardPan}
+										{card.cardType ?? "—"} {card.cardPan ?? "—"}
 									</span>
 									<span className="text-(--ink-3)">
-										Exp. {card.tokenExpirationDate}
+										Exp. {card.tokenExpirationDate ?? "—"}
 									</span>
 								</div>
 							))}

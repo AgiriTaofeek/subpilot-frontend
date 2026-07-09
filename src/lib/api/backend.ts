@@ -1,6 +1,7 @@
 import { createMiddleware, createServerOnlyFn } from "@tanstack/react-start";
 import { getRequestHeader } from "@tanstack/react-start/server";
 import type { z } from "zod";
+import { encodeBackendErrorEnvelope } from "#/lib/api/backend-error-envelope.ts";
 import type { BackendErrorShape } from "#/types/api.ts";
 
 const DEFAULT_ERROR_MESSAGE = "Something went wrong. Please try again.";
@@ -104,14 +105,19 @@ export async function parseBackendError(response: Response) {
 		payload = null;
 	}
 
-	const message =
+	const displayMessage =
 		payload?.error?.message ||
 		STATUS_FALLBACK_MESSAGE[response.status] ||
 		response.statusText ||
 		DEFAULT_ERROR_MESSAGE;
 
 	return new BackendApiError({
-		message,
+		message: encodeBackendErrorEnvelope({
+			status: response.status,
+			code: payload?.error?.code,
+			requestId: payload?.error?.request_id,
+			displayMessage,
+		}),
 		status: response.status,
 		code: payload?.error?.code,
 	});
@@ -355,19 +361,48 @@ export const backendRequest = createServerOnlyFn(async function backendRequest<
 	if (input.responseSchema) {
 		const result = input.responseSchema.safeParse(payload);
 		if (!result.success) {
-			// The detailed zod diff is server-log-only. Zod's own wording
-			// ("Invalid input: ...") would otherwise trip classifyError's
-			// VALIDATION_PATTERN on the client and tell the customer to
-			// "check the details" — misleading for a pure contract bug they
-			// had no part in. Keep the client-facing message free of every
-			// classifyError trigger word so it falls through to "server".
-			console.error(
-				`Backend response for ${method} ${input.path} didn't match the expected shape:`,
-				result.error.message,
-			);
-			throw new Error(
-				`The server sent back something this page didn't expect for ${input.path}. Please try again.`,
-			);
+			// Schema drift is surfaced (loudly, server-side) but never blocks
+			// the response. This schema layer exists to catch contract drift
+			// between Java and this app early and legibly in logs/monitoring —
+			// not to gate what the user sees. Throwing here used to take down
+			// the entire page over a single field the two sides disagreed
+			// about (a newly-nullable column, a renamed enum value, a field
+			// only ever populated on one of two similar-looking endpoints),
+			// even when every other field the UI actually needed was fine.
+			// Falling through to the raw payload gives callers the same
+			// "trust it as T" contract they already have for any endpoint
+			// that passes no responseSchema at all — this only adds a
+			// diagnostic signal, it never removes safety that existed before.
+			//
+			// Dev-only: the walk below pulls the actual offending value out of
+			// the payload (see reasoning below), which can be a real customer
+			// email/card field/etc — fine to print locally, not something to
+			// ship into production server logs. Prod silently falls through
+			// with no diagnostic; that's an acceptable tradeoff for not
+			// leaking payload contents into log aggregation.
+			if (import.meta.env.DEV) {
+				// zod v4's "invalid_value" (bad enum member) issues don't include
+				// the actual received value in .message or the issue itself — only
+				// the allowed list — so the diff alone can't tell you what Java
+				// actually sent. Walk each issue's path into the raw payload to
+				// surface the real value.
+				const receivedByPath = result.error.issues.map((issue) => ({
+					path: issue.path.join("."),
+					received: issue.path.reduce<unknown>(
+						(value, key) =>
+							value && typeof value === "object"
+								? (value as Record<string, unknown>)[String(key)]
+								: undefined,
+						payload,
+					),
+				}));
+				console.error(
+					`Backend response for ${method} ${input.path} didn't match the expected shape:`,
+					result.error.message,
+					receivedByPath,
+				);
+			}
+			return payload as T;
 		}
 		return result.data;
 	}

@@ -136,7 +136,9 @@ export interface CustomerEntityDto {
 	email: string;
 	phone: string | null;
 	nombaCustomerId: string | null;
-	cardToken: string | null;
+	// @JsonIgnore on the Java entity — never present in this (list/raw-entity)
+	// response shape, unlike CustomerDetailResponseDto's real cardToken.
+	cardToken?: string | null;
 	cardLast4: string | null;
 	cardExpiry: string | null;
 	cardBrand: string | null;
@@ -145,10 +147,12 @@ export interface CustomerEntityDto {
 }
 
 export interface SavedCardDto {
-	tokenKey: string;
-	cardType: string;
-	cardPan: string;
-	tokenExpirationDate: string;
+	// None of these are guaranteed present — NombaGatewayImpl reads every
+	// field off Nomba's external API response via `.asText(null)`.
+	tokenKey: string | null;
+	cardType: string | null;
+	cardPan: string | null;
+	tokenExpirationDate: string | null;
 }
 
 /**
@@ -257,12 +261,20 @@ export type AuditEventTypeDto =
 	| "WEBHOOK_FAILED"
 	| "REFUND_CREATED"
 	| "REFUND_SUCCEEDED"
-	| "REFUND_FAILED";
+	| "REFUND_FAILED"
+	| "REFUND_REJECTED"
+	| "PAYOUT_TRIGGERED"
+	| "PAYOUT_SUCCEEDED"
+	| "PAYOUT_FAILED";
 
 export interface AuditEventDto {
 	id: string;
 	merchantId: string;
-	type: AuditEventTypeDto;
+	// Not narrowed to AuditEventTypeDto: Java's `Event.type` is a plain
+	// String column with nothing enforcing it's one of that curated set
+	// (EventType.java is just String constants, not a real Java enum), so
+	// legacy/unrecognized values are a real possibility here.
+	type: string;
 	resourceType: string;
 	resourceId: string;
 	subscriptionId: string | null;
@@ -318,7 +330,9 @@ export interface ApiKeyResponseDto {
 	id: string;
 	label: string;
 	prefix: string;
-	rawKey?: string;
+	// Only ever non-null in the create-key response; list responses always
+	// carry an explicit `null` from Java, not a missing key.
+	rawKey?: string | null;
 	createdAt: string;
 	lastUsedAt: string | null;
 	active: boolean;
@@ -584,7 +598,9 @@ export interface InternalDefaultFeeResponseDto {
 	feeBps: number;
 	fixedFeeMinor: number;
 	updatedAt: string;
-	updatedByAdminId: string;
+	// Null until the first admin update — the bootstrapped default row never
+	// sets it.
+	updatedByAdminId: string | null;
 }
 
 export interface UpdatePlatformFeeRequestDto {

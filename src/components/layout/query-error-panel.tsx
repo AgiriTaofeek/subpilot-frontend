@@ -1,7 +1,10 @@
 import { WarningCircleIcon } from "@phosphor-icons/react";
 
 import { Button } from "#/components/ui/button.tsx";
-import { CATEGORY_COPY, classifyError } from "#/lib/api/classify-error.ts";
+import {
+	CATEGORY_COPY,
+	getBackendErrorDetails,
+} from "#/lib/api/classify-error.ts";
 import { cn } from "#/lib/utils.ts";
 
 /**
@@ -21,10 +24,11 @@ export function QueryErrorPanel({
 	className?: string;
 }) {
 	const message = error instanceof Error ? error.message : String(error);
-	const category = classifyError(message);
+	const { category, displayMessage, requestId } =
+		getBackendErrorDetails(message);
 	const copy =
 		category === "not_found" || category === "server"
-			? message
+			? displayMessage
 			: CATEGORY_COPY[category];
 
 	return (
@@ -36,6 +40,9 @@ export function QueryErrorPanel({
 		>
 			<WarningCircleIcon className="size-6 text-destructive" />
 			<p className="m-0 text-sm text-(--ink-2)">{copy}</p>
+			{requestId && (
+				<p className="m-0 text-xs text-(--ink-3)">Reference: {requestId}</p>
+			)}
 			{onRetry && category !== "auth_expired" && (
 				<Button
 					variant="outline"
