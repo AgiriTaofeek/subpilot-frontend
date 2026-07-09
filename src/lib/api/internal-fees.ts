@@ -3,6 +3,7 @@ import { z } from "zod";
 
 import { requireSessionCookieMiddleware } from "#/lib/api/backend.ts";
 import { internalBackendRequest } from "#/lib/api/internal-backend.ts";
+import { internalDefaultFeeResponseSchema } from "#/lib/api/response-schemas.ts";
 import type { InternalDefaultFeeResponseDto } from "#/types/api.ts";
 
 export const getInternalDefaultFee = createServerFn({ method: "GET" })
@@ -10,6 +11,7 @@ export const getInternalDefaultFee = createServerFn({ method: "GET" })
 	.handler(async () => {
 		return internalBackendRequest<InternalDefaultFeeResponseDto>({
 			path: "/v1/internal/fees/default",
+			responseSchema: internalDefaultFeeResponseSchema(),
 		});
 	});
 
@@ -27,5 +29,6 @@ export const updateInternalDefaultFee = createServerFn({ method: "POST" })
 			path: "/v1/internal/fees/default",
 			method: "PATCH",
 			body: data,
+			responseSchema: internalDefaultFeeResponseSchema(),
 		});
 	});

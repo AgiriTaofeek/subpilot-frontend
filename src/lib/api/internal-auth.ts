@@ -6,6 +6,10 @@ import {
 	requireSessionCookieMiddleware,
 } from "#/lib/api/backend.ts";
 import { internalBackendRequest } from "#/lib/api/internal-backend.ts";
+import {
+	internalAdminSessionSchema,
+	messageResponseSchema,
+} from "#/lib/api/response-schemas.ts";
 import type { InternalAdminSessionDto } from "#/types/api.ts";
 
 const loginSchema = z.object({
@@ -20,12 +24,14 @@ export const loginInternalAdmin = createServerFn({ method: "POST" })
 			path: "/v1/internal/auth/login",
 			method: "POST",
 			body: data,
+			responseSchema: internalAdminSessionSchema(),
 		});
 	});
 
 async function getInternalAdminSessionRequest() {
 	return internalBackendRequest<InternalAdminSessionDto>({
 		path: "/v1/internal/auth/me",
+		responseSchema: internalAdminSessionSchema(),
 	});
 }
 
@@ -56,5 +62,6 @@ export const logoutInternalAdmin = createServerFn({ method: "POST" })
 		return internalBackendRequest<{ message: string }>({
 			path: "/v1/internal/auth/logout",
 			method: "POST",
+			responseSchema: messageResponseSchema(),
 		});
 	});

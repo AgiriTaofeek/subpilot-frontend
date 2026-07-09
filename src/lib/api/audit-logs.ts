@@ -5,6 +5,10 @@ import {
 	backendRequest,
 	requireSessionCookieMiddleware,
 } from "#/lib/api/backend.ts";
+import {
+	auditLogSchema,
+	pageResponseSchema,
+} from "#/lib/api/response-schemas.ts";
 import type { AuditLogDto, PageResponse } from "#/types/api.ts";
 
 const listAuditLogsSchema = z.object({
@@ -30,5 +34,6 @@ export const listAuditLogs = createServerFn({ method: "GET" })
 				page: data.page,
 				perPage: data.perPage,
 			},
+			responseSchema: pageResponseSchema(auditLogSchema()),
 		});
 	});

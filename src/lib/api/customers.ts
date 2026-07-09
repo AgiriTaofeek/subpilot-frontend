@@ -5,6 +5,13 @@ import {
 	backendRequest,
 	requireSessionCookieMiddleware,
 } from "#/lib/api/backend.ts";
+import {
+	customerDetailResponseSchema,
+	customerEntitySchema,
+	pageResponseSchema,
+	planResponseSchema,
+	subscriptionEntitySchema,
+} from "#/lib/api/response-schemas.ts";
 import type {
 	CustomerDetailResponseDto,
 	CustomerEntityDto,
@@ -41,6 +48,7 @@ async function fetchSubscriptionsForCustomer(customerId: string) {
 	const page = await backendRequest<PageResponse<SubscriptionEntityDto>>({
 		path: "/v1/subscriptions",
 		search: { customerId, page: 0, size: 100 },
+		responseSchema: pageResponseSchema(subscriptionEntitySchema()),
 	});
 	return page.content;
 }
@@ -61,6 +69,7 @@ export const listCustomerSummaries = createServerFn({
 			{
 				path: "/v1/customers",
 				search: { q: data.q, page: data.page, perPage: data.size },
+				responseSchema: pageResponseSchema(customerEntitySchema()),
 			},
 		);
 
@@ -109,6 +118,7 @@ export const getCustomerDetail = createServerFn({ method: "GET" })
 		const [customer, subscriptions] = await Promise.all([
 			backendRequest<CustomerDetailResponseDto>({
 				path: `/v1/customers/${data.customerId}`,
+				responseSchema: customerDetailResponseSchema(),
 			}),
 			fetchSubscriptionsForCustomer(data.customerId),
 		]);
@@ -120,6 +130,7 @@ export const getCustomerDetail = createServerFn({ method: "GET" })
 					planId,
 					await backendRequest<PlanResponseDto>({
 						path: `/v1/plans/${planId}`,
+						responseSchema: planResponseSchema(),
 					}),
 				);
 			}),

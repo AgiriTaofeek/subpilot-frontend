@@ -5,6 +5,11 @@ import {
 	backendRequest,
 	requireSessionCookieMiddleware,
 } from "#/lib/api/backend.ts";
+import {
+	dunningCampaignSchema,
+	dunningStepSchema,
+	messageResponseSchema,
+} from "#/lib/api/response-schemas.ts";
 import type {
 	CreateDunningStepRequestDto,
 	DunningCampaignDto,
@@ -18,6 +23,7 @@ export const listDunningCampaigns = createServerFn({ method: "GET" })
 	.handler(async () => {
 		return backendRequest<DunningCampaignDto[]>({
 			path: "/v1/dunning/campaigns",
+			responseSchema: z.array(dunningCampaignSchema()),
 		});
 	});
 
@@ -38,6 +44,7 @@ export const updateDunningCampaign = createServerFn({ method: "POST" })
 			path: `/v1/dunning/campaigns/${campaignId}`,
 			method: "PATCH",
 			body: body satisfies UpdateDunningCampaignRequestDto,
+			responseSchema: dunningCampaignSchema(),
 		});
 	});
 
@@ -59,6 +66,7 @@ export const addDunningStep = createServerFn({ method: "POST" })
 			path: `/v1/dunning/campaigns/${campaignId}/steps`,
 			method: "POST",
 			body: body satisfies CreateDunningStepRequestDto,
+			responseSchema: dunningStepSchema(),
 		});
 	});
 
@@ -82,6 +90,7 @@ export const updateDunningStep = createServerFn({ method: "POST" })
 			path: `/v1/dunning/campaigns/${campaignId}/steps/${stepId}`,
 			method: "PATCH",
 			body: body satisfies UpdateDunningStepRequestDto,
+			responseSchema: dunningStepSchema(),
 		});
 	});
 
@@ -97,5 +106,6 @@ export const deleteDunningStep = createServerFn({ method: "POST" })
 		return backendRequest<{ message: string }>({
 			path: `/v1/dunning/campaigns/${data.campaignId}/steps/${data.stepId}`,
 			method: "DELETE",
+			responseSchema: messageResponseSchema(),
 		});
 	});

@@ -5,6 +5,10 @@ import {
 	backendRequest,
 	requireSessionCookieMiddleware,
 } from "#/lib/api/backend.ts";
+import {
+	feeSummarySchema as feeSummaryResponseSchema,
+	merchantFeeRateSchema,
+} from "#/lib/api/response-schemas.ts";
 import type { FeeSummaryDto, MerchantFeeRateDto } from "#/types/api.ts";
 
 const feeSummarySchema = z.object({
@@ -18,11 +22,15 @@ export const getFeeSummary = createServerFn({ method: "GET" })
 		return backendRequest<FeeSummaryDto>({
 			path: "/v1/fees/summary",
 			search: { days: data.days },
+			responseSchema: feeSummaryResponseSchema(),
 		});
 	});
 
 export const getFeeRate = createServerFn({ method: "GET" })
 	.middleware([requireSessionCookieMiddleware])
 	.handler(async () => {
-		return backendRequest<MerchantFeeRateDto>({ path: "/v1/fees/rate" });
+		return backendRequest<MerchantFeeRateDto>({
+			path: "/v1/fees/rate",
+			responseSchema: merchantFeeRateSchema(),
+		});
 	});

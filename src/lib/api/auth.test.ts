@@ -42,6 +42,7 @@ describe("signupMerchantRequest", () => {
 						userId: "user_123",
 						email: "hello@acme.test",
 						businessName: "Acme Corp",
+						status: "active",
 					}),
 					{ headers: backendCookies },
 				);
@@ -59,6 +60,7 @@ describe("signupMerchantRequest", () => {
 			userId: "user_123",
 			email: "hello@acme.test",
 			businessName: "Acme Corp",
+			status: "active",
 		});
 
 		const forwarded = mockResponseHeaders.getSetCookie();

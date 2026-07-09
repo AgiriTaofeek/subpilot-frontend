@@ -3,6 +3,12 @@ import { z } from "zod";
 
 import { requireSessionCookieMiddleware } from "#/lib/api/backend.ts";
 import { internalBackendRequest } from "#/lib/api/internal-backend.ts";
+import {
+	internalMerchantDetailSchema,
+	internalMerchantFeeResponseSchema,
+	internalMerchantListItemSchema,
+	pageResponseSchema,
+} from "#/lib/api/response-schemas.ts";
 import type {
 	InternalMerchantDetailDto,
 	InternalMerchantFeeResponseDto,
@@ -33,6 +39,7 @@ export const listInternalMerchants = createServerFn({ method: "GET" })
 				page: data.page,
 				size: data.size,
 			},
+			responseSchema: pageResponseSchema(internalMerchantListItemSchema()),
 		});
 	});
 
@@ -42,6 +49,7 @@ export const getInternalMerchantDetail = createServerFn({ method: "GET" })
 	.handler(async ({ data }) => {
 		return internalBackendRequest<InternalMerchantDetailDto>({
 			path: `/v1/internal/merchants/${data.merchantId}`,
+			responseSchema: internalMerchantDetailSchema(),
 		});
 	});
 
@@ -59,6 +67,7 @@ export const updateInternalMerchantStatus = createServerFn({ method: "POST" })
 			path: `/v1/internal/merchants/${data.merchantId}/status`,
 			method: "PATCH",
 			body: { status: data.status, reason: data.reason },
+			responseSchema: internalMerchantDetailSchema(),
 		});
 	});
 
@@ -68,6 +77,7 @@ export const getInternalMerchantFees = createServerFn({ method: "GET" })
 	.handler(async ({ data }) => {
 		return internalBackendRequest<InternalMerchantFeeResponseDto>({
 			path: `/v1/internal/merchants/${data.merchantId}/fees`,
+			responseSchema: internalMerchantFeeResponseSchema(),
 		});
 	});
 
@@ -92,6 +102,7 @@ export const setInternalMerchantFeeOverride = createServerFn({
 				overrideFixedFeeMinor: data.overrideFixedFeeMinor,
 				reason: data.reason,
 			},
+			responseSchema: internalMerchantFeeResponseSchema(),
 		});
 	});
 
@@ -110,5 +121,6 @@ export const removeInternalMerchantFeeOverride = createServerFn({
 			path: `/v1/internal/merchants/${data.merchantId}/fees`,
 			method: "DELETE",
 			body: { reason: data.reason },
+			responseSchema: internalMerchantFeeResponseSchema(),
 		});
 	});

@@ -1,4 +1,5 @@
 import { createServerOnlyFn } from "@tanstack/react-start";
+import type { z } from "zod";
 import {
 	attachCsrfHeader,
 	forwardResponseCookies,
@@ -20,6 +21,9 @@ export const internalBackendRequest = createServerOnlyFn(
 		search?: Record<string, number | string | null | undefined>;
 		body?: unknown;
 		forwardCookies?: boolean;
+		// See backendRequest's identical option in backend.ts for why this
+		// exists — same unchecked `as T` risk applies here.
+		responseSchema?: z.ZodType<T>;
 	}) {
 		const method = input.method ?? "GET";
 		const headers = new Headers();
@@ -59,6 +63,22 @@ export const internalBackendRequest = createServerOnlyFn(
 			throw await parseBackendError(response);
 		}
 
-		return parseJsonResponse<T>(response);
+		const payload = await parseJsonResponse<unknown>(response);
+
+		if (input.responseSchema) {
+			const result = input.responseSchema.safeParse(payload);
+			if (!result.success) {
+				console.error(
+					`Backend response for ${method} ${input.path} didn't match the expected shape:`,
+					result.error.message,
+				);
+				throw new Error(
+					`The server sent back something this page didn't expect for ${input.path}. Please try again.`,
+				);
+			}
+			return result.data;
+		}
+
+		return payload as T;
 	},
 );

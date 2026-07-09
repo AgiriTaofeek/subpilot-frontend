@@ -6,6 +6,14 @@ import {
 	requireSessionCookieMiddleware,
 } from "#/lib/api/backend.ts";
 import { fetchAllPages } from "#/lib/api/pagination.ts";
+import {
+	customerEntitySchema,
+	invoiceEntitySchema,
+	pageResponseSchema,
+	planResponseSchema,
+	refundResponseSchema,
+	subscriptionEntitySchema,
+} from "#/lib/api/response-schemas.ts";
 import type {
 	CustomerEntityDto,
 	InvoiceEntityDto,
@@ -26,6 +34,7 @@ export const voidInvoice = createServerFn({ method: "POST" })
 		return backendRequest<InvoiceEntityDto>({
 			path: `/v1/invoices/${data.invoiceId}/void`,
 			method: "POST",
+			responseSchema: invoiceEntitySchema(),
 		});
 	});
 
@@ -43,6 +52,7 @@ export const createInvoiceRefund = createServerFn({ method: "POST" })
 			path: `/v1/invoices/${data.invoiceId}/refund`,
 			method: "POST",
 			body: { amount: data.amount, reason: data.reason },
+			responseSchema: refundResponseSchema(),
 		});
 	});
 
@@ -52,6 +62,7 @@ export const listInvoiceRefunds = createServerFn({ method: "GET" })
 	.handler(async ({ data }) => {
 		return backendRequest<RefundResponseDto[]>({
 			path: `/v1/invoices/${data.invoiceId}/refund`,
+			responseSchema: z.array(refundResponseSchema()),
 		});
 	});
 
@@ -89,13 +100,17 @@ async function fetchInvoiceJoinDataForPage(invoices: InvoiceEntityDto[]) {
 	const [customers, subscriptions] = await Promise.all([
 		Promise.all(
 			customerIds.map((id) =>
-				backendRequest<CustomerEntityDto>({ path: `/v1/customers/${id}` }),
+				backendRequest<CustomerEntityDto>({
+					path: `/v1/customers/${id}`,
+					responseSchema: customerEntitySchema(),
+				}),
 			),
 		),
 		Promise.all(
 			subscriptionIds.map((id) =>
 				backendRequest<SubscriptionEntityDto>({
 					path: `/v1/subscriptions/${id}`,
+					responseSchema: subscriptionEntitySchema(),
 				}),
 			),
 		),
@@ -104,7 +119,10 @@ async function fetchInvoiceJoinDataForPage(invoices: InvoiceEntityDto[]) {
 	const planIds = [...new Set(subscriptions.map((s) => s.planId))];
 	const plans = await Promise.all(
 		planIds.map((id) =>
-			backendRequest<PlanResponseDto>({ path: `/v1/plans/${id}` }),
+			backendRequest<PlanResponseDto>({
+				path: `/v1/plans/${id}`,
+				responseSchema: planResponseSchema(),
+			}),
 		),
 	);
 
@@ -144,6 +162,7 @@ export const searchInvoiceSummaries = createServerFn({ method: "GET" })
 				page: data.page,
 				size: data.size,
 			},
+			responseSchema: pageResponseSchema(invoiceEntitySchema()),
 		});
 
 		const { customersById, planNameBySubscriptionId } =
@@ -163,18 +182,21 @@ async function fetchInvoiceJoinData() {
 			backendRequest<PageResponse<CustomerEntityDto>>({
 				path: "/v1/customers",
 				search: { page, perPage: 100 },
+				responseSchema: pageResponseSchema(customerEntitySchema()),
 			}),
 		),
 		fetchAllPages((page) =>
 			backendRequest<PageResponse<SubscriptionEntityDto>>({
 				path: "/v1/subscriptions",
 				search: { page, size: 100 },
+				responseSchema: pageResponseSchema(subscriptionEntitySchema()),
 			}),
 		),
 		fetchAllPages((page) =>
 			backendRequest<PageResponse<PlanResponseDto>>({
 				path: "/v1/plans",
 				search: { page, perPage: 100 },
+				responseSchema: pageResponseSchema(planResponseSchema()),
 			}),
 		),
 	]);
@@ -204,6 +226,7 @@ export const listInvoiceSummaries = createServerFn({
 					backendRequest<PageResponse<InvoiceEntityDto>>({
 						path: "/v1/invoices",
 						search: { page, size: 100 },
+						responseSchema: pageResponseSchema(invoiceEntitySchema()),
 					}),
 				),
 				fetchInvoiceJoinData(),
@@ -220,6 +243,7 @@ export const getInvoiceSummary = createServerFn({ method: "GET" })
 	.handler(async ({ data }) => {
 		const invoice = await backendRequest<InvoiceEntityDto>({
 			path: `/v1/invoices/${data.invoiceId}`,
+			responseSchema: invoiceEntitySchema(),
 		});
 
 		// Bounded to this one invoice's customer/subscription/plan — not the
@@ -240,6 +264,7 @@ export const listInvoiceSummariesForSubscription = createServerFn({
 		const invoicesPage = await backendRequest<PageResponse<InvoiceEntityDto>>({
 			path: "/v1/invoices",
 			search: { page: 0, size: 10, subscriptionId: data.subscriptionId },
+			responseSchema: pageResponseSchema(invoiceEntitySchema()),
 		});
 
 		// Bounded to the customers/plans referenced by these invoices — see

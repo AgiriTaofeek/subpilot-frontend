@@ -5,6 +5,12 @@ import {
 	backendRequest,
 	requireSessionCookieMiddleware,
 } from "#/lib/api/backend.ts";
+import {
+	messageResponseSchema,
+	pageResponseSchema,
+	webhookDeliverySchema,
+	webhookEndpointSchema,
+} from "#/lib/api/response-schemas.ts";
 import type {
 	PageResponse,
 	RegisterEndpointRequestDto,
@@ -18,6 +24,7 @@ export const listWebhookEndpoints = createServerFn({ method: "GET" })
 		const page = await backendRequest<PageResponse<WebhookEndpointDto>>({
 			path: "/v1/webhooks/endpoints",
 			search: { page: 0, size: 100 },
+			responseSchema: pageResponseSchema(webhookEndpointSchema()),
 		});
 		return page.content;
 	});
@@ -40,6 +47,7 @@ export const registerWebhookEndpoint = createServerFn({ method: "POST" })
 				description: data.description,
 				events: data.events,
 			} satisfies RegisterEndpointRequestDto,
+			responseSchema: webhookEndpointSchema(),
 		});
 	});
 
@@ -54,6 +62,7 @@ export const deleteWebhookEndpoint = createServerFn({ method: "POST" })
 		return backendRequest<{ message: string }>({
 			path: `/v1/webhooks/endpoints/${data.endpointId}`,
 			method: "DELETE",
+			responseSchema: messageResponseSchema(),
 		});
 	});
 
@@ -78,5 +87,6 @@ export const searchWebhookDeliveries = createServerFn({ method: "GET" })
 				page: data.page,
 				size: data.size,
 			},
+			responseSchema: pageResponseSchema(webhookDeliverySchema()),
 		});
 	});

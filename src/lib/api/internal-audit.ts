@@ -3,6 +3,10 @@ import { z } from "zod";
 
 import { requireSessionCookieMiddleware } from "#/lib/api/backend.ts";
 import { internalBackendRequest } from "#/lib/api/internal-backend.ts";
+import {
+	internalAuditLogSchema,
+	pageResponseSchema,
+} from "#/lib/api/response-schemas.ts";
 import type { InternalAuditLogDto, PageResponse } from "#/types/api.ts";
 
 const listInternalAuditLogsSchema = z.object({
@@ -17,5 +21,6 @@ export const listInternalAuditLogs = createServerFn({ method: "GET" })
 		return internalBackendRequest<PageResponse<InternalAuditLogDto>>({
 			path: "/v1/internal/audit",
 			search: { page: data.page, size: data.size },
+			responseSchema: pageResponseSchema(internalAuditLogSchema()),
 		});
 	});

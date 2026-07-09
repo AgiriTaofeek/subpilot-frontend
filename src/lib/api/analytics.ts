@@ -5,6 +5,10 @@ import {
 	backendRequest,
 	requireSessionCookieMiddleware,
 } from "#/lib/api/backend.ts";
+import {
+	analyticsSummarySchema,
+	timeSeriesChartSchema,
+} from "#/lib/api/response-schemas.ts";
 import type { AnalyticsSummaryDto, TimeSeriesChartDto } from "#/types/api.ts";
 
 const rangeDaysSchema = z.object({
@@ -23,6 +27,7 @@ export const getAnalyticsSummary = createServerFn({ method: "GET" })
 		return backendRequest<AnalyticsSummaryDto>({
 			path: "/v1/analytics/summary",
 			search: { rangeDays: data.rangeDays },
+			responseSchema: analyticsSummarySchema(),
 		});
 	});
 
@@ -33,6 +38,7 @@ export const getRevenueOverTime = createServerFn({ method: "GET" })
 		return backendRequest<TimeSeriesChartDto>({
 			path: "/v1/analytics/charts/revenue",
 			search: { rangeDays: data.rangeDays, granularity: data.granularity },
+			responseSchema: timeSeriesChartSchema(),
 		});
 	});
 
@@ -43,6 +49,7 @@ export const getSubscriptionGrowth = createServerFn({ method: "GET" })
 		return backendRequest<TimeSeriesChartDto>({
 			path: "/v1/analytics/charts/subscription-growth",
 			search: { rangeDays: data.rangeDays, granularity: data.granularity },
+			responseSchema: timeSeriesChartSchema(),
 		});
 	});
 
@@ -53,6 +60,7 @@ export const getPaymentSuccessRateTrend = createServerFn({ method: "GET" })
 		return backendRequest<TimeSeriesChartDto>({
 			path: "/v1/analytics/charts/payment-success-rate",
 			search: { rangeDays: data.rangeDays },
+			responseSchema: timeSeriesChartSchema(),
 		});
 	});
 
@@ -63,5 +71,6 @@ export const getDunningRecoveryRateTrend = createServerFn({ method: "GET" })
 		return backendRequest<TimeSeriesChartDto>({
 			path: "/v1/analytics/charts/dunning-recovery-rate",
 			search: { rangeDays: data.rangeDays },
+			responseSchema: timeSeriesChartSchema(),
 		});
 	});

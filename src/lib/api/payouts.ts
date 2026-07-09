@@ -5,6 +5,12 @@ import {
 	backendRequest,
 	requireSessionCookieMiddleware,
 } from "#/lib/api/backend.ts";
+import {
+	disbursementSchema,
+	pageResponseSchema,
+	payoutBankLookupResultSchema,
+	payoutBankSchema,
+} from "#/lib/api/response-schemas.ts";
 import type {
 	DisbursementDto,
 	PageResponse,
@@ -17,6 +23,7 @@ export const listPayoutBanks = createServerFn({ method: "GET" })
 	.handler(async () => {
 		return backendRequest<PayoutBankDto[]>({
 			path: "/v1/merchants/me/payout-banks",
+			responseSchema: z.array(payoutBankSchema()),
 		});
 	});
 
@@ -30,6 +37,7 @@ export const getPayoutAccount = createServerFn({ method: "GET" })
 	.handler(async () => {
 		return backendRequest<PayoutBankLookupResultDto>({
 			path: "/v1/merchants/me/payout-account",
+			responseSchema: payoutBankLookupResultSchema(),
 		});
 	});
 
@@ -41,6 +49,7 @@ export const lookupPayoutAccount = createServerFn({ method: "POST" })
 			path: "/v1/merchants/me/payout-account/lookup",
 			method: "POST",
 			body: data,
+			responseSchema: payoutBankLookupResultSchema(),
 		});
 	});
 
@@ -52,6 +61,7 @@ export const savePayoutAccount = createServerFn({ method: "POST" })
 			path: "/v1/merchants/me/payout-account",
 			method: "PATCH",
 			body: data,
+			responseSchema: payoutBankLookupResultSchema(),
 		});
 	});
 
@@ -61,6 +71,7 @@ export const triggerDisbursement = createServerFn({ method: "POST" })
 		return backendRequest<DisbursementDto>({
 			path: "/v1/payouts/trigger",
 			method: "POST",
+			responseSchema: disbursementSchema(),
 		});
 	});
 
@@ -76,5 +87,6 @@ export const listDisbursements = createServerFn({ method: "GET" })
 		return backendRequest<PageResponse<DisbursementDto>>({
 			path: "/v1/payouts",
 			search: { page: data.page, size: data.size },
+			responseSchema: pageResponseSchema(disbursementSchema()),
 		});
 	});

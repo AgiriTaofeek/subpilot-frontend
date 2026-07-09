@@ -6,6 +6,10 @@ import {
 	isUnauthenticatedBackendError,
 	requireSessionCookieMiddleware,
 } from "#/lib/api/backend.ts";
+import {
+	authSessionSchema,
+	messageResponseSchema,
+} from "#/lib/api/response-schemas.ts";
 import type { AuthSessionDto } from "#/types/api.ts";
 
 const loginSchema = z.object({
@@ -29,6 +33,7 @@ export async function loginMerchantRequest(data: z.infer<typeof loginSchema>) {
 		path: "/v1/auth/login",
 		method: "POST",
 		body: data,
+		responseSchema: authSessionSchema(),
 	});
 }
 
@@ -39,6 +44,7 @@ export async function signupMerchantRequest(
 		path: "/v1/auth/signup",
 		method: "POST",
 		body: data,
+		responseSchema: authSessionSchema(),
 	});
 }
 
@@ -46,6 +52,7 @@ export async function logoutMerchantRequest() {
 	return backendRequest<{ message: string }>({
 		path: "/v1/auth/logout",
 		method: "POST",
+		responseSchema: messageResponseSchema(),
 	});
 }
 
@@ -56,12 +63,14 @@ export async function changePasswordMerchantRequest(
 		path: "/v1/auth/change-password",
 		method: "PATCH",
 		body: data,
+		responseSchema: messageResponseSchema(),
 	});
 }
 
 export async function getMerchantSessionRequest() {
 	return backendRequest<AuthSessionDto>({
 		path: "/v1/auth/me",
+		responseSchema: authSessionSchema(),
 	});
 }
 

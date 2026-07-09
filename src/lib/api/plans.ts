@@ -5,6 +5,12 @@ import {
 	backendRequest,
 	requireSessionCookieMiddleware,
 } from "#/lib/api/backend.ts";
+import {
+	checkoutInitResponseSchema,
+	pageResponseSchema,
+	planResponseSchema,
+	publicPlanResponseSchema,
+} from "#/lib/api/response-schemas.ts";
 import type {
 	CheckoutInitResponseDto,
 	CreatePlanRequestDto,
@@ -57,38 +63,6 @@ const checkoutSchema = z.object({
 	phone: z.string().min(1),
 });
 
-// Both schemas below mirror co.subpilot.plan.dto.PlanDtos.PublicPlanResponse
-// and co.subpilot.subscription.dto.SubscriptionDtos.CheckoutInitResponse
-// field-for-field. This is the one hop in the checkout flow with no
-// authenticated session to fall back on if something's wrong, and
-// checkoutUrl feeds straight into window.location.assign — validating it
-// here turns a silent "navigate to /undefined" into a caught, classifiable
-// error instead.
-const publicPlanResponseSchema = z.object({
-	name: z.string(),
-	description: z.string().nullable(),
-	amount: z.number(),
-	currency: z.string(),
-	billingInterval: z.enum([
-		"daily",
-		"weekly",
-		"monthly",
-		"quarterly",
-		"yearly",
-		"custom",
-	]),
-	trialDays: z.number(),
-	merchantName: z.string(),
-	merchantSlug: z.string(),
-	planSlug: z.string(),
-});
-
-const checkoutInitResponseSchema = z.object({
-	subscriptionId: z.string(),
-	checkoutUrl: z.string(),
-	checkoutReference: z.string(),
-});
-
 // Full-catalog fetch for reference/dropdown consumers (plan selectors on the
 // subscription and account pages) — plan counts are bounded by how many
 // pricing plans a merchant has configured, not by customer/transaction
@@ -100,6 +74,7 @@ export const listPlans = createServerFn({ method: "GET" })
 		const page = await backendRequest<PageResponse<PlanResponseDto>>({
 			path: "/v1/plans",
 			search: { page: 0, perPage: 100 },
+			responseSchema: pageResponseSchema(planResponseSchema()),
 		});
 		return page.content;
 	});
@@ -128,6 +103,7 @@ export const searchPlans = createServerFn({ method: "GET" })
 				page: data.page,
 				perPage: data.perPage,
 			},
+			responseSchema: pageResponseSchema(planResponseSchema()),
 		});
 	});
 
@@ -137,6 +113,7 @@ export const getPlan = createServerFn({ method: "GET" })
 	.handler(async ({ data }) => {
 		return backendRequest<PlanResponseDto>({
 			path: `/v1/plans/${data.planId}`,
+			responseSchema: planResponseSchema(),
 		});
 	});
 
@@ -148,6 +125,7 @@ export const createPlan = createServerFn({ method: "POST" })
 			path: "/v1/plans",
 			method: "POST",
 			body: data satisfies CreatePlanRequestDto,
+			responseSchema: planResponseSchema(),
 		});
 	});
 
@@ -165,6 +143,7 @@ export const updatePlan = createServerFn({ method: "POST" })
 			path: `/v1/plans/${data.planId}`,
 			method: "PATCH",
 			body: request,
+			responseSchema: planResponseSchema(),
 		});
 	});
 
@@ -175,6 +154,7 @@ export const publishPlan = createServerFn({ method: "POST" })
 		return backendRequest<PlanResponseDto>({
 			path: `/v1/plans/${data.planId}/publish`,
 			method: "POST",
+			responseSchema: planResponseSchema(),
 		});
 	});
 
@@ -185,6 +165,7 @@ export const archivePlan = createServerFn({ method: "POST" })
 		return backendRequest<PlanResponseDto>({
 			path: `/v1/plans/${data.planId}/archive`,
 			method: "POST",
+			responseSchema: planResponseSchema(),
 		});
 	});
 
@@ -194,7 +175,7 @@ export const getPublicPlan = createServerFn({ method: "GET" })
 		return backendRequest<PublicPlanResponseDto>({
 			path: `/v1/public/plans/${data.merchantSlug}/${data.planSlug}`,
 			forwardCookies: false,
-			responseSchema: publicPlanResponseSchema,
+			responseSchema: publicPlanResponseSchema(),
 		});
 	});
 
@@ -212,6 +193,6 @@ export const initiateCheckout = createServerFn({ method: "POST" })
 				planSlug: data.planSlug,
 			},
 			forwardCookies: false,
-			responseSchema: checkoutInitResponseSchema,
+			responseSchema: checkoutInitResponseSchema(),
 		});
 	});

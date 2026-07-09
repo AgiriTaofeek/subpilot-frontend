@@ -5,6 +5,10 @@ import {
 	backendRequest,
 	requireSessionCookieMiddleware,
 } from "#/lib/api/backend.ts";
+import {
+	apiKeyResponseSchema,
+	messageResponseSchema,
+} from "#/lib/api/response-schemas.ts";
 import type { ApiKeyResponseDto } from "#/types/api.ts";
 
 export const listApiKeys = createServerFn({ method: "GET" })
@@ -12,6 +16,7 @@ export const listApiKeys = createServerFn({ method: "GET" })
 	.handler(async () => {
 		return backendRequest<ApiKeyResponseDto[]>({
 			path: "/v1/settings/api-keys",
+			responseSchema: z.array(apiKeyResponseSchema()),
 		});
 	});
 
@@ -27,6 +32,7 @@ export const createApiKey = createServerFn({ method: "POST" })
 			path: "/v1/settings/api-keys",
 			method: "POST",
 			body: { label: data.label },
+			responseSchema: apiKeyResponseSchema(),
 		});
 	});
 
@@ -41,5 +47,6 @@ export const revokeApiKey = createServerFn({ method: "POST" })
 		return backendRequest<{ message: string }>({
 			path: `/v1/settings/api-keys/${data.apiKeyId}`,
 			method: "DELETE",
+			responseSchema: messageResponseSchema(),
 		});
 	});

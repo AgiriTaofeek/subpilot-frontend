@@ -2,6 +2,13 @@ import { createServerFn } from "@tanstack/react-start";
 import { z } from "zod";
 
 import { backendRequest } from "#/lib/api/backend.ts";
+import {
+	changePlanResponseSchema,
+	portalAvailablePlanSchema,
+	portalInvoiceViewSchema,
+	portalSubscriptionViewSchema,
+	portalUpdateCardResponseSchema,
+} from "#/lib/api/response-schemas.ts";
 import type {
 	ChangePlanRequestDto,
 	ChangePlanResponseDto,
@@ -32,6 +39,7 @@ export const getPortalSubscription = createServerFn({ method: "GET" })
 		return backendRequest<PortalSubscriptionViewDto>({
 			path: `/v1/portal/${data.token}`,
 			forwardCookies: false,
+			responseSchema: portalSubscriptionViewSchema(),
 		});
 	});
 
@@ -41,6 +49,7 @@ export const listPortalInvoices = createServerFn({ method: "GET" })
 		return backendRequest<PortalInvoiceViewDto[]>({
 			path: `/v1/portal/${data.token}/invoices`,
 			forwardCookies: false,
+			responseSchema: z.array(portalInvoiceViewSchema()),
 		});
 	});
 
@@ -50,6 +59,7 @@ export const listPortalAvailablePlans = createServerFn({ method: "GET" })
 		return backendRequest<PortalAvailablePlanDto[]>({
 			path: `/v1/portal/${data.token}/available-plans`,
 			forwardCookies: false,
+			responseSchema: z.array(portalAvailablePlanSchema()),
 		});
 	});
 
@@ -61,6 +71,7 @@ export const cancelPortalSubscription = createServerFn({ method: "POST" })
 			method: "POST",
 			body: { reason: data.reason } satisfies PortalCancelRequestDto,
 			forwardCookies: false,
+			responseSchema: portalSubscriptionViewSchema(),
 		});
 	});
 
@@ -72,6 +83,7 @@ export const changePortalPlan = createServerFn({ method: "POST" })
 			method: "POST",
 			body: { newPlanId: data.newPlanId } satisfies ChangePlanRequestDto,
 			forwardCookies: false,
+			responseSchema: changePlanResponseSchema(),
 		});
 	});
 
@@ -82,5 +94,6 @@ export const updatePortalCard = createServerFn({ method: "POST" })
 			path: `/v1/portal/${data.token}/update-card`,
 			method: "POST",
 			forwardCookies: false,
+			responseSchema: portalUpdateCardResponseSchema(),
 		});
 	});

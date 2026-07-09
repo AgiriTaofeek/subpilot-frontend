@@ -6,6 +6,13 @@ import {
 	requireSessionCookieMiddleware,
 } from "#/lib/api/backend.ts";
 import { fetchAllPages } from "#/lib/api/pagination.ts";
+import {
+	changePlanResponseSchema,
+	customerEntitySchema,
+	pageResponseSchema,
+	planResponseSchema,
+	subscriptionEntitySchema,
+} from "#/lib/api/response-schemas.ts";
 import type {
 	CancelSubscriptionRequestDto,
 	ChangePlanRequestDto,
@@ -41,18 +48,21 @@ export const listSubscriptionSummaries = createServerFn({
 				backendRequest<PageResponse<SubscriptionEntityDto>>({
 					path: "/v1/subscriptions",
 					search: { page, size: 100 },
+					responseSchema: pageResponseSchema(subscriptionEntitySchema()),
 				}),
 			),
 			fetchAllPages((page) =>
 				backendRequest<PageResponse<CustomerEntityDto>>({
 					path: "/v1/customers",
 					search: { page, perPage: 100 },
+					responseSchema: pageResponseSchema(customerEntitySchema()),
 				}),
 			),
 			fetchAllPages((page) =>
 				backendRequest<PageResponse<PlanResponseDto>>({
 					path: "/v1/plans",
 					search: { page, perPage: 100 },
+					responseSchema: pageResponseSchema(planResponseSchema()),
 				}),
 			),
 		]);
@@ -96,6 +106,7 @@ export const countPastDueSubscriptions = createServerFn({ method: "GET" })
 		const page = await backendRequest<PageResponse<SubscriptionEntityDto>>({
 			path: "/v1/subscriptions",
 			search: { status: "past_due", page: 0, size: 1 },
+			responseSchema: pageResponseSchema(subscriptionEntitySchema()),
 		});
 		return page.totalElements;
 	});
@@ -112,6 +123,7 @@ export const countActiveSubscriptionsForPlan = createServerFn({
 		const page = await backendRequest<PageResponse<SubscriptionEntityDto>>({
 			path: "/v1/subscriptions",
 			search: { status: "active", planId: data.planId, page: 0, size: 1 },
+			responseSchema: pageResponseSchema(subscriptionEntitySchema()),
 		});
 		return page.totalElements;
 	});
@@ -147,6 +159,7 @@ export const searchSubscriptionSummaries = createServerFn({
 				page: data.page,
 				size: data.size,
 			},
+			responseSchema: pageResponseSchema(subscriptionEntitySchema()),
 		});
 
 		const customerIds = [
@@ -159,12 +172,18 @@ export const searchSubscriptionSummaries = createServerFn({
 		const [customers, plans] = await Promise.all([
 			Promise.all(
 				customerIds.map((id) =>
-					backendRequest<CustomerEntityDto>({ path: `/v1/customers/${id}` }),
+					backendRequest<CustomerEntityDto>({
+						path: `/v1/customers/${id}`,
+						responseSchema: customerEntitySchema(),
+					}),
 				),
 			),
 			Promise.all(
 				planIds.map((id) =>
-					backendRequest<PlanResponseDto>({ path: `/v1/plans/${id}` }),
+					backendRequest<PlanResponseDto>({
+						path: `/v1/plans/${id}`,
+						responseSchema: planResponseSchema(),
+					}),
 				),
 			),
 		]);
@@ -207,14 +226,17 @@ export const getSubscriptionDetail = createServerFn({ method: "GET" })
 	.handler(async ({ data }) => {
 		const subscription = await backendRequest<SubscriptionEntityDto>({
 			path: `/v1/subscriptions/${data.subscriptionId}`,
+			responseSchema: subscriptionEntitySchema(),
 		});
 
 		const [customer, plan] = await Promise.all([
 			backendRequest<CustomerEntityDto>({
 				path: `/v1/customers/${subscription.customerId}`,
+				responseSchema: customerEntitySchema(),
 			}),
 			backendRequest<PlanResponseDto>({
 				path: `/v1/plans/${subscription.planId}`,
+				responseSchema: planResponseSchema(),
 			}),
 		]);
 
@@ -232,6 +254,7 @@ export const cancelSubscription = createServerFn({ method: "POST" })
 				immediate: data.immediate,
 				reason: data.reason,
 			} satisfies CancelSubscriptionRequestDto,
+			responseSchema: subscriptionEntitySchema(),
 		});
 	});
 
@@ -242,6 +265,7 @@ export const pauseSubscription = createServerFn({ method: "POST" })
 		return backendRequest<SubscriptionEntityDto>({
 			path: `/v1/subscriptions/${data.subscriptionId}/pause`,
 			method: "POST",
+			responseSchema: subscriptionEntitySchema(),
 		});
 	});
 
@@ -252,6 +276,7 @@ export const resumeSubscription = createServerFn({ method: "POST" })
 		return backendRequest<SubscriptionEntityDto>({
 			path: `/v1/subscriptions/${data.subscriptionId}/resume`,
 			method: "POST",
+			responseSchema: subscriptionEntitySchema(),
 		});
 	});
 
@@ -263,5 +288,6 @@ export const changePlanSubscription = createServerFn({ method: "POST" })
 			path: `/v1/subscriptions/${data.subscriptionId}/change-plan`,
 			method: "POST",
 			body: { newPlanId: data.newPlanId } satisfies ChangePlanRequestDto,
+			responseSchema: changePlanResponseSchema(),
 		});
 	});
