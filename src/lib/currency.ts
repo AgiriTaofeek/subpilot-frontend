@@ -8,5 +8,12 @@ const NGN_FORMATTER = new Intl.NumberFormat("en-NG", {
 });
 
 export function formatNGN(amountKobo: number): string {
+	// backendRequest no longer throws on a responseSchema mismatch (see
+	// backend.ts), so a malformed amount from Java (null/a string/missing)
+	// can reach here as a value TypeScript believes is `number` but isn't.
+	// Intl.NumberFormat happily renders NaN as the literal string "NaN" —
+	// silently showing a broken amount in a merchant-facing payments table
+	// is worse than a placeholder that's honestly not a number.
+	if (!Number.isFinite(amountKobo)) return "—";
 	return NGN_FORMATTER.format(Math.round(amountKobo / 100));
 }

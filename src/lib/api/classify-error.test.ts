@@ -73,7 +73,6 @@ describe("classifyError with an envelope", () => {
 			category: "server",
 			displayMessage:
 				"The server sent back something this page didn't expect for /v1/public/plans/acme/pro/checkout. Please try again.",
-			validationDetail: "Invalid input: expected string, received number",
 		});
 		expect(classifyError(message)).toBe("server");
 	});

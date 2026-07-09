@@ -141,7 +141,12 @@ function SubscriptionDetailErrorFallback({
 }
 
 function StateMachineDiagram({ current }: { current: SubscriptionStatus }) {
-	const reachable = subscriptionTransitions[current];
+	// subscriptionTransitions is keyed by the closed SubscriptionStatus enum,
+	// but backendRequest no longer throws on a schema mismatch (see
+	// backend.ts) — an unrecognized status Java hasn't been caught up on yet
+	// can reach here as a string TypeScript believes is SubscriptionStatus.
+	// Falling back to [] renders "no known transitions" instead of throwing.
+	const reachable = subscriptionTransitions[current] ?? [];
 	return (
 		<div className="flex flex-wrap items-center gap-3">
 			<div className="flex flex-col items-center gap-1.5">
@@ -281,8 +286,9 @@ function SubscriptionDetailPage() {
 
 	const isTerminal =
 		subscription.status === "cancelled" || subscription.status === "expired";
-	const canPause =
-		subscriptionTransitions[subscription.status].includes("paused");
+	const canPause = (
+		subscriptionTransitions[subscription.status] ?? []
+	).includes("paused");
 
 	const alternativePlans = allPlans.filter(
 		(p) => p.status === "published" && p.id !== subscription.planId,

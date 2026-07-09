@@ -1,8 +1,9 @@
 import { getRequestHeader } from "@tanstack/react-start/server";
 import { HttpResponse, http } from "msw";
 import { describe, expect, test, vi } from "vitest";
+import { z } from "zod";
 
-import { backendRequest } from "#/lib/api/backend.ts";
+import { backendRequest, resolveSchemaResult } from "#/lib/api/backend.ts";
 import { mockResponseHeaders, server } from "#/test/setup.ts";
 import type { AuthSessionDto } from "#/types/api.ts";
 
@@ -216,5 +217,62 @@ describe("backendRequest", () => {
 			true,
 		);
 		expect(forwarded.some((c) => c.startsWith("_subpilot_csrf="))).toBe(true);
+	});
+
+	test("resolves with the raw payload instead of rejecting when the response doesn't match responseSchema", async () => {
+		vi.stubEnv("VITE_API_BASE_URL", "https://api.test");
+		vi.mocked(getRequestHeader).mockImplementation(() => undefined);
+
+		server.use(
+			http.get("https://api.test/v1/plans/plan_123", () =>
+				// feeBps is null here even though the schema below requires a
+				// number — locks in that this no longer throws (see
+				// resolveSchemaResult's tests for the pure-function contract).
+				HttpResponse.json({ id: "plan_123", feeBps: null }),
+			),
+		);
+
+		await expect(
+			backendRequest<{ id: string; feeBps: number }>({
+				path: "/v1/plans/plan_123",
+				responseSchema: z.object({ id: z.string(), feeBps: z.number() }),
+			}),
+		).resolves.toEqual({ id: "plan_123", feeBps: null });
+	});
+});
+
+describe("resolveSchemaResult", () => {
+	const schema = z.object({ amount: z.number() });
+
+	test("returns the parsed data when the payload matches the schema", () => {
+		const payload = { amount: 100 };
+		expect(
+			resolveSchemaResult(
+				"GET",
+				"/v1/test",
+				schema.safeParse(payload),
+				payload,
+			),
+		).toEqual({ amount: 100 });
+	});
+
+	test("returns the raw payload, not a thrown error, when the payload doesn't match the schema", () => {
+		const payload = { amount: null };
+		expect(() =>
+			resolveSchemaResult(
+				"GET",
+				"/v1/test",
+				schema.safeParse(payload),
+				payload,
+			),
+		).not.toThrow();
+		expect(
+			resolveSchemaResult(
+				"GET",
+				"/v1/test",
+				schema.safeParse(payload),
+				payload,
+			),
+		).toBe(payload);
 	});
 });

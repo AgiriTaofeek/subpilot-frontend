@@ -11,4 +11,11 @@ describe("formatNGN", () => {
 		expect(formatNGN(149)).toBe("\u20a61");
 		expect(formatNGN(150)).toBe("\u20a62");
 	});
+
+	test("falls back to a placeholder instead of rendering NaN for a malformed amount", () => {
+		expect(formatNGN(Number.NaN)).toBe("\u2014");
+		expect(formatNGN(undefined as unknown as number)).toBe("\u2014");
+		expect(formatNGN(null as unknown as number)).toBe("\u2014");
+		expect(formatNGN(Number.POSITIVE_INFINITY)).toBe("\u2014");
+	});
 });

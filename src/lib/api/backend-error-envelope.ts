@@ -25,8 +25,6 @@ export interface BackendErrorEnvelope {
 	 * ErrorCategory, so this module has zero dependency on classify-error.ts.
 	 */
 	category?: string;
-	/** Dev-only diagnostic detail (e.g. the raw zod diff). Never set in prod. */
-	validationDetail?: string;
 }
 
 export function encodeBackendErrorEnvelope(

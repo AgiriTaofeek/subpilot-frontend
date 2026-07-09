@@ -7,6 +7,7 @@ import {
 	makeBackendFetch,
 	parseBackendError,
 	parseJsonResponse,
+	resolveSchemaResult,
 } from "#/lib/api/backend.ts";
 
 // Leaner sibling of backendRequest for the separate internal-admin auth
@@ -66,22 +67,12 @@ export const internalBackendRequest = createServerOnlyFn(
 		const payload = await parseJsonResponse<unknown>(response);
 
 		if (input.responseSchema) {
-			const result = input.responseSchema.safeParse(payload);
-			if (!result.success) {
-				// See backendRequest's identical branch in backend.ts for why
-				// this logs instead of throwing (schema drift should be a
-				// diagnostic, not a page-blocking error) and why it's dev-only
-				// (payload contents can be sensitive internal-admin data —
-				// not something to ship into production log aggregation).
-				if (import.meta.env.DEV) {
-					console.error(
-						`Backend response for ${method} ${input.path} didn't match the expected shape:`,
-						result.error.message,
-					);
-				}
-				return payload as T;
-			}
-			return result.data;
+			return resolveSchemaResult(
+				method,
+				input.path,
+				input.responseSchema.safeParse(payload),
+				payload,
+			);
 		}
 
 		return payload as T;

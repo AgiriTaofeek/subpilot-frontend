@@ -1,3 +1,4 @@
+import type { BackendErrorEnvelope } from "#/lib/api/backend-error-envelope.ts";
 import { decodeBackendErrorEnvelope } from "#/lib/api/backend-error-envelope.ts";
 
 export type ErrorCategory =
@@ -48,10 +49,11 @@ function classifyByPattern(message: string): ErrorCategory {
  * access, not 403, so a real 403/401 only ever means a session/auth
  * problem in this app.
  */
-export function classifyError(message: string): ErrorCategory {
-	const envelope = decodeBackendErrorEnvelope(message);
-	if (!envelope) return classifyByPattern(message);
-
+// Split out of classifyError so getBackendErrorDetails can decode the
+// envelope once and derive both the category and the display fields from
+// that same decoded value, instead of decoding (JSON.parse-ing) the same
+// message string twice per call.
+function classifyEnvelope(envelope: BackendErrorEnvelope): ErrorCategory {
 	if (envelope.category && KNOWN_CATEGORIES.has(envelope.category)) {
 		return envelope.category as ErrorCategory;
 	}
@@ -75,6 +77,11 @@ export function classifyError(message: string): ErrorCategory {
 	return classifyByPattern(envelope.displayMessage);
 }
 
+export function classifyError(message: string): ErrorCategory {
+	const envelope = decodeBackendErrorEnvelope(message);
+	return envelope ? classifyEnvelope(envelope) : classifyByPattern(message);
+}
+
 /**
  * Richer accessor for consumers that render error text directly (not just a
  * category), so they don't render the raw enveloped JSON string and don't
@@ -84,17 +91,15 @@ export function getBackendErrorDetails(message: string): {
 	category: ErrorCategory;
 	displayMessage: string;
 	requestId?: string;
-	validationDetail?: string;
 } {
 	const envelope = decodeBackendErrorEnvelope(message);
 	if (!envelope) {
 		return { category: classifyByPattern(message), displayMessage: message };
 	}
 	return {
-		category: classifyError(message),
+		category: classifyEnvelope(envelope),
 		displayMessage: envelope.displayMessage,
 		requestId: envelope.requestId,
-		validationDetail: envelope.validationDetail,
 	};
 }
 
