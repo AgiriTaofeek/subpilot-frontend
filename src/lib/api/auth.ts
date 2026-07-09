@@ -3,7 +3,6 @@ import { z } from "zod";
 
 import {
 	backendRequest,
-	isUnauthenticatedBackendError,
 	requireSessionCookieMiddleware,
 } from "#/lib/api/backend.ts";
 import {
@@ -74,15 +73,19 @@ export async function getMerchantSessionRequest() {
 	});
 }
 
+// Used only to redirect an already-logged-in merchant away from
+// /auth/login|signup — a convenience, not a requirement, so any failure to
+// determine the session (expired, backend down, network blip, ...) must
+// fail OPEN rather than crash the auth route entirely. Logging in itself
+// is a separate request with no dependency on this check succeeding; a
+// merchant who's actually still logged in just sees the login page once
+// more instead of being auto-redirected, which is a far better failure
+// mode than being unable to load the login page at all.
 export async function getOptionalMerchantSessionRequest() {
 	try {
 		return await getMerchantSessionRequest();
-	} catch (error) {
-		if (isUnauthenticatedBackendError(error)) {
-			return null;
-		}
-
-		throw error;
+	} catch {
+		return null;
 	}
 }
 

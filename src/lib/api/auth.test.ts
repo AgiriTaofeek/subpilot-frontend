@@ -114,4 +114,22 @@ describe("getOptionalMerchantSessionRequest", () => {
 
 		await expect(getOptionalMerchantSessionRequest()).resolves.toBeNull();
 	});
+
+	// This check exists purely to redirect an already-logged-in merchant away
+	// from /auth/login — it must never be allowed to crash the login page
+	// itself. A regression here previously re-threw anything but 401/403
+	// (e.g. a real backend outage), which crashed the entire /auth route
+	// instead of just rendering the login form as if signed out.
+	test("treats a backend outage (502) as signed out too, not a crash", async () => {
+		vi.stubEnv("VITE_API_BASE_URL", "https://api.test");
+
+		server.use(
+			http.get(
+				"https://api.test/v1/auth/me",
+				() => new HttpResponse("<html>Bad Gateway</html>", { status: 502 }),
+			),
+		);
+
+		await expect(getOptionalMerchantSessionRequest()).resolves.toBeNull();
+	});
 });
