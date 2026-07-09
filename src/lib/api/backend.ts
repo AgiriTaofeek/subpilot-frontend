@@ -1,5 +1,6 @@
 import { createMiddleware, createServerOnlyFn } from "@tanstack/react-start";
 import { getRequestHeader } from "@tanstack/react-start/server";
+import type { z } from "zod";
 import type { BackendErrorShape } from "#/types/api.ts";
 
 const DEFAULT_ERROR_MESSAGE = "Something went wrong. Please try again.";
@@ -275,6 +276,12 @@ export const backendRequest = createServerOnlyFn(async function backendRequest<
 	search?: Record<string, number | string | null | undefined>;
 	body?: unknown;
 	forwardCookies?: boolean;
+	// Response shape is otherwise trusted as-is (`as T`, no runtime check) —
+	// the Java backend and this frontend can drift out of sync silently
+	// (renamed/missing field, a wrapped envelope, ...) with nothing to catch
+	// it before a value like checkoutUrl reaches the browser as undefined.
+	// Pass this for any response a caller can't afford to trust blindly.
+	responseSchema?: z.ZodType<T>;
 }) {
 	const method = input.method ?? "GET";
 	const headers = new Headers();
@@ -343,5 +350,27 @@ export const backendRequest = createServerOnlyFn(async function backendRequest<
 		throw await parseBackendError(response);
 	}
 
-	return parseJsonResponse<T>(response);
+	const payload = await parseJsonResponse<unknown>(response);
+
+	if (input.responseSchema) {
+		const result = input.responseSchema.safeParse(payload);
+		if (!result.success) {
+			// The detailed zod diff is server-log-only. Zod's own wording
+			// ("Invalid input: ...") would otherwise trip classifyError's
+			// VALIDATION_PATTERN on the client and tell the customer to
+			// "check the details" — misleading for a pure contract bug they
+			// had no part in. Keep the client-facing message free of every
+			// classifyError trigger word so it falls through to "server".
+			console.error(
+				`Backend response for ${method} ${input.path} didn't match the expected shape:`,
+				result.error.message,
+			);
+			throw new Error(
+				`The server sent back something this page didn't expect for ${input.path}. Please try again.`,
+			);
+		}
+		return result.data;
+	}
+
+	return payload as T;
 });

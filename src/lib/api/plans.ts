@@ -57,6 +57,38 @@ const checkoutSchema = z.object({
 	phone: z.string().min(1),
 });
 
+// Both schemas below mirror co.subpilot.plan.dto.PlanDtos.PublicPlanResponse
+// and co.subpilot.subscription.dto.SubscriptionDtos.CheckoutInitResponse
+// field-for-field. This is the one hop in the checkout flow with no
+// authenticated session to fall back on if something's wrong, and
+// checkoutUrl feeds straight into window.location.assign — validating it
+// here turns a silent "navigate to /undefined" into a caught, classifiable
+// error instead.
+const publicPlanResponseSchema = z.object({
+	name: z.string(),
+	description: z.string().nullable(),
+	amount: z.number(),
+	currency: z.string(),
+	billingInterval: z.enum([
+		"daily",
+		"weekly",
+		"monthly",
+		"quarterly",
+		"yearly",
+		"custom",
+	]),
+	trialDays: z.number(),
+	merchantName: z.string(),
+	merchantSlug: z.string(),
+	planSlug: z.string(),
+});
+
+const checkoutInitResponseSchema = z.object({
+	subscriptionId: z.string(),
+	checkoutUrl: z.string(),
+	checkoutReference: z.string(),
+});
+
 // Full-catalog fetch for reference/dropdown consumers (plan selectors on the
 // subscription and account pages) — plan counts are bounded by how many
 // pricing plans a merchant has configured, not by customer/transaction
@@ -162,6 +194,7 @@ export const getPublicPlan = createServerFn({ method: "GET" })
 		return backendRequest<PublicPlanResponseDto>({
 			path: `/v1/public/plans/${data.merchantSlug}/${data.planSlug}`,
 			forwardCookies: false,
+			responseSchema: publicPlanResponseSchema,
 		});
 	});
 
@@ -179,5 +212,6 @@ export const initiateCheckout = createServerFn({ method: "POST" })
 				planSlug: data.planSlug,
 			},
 			forwardCookies: false,
+			responseSchema: checkoutInitResponseSchema,
 		});
 	});
