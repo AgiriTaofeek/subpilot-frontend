@@ -3,13 +3,15 @@ import { describe, expect, test } from "vitest";
 import { formatNGN } from "#/lib/currency.ts";
 
 describe("formatNGN", () => {
-	test("formats kobo as rounded naira with the \u20a6 symbol", () => {
-		expect(formatNGN(125000)).toBe("\u20a61,250");
+	test("formats kobo as naira with the \u20a6 symbol", () => {
+		expect(formatNGN(125000)).toBe("\u20a61,250.00");
 	});
 
-	test("rounds fractional naira to the nearest whole amount", () => {
-		expect(formatNGN(149)).toBe("\u20a61");
-		expect(formatNGN(150)).toBe("\u20a62");
+	test("never rounds away a real kobo remainder", () => {
+		// e.g. a \u20a65,000/mo plan prorated for 17 of 30 days: 500000 * 17/30
+		expect(formatNGN(283333)).toBe("\u20a62,833.33");
+		expect(formatNGN(149)).toBe("\u20a61.49");
+		expect(formatNGN(150)).toBe("\u20a61.50");
 	});
 
 	test("falls back to a placeholder instead of rendering NaN for a malformed amount", () => {
