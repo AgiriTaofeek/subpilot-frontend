@@ -22,12 +22,18 @@ export const internalBackendRequest = createServerOnlyFn(
 		search?: Record<string, number | string | null | undefined>;
 		body?: unknown;
 		forwardCookies?: boolean;
+		// Extra request headers beyond cookie/content-type/CSRF (all handled
+		// below automatically) — e.g. X-Admin-Identity for refund
+		// approve/reject's audit trail, which the backend has no other way to
+		// learn since InternalAdminContext only carries the role check, not a
+		// human-readable identity.
+		headers?: Record<string, string>;
 		// See backendRequest's identical option in backend.ts for why this
 		// exists — same unchecked `as T` risk applies here.
 		responseSchema?: z.ZodType<T>;
 	}) {
 		const method = input.method ?? "GET";
-		const headers = new Headers();
+		const headers = new Headers(input.headers);
 		const serverHeaders = await import("@tanstack/react-start/server");
 		const shouldForwardCookies = input.forwardCookies ?? true;
 		const requestCookieHeader = shouldForwardCookies

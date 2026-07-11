@@ -335,8 +335,8 @@ function InvoiceDetailPage() {
 											<p className="m-0 font-medium text-(--ink)">
 												{formatNGN(refund.amount)}
 											</p>
-											<StatusBadge tone={refundStatusTone[refund.status]}>
-												{refundStatusLabel[refund.status]}
+											<StatusBadge tone={refundStatusTone(refund.status)}>
+												{refundStatusLabel(refund.status)}
 											</StatusBadge>
 										</div>
 										{refund.reason && (

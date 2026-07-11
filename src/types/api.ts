@@ -492,6 +492,12 @@ export interface PortalAvailablePlanDto {
 	billingInterval: string;
 }
 
+// The known values RefundStatus.java currently defines — used for the
+// status-filter dropdown and the label/tone lookup tables, NOT as the type
+// of any field a response actually populates. RefundStatus.java is a plain
+// class of String constants, not a real Java enum, so a refund's actual
+// `status` field (below) is typed as a bare string — see refundStatusSchema
+// in response-schemas.ts for the full reasoning.
 export type RefundStatusDto =
 	| "pending_approval"
 	| "pending"
@@ -505,13 +511,39 @@ export interface RefundResponseDto {
 	amount: number;
 	currency: string;
 	platformFeeRefunded: number;
-	status: RefundStatusDto;
+	status: string;
 	reason: string | null;
 	nombaReference: string | null;
 	failureReason: string | null;
 	createdAt: string;
 	resolvedAt: string | null;
 }
+
+export interface AdminRefundResponseDto {
+	id: string;
+	merchantId: string;
+	invoiceId: string;
+	amount: number;
+	currency: string;
+	platformFeeRefunded: number;
+	status: string;
+	reason: string | null;
+	nombaReference: string | null;
+	failureReason: string | null;
+	// "unknown" whenever the resolving admin's request didn't carry
+	// X-Admin-Identity — not just a theoretical default, this is the actual
+	// column value for every refund resolved before that header existed.
+	resolvedByAdminId: string | null;
+	createdAt: string;
+	resolvedAt: string | null;
+}
+
+export type RefundSortFieldDto =
+	| "createdAt"
+	| "resolvedAt"
+	| "amount"
+	| "status"
+	| "merchantId";
 
 export interface CreateRefundRequestDto {
 	amount?: number;

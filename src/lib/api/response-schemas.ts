@@ -94,13 +94,13 @@ const dunningEmailTemplateSchema = z.enum([
 	"service_suspended",
 ]);
 const auditActorTypeSchema = z.enum(["user", "api_key"]);
-const refundStatusSchema = z.enum([
-	"pending_approval",
-	"pending",
-	"succeeded",
-	"failed",
-	"rejected",
-]);
+// RefundStatus.java (co.subpilot.refund.RefundStatus) is a plain class of
+// String constants, not a real Java enum — nothing on the backend
+// guarantees a refund's status column only ever holds one of the 5 values
+// below. A closed z.enum here means any legacy/unrecognized value fails
+// this field's validation (same bug class as the audit-event-type and
+// merchant-status issues elsewhere in this file).
+const refundStatusSchema = z.string();
 const merchantStatusSchema = z.enum(["active", "under_review", "suspended"]);
 const internalAdminRoleSchema = z.enum(["super_admin", "ops_admin"]);
 
@@ -568,6 +568,26 @@ export const refundResponseSchema = createServerOnlyFn(() =>
 			reason: z.string().nullable(),
 			nombaReference: z.string().nullable(),
 			failureReason: z.string().nullable(),
+			createdAt: z.string(),
+			resolvedAt: z.string().nullable(),
+		})
+		.passthrough(),
+);
+
+export const adminRefundResponseSchema = createServerOnlyFn(() =>
+	z
+		.object({
+			id: z.string(),
+			merchantId: z.string(),
+			invoiceId: z.string(),
+			amount: z.number(),
+			currency: z.string(),
+			platformFeeRefunded: z.number(),
+			status: refundStatusSchema,
+			reason: z.string().nullable(),
+			nombaReference: z.string().nullable(),
+			failureReason: z.string().nullable(),
+			resolvedByAdminId: z.string().nullable(),
 			createdAt: z.string(),
 			resolvedAt: z.string().nullable(),
 		})

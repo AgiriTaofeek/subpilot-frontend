@@ -49,7 +49,7 @@ export const invoiceStatusLabel: Record<InvoiceStatusDto, string> = {
 	refunded: "Refunded",
 };
 
-export const refundStatusTone: Record<
+const REFUND_STATUS_TONE: Record<
 	RefundStatusDto,
 	"success" | "warning" | "danger" | "neutral"
 > = {
@@ -60,13 +60,31 @@ export const refundStatusTone: Record<
 	rejected: "danger",
 };
 
-export const refundStatusLabel: Record<RefundStatusDto, string> = {
+const REFUND_STATUS_LABEL: Record<RefundStatusDto, string> = {
 	pending_approval: "Pending approval",
 	pending: "Processing",
 	succeeded: "Refunded",
 	failed: "Failed",
 	rejected: "Rejected",
 };
+
+function isKnownRefundStatus(status: string): status is RefundStatusDto {
+	return status in REFUND_STATUS_TONE;
+}
+
+// A refund's real status field is a bare string (see RefundResponseDto) —
+// these take whatever the backend actually sent and degrade gracefully for
+// a value outside the 5 known ones, instead of a Record index throwing or
+// silently returning undefined.
+export function refundStatusTone(
+	status: string,
+): "success" | "warning" | "danger" | "neutral" {
+	return isKnownRefundStatus(status) ? REFUND_STATUS_TONE[status] : "neutral";
+}
+
+export function refundStatusLabel(status: string): string {
+	return isKnownRefundStatus(status) ? REFUND_STATUS_LABEL[status] : status;
+}
 
 export const invoicesListQueryOptions = () =>
 	queryOptions({
