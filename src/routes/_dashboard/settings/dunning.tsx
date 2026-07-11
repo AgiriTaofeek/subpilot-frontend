@@ -385,7 +385,7 @@ function SettingsDunningPage() {
 									No steps configured yet.
 								</p>
 							) : (
-								<div className="overflow-hidden rounded-md border border-(--line)">
+								<div className="overflow-hidden border border-(--line)">
 									<Table>
 										<TableHeader>
 											<TableRow className="border-(--line) hover:bg-transparent">
@@ -501,7 +501,7 @@ function SettingsDunningPage() {
 									}))
 								}
 							>
-								<SelectTrigger className="w-full rounded-md border-(--line) bg-(--surface) px-3">
+								<SelectTrigger className="w-full border-(--line) bg-(--surface) px-3">
 									<SelectValue />
 								</SelectTrigger>
 								<SelectContent>
@@ -527,7 +527,7 @@ function SettingsDunningPage() {
 										}))
 									}
 								>
-									<SelectTrigger className="w-full rounded-md border-(--line) bg-(--surface) px-3">
+									<SelectTrigger className="w-full border-(--line) bg-(--surface) px-3">
 										<SelectValue placeholder="Select a template" />
 									</SelectTrigger>
 									<SelectContent>

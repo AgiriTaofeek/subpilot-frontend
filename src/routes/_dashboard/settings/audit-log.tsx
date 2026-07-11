@@ -188,7 +188,7 @@ function SettingsAuditLogPage() {
 
 			<div className="flex flex-col gap-3 sm:flex-row sm:items-center">
 				<Select value={action ?? "all"} onValueChange={handleActionChange}>
-					<SelectTrigger className="w-64 rounded-md border-(--line) bg-(--surface) px-3">
+					<SelectTrigger className="w-64 border-(--line) bg-(--surface) px-3">
 						<SelectValue placeholder="All actions" />
 					</SelectTrigger>
 					<SelectContent>
@@ -238,7 +238,7 @@ function SettingsAuditLogPage() {
 					}
 				>
 					{/* Desktop table */}
-					<div className="hidden overflow-hidden rounded-2xl border border-(--line) bg-(--surface-1) md:block">
+					<div className="hidden overflow-hidden border border-(--line) bg-(--surface-1) md:block">
 						<Table>
 							<TableHeader>
 								<TableRow className="border-(--line) hover:bg-transparent">

@@ -154,7 +154,7 @@ function InternalMerchantsPage() {
 
 			<div className="flex flex-col gap-3 sm:flex-row sm:items-center">
 				<Select value={status || "all"} onValueChange={handleStatusChange}>
-					<SelectTrigger className="w-52 rounded-md border-(--line) bg-(--surface) px-3">
+					<SelectTrigger className="w-52 border-(--line) bg-(--surface) px-3">
 						<SelectValue placeholder="All statuses" />
 					</SelectTrigger>
 					<SelectContent>
@@ -197,7 +197,7 @@ function InternalMerchantsPage() {
 					}
 				>
 					{/* Desktop table */}
-					<div className="hidden overflow-hidden rounded-2xl border border-(--line) bg-(--surface-1) md:block">
+					<div className="hidden overflow-hidden border border-(--line) bg-(--surface-1) md:block">
 						<Table>
 							<TableHeader>
 								<TableRow className="border-(--line) hover:bg-transparent">

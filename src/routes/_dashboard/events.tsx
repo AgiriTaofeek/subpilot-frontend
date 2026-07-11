@@ -195,7 +195,7 @@ function EventsPage() {
 					value={eventType ?? "all"}
 					onValueChange={handleEventTypeChange}
 				>
-					<SelectTrigger className="w-64 rounded-md border-(--line) bg-(--surface) px-3">
+					<SelectTrigger className="w-64 border-(--line) bg-(--surface) px-3">
 						<SelectValue placeholder="All event types" />
 					</SelectTrigger>
 					<SelectContent>
@@ -245,7 +245,7 @@ function EventsPage() {
 					}
 				>
 					{/* Desktop table */}
-					<div className="hidden overflow-hidden rounded-2xl border border-(--line) bg-(--surface-1) md:block">
+					<div className="hidden overflow-hidden border border-(--line) bg-(--surface-1) md:block">
 						<Table>
 							<TableHeader>
 								<TableRow className="border-(--line) hover:bg-transparent">

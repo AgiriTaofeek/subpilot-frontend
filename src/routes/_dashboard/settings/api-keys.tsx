@@ -215,7 +215,7 @@ function SettingsApiKeysPage() {
 				<div className="grid gap-4 lg:grid-cols-[1.6fr_1fr]">
 					<div className="order-2 lg:order-1">
 						{/* Desktop table */}
-						<div className="hidden overflow-hidden rounded-2xl border border-(--line) bg-(--surface-1) md:block">
+						<div className="hidden overflow-hidden border border-(--line) bg-(--surface-1) md:block">
 							<Table>
 								<TableHeader>
 									<TableRow className="border-(--line) hover:bg-transparent">

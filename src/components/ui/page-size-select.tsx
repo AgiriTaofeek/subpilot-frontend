@@ -23,7 +23,7 @@ export function PageSizeSelect({
 			>
 				<SelectTrigger
 					size="sm"
-					className="w-18 rounded-md border-(--line) bg-(--surface) px-2 text-xs"
+					className="w-18 border-(--line) bg-(--surface) px-2 text-xs"
 				>
 					<SelectValue />
 				</SelectTrigger>

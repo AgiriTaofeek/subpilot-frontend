@@ -1,5 +1,6 @@
 import {
 	useMutation,
+	useQuery,
 	useQueryClient,
 	useSuspenseQuery,
 } from "@tanstack/react-query";
@@ -32,6 +33,7 @@ import {
 import { Spinner } from "#/components/ui/spinner.tsx";
 import { StatusBadge } from "#/components/ui/status-badge.tsx";
 import { Textarea } from "#/components/ui/textarea.tsx";
+import { internalMerchantAnalyticsQueryOptions } from "#/data/internal-analytics.ts";
 import {
 	internalMerchantDetailQueryOptions,
 	internalMerchantFeesQueryOptions,
@@ -46,6 +48,7 @@ import {
 	updateInternalMerchantStatus,
 } from "#/lib/api/internal-merchants.ts";
 import { isSessionError } from "#/lib/api/is-session-error.ts";
+import { formatNGN } from "#/lib/currency.ts";
 import type { MerchantStatusDto } from "#/types/api.ts";
 
 const internalGateRouteApi = getRouteApi("/_internalGate");
@@ -111,6 +114,82 @@ const STATUS_OPTIONS: MerchantStatusDto[] = [
 	"under_review",
 	"suspended",
 ];
+
+// A deliberately separate, non-suspense query from the rest of this page:
+// GET /v1/internal/analytics/merchants/{id} 404s whenever a merchant has no
+// fee-ledger activity in the window (a brand-new merchant, or one with no
+// revenue in the last 30 days) — that's a routine, expected state here, not
+// "this merchant doesn't exist" the way a 404 on the merchant-detail fetch
+// itself would be. Wiring it into the same useSuspenseQuery/errorComponent
+// as the rest of the page would incorrectly show "Merchant not found" for
+// the whole page over a merchant that's very much still there.
+function MerchantRevenuePanel({ merchantId }: { merchantId: string }) {
+	const { data, error, isPending } = useQuery(
+		internalMerchantAnalyticsQueryOptions(merchantId),
+	);
+
+	if (isPending) {
+		return (
+			<div className="grid gap-4 pt-4 sm:grid-cols-3">
+				{["gross", "net", "transactions"].map((placeholder) => (
+					<Card
+						key={placeholder}
+						className="border border-(--line) bg-(--surface-1) shadow-none"
+					>
+						<CardContent className="py-4">
+							<div className="h-3 w-20 animate-pulse rounded bg-(--surface-2)" />
+							<div className="mt-2 h-5 w-24 animate-pulse rounded bg-(--surface-2)" />
+						</CardContent>
+					</Card>
+				))}
+			</div>
+		);
+	}
+
+	if (error) {
+		if (classifyError(error.message) === "not_found") {
+			return (
+				<p className="pt-4 text-sm text-(--ink-3)">
+					No revenue from this merchant in the last 30 days.
+				</p>
+			);
+		}
+		return (
+			<p className="pt-4 text-sm text-(--ink-3)">
+				Couldn't load revenue for this merchant.
+			</p>
+		);
+	}
+
+	return (
+		<div className="grid gap-4 pt-4 sm:grid-cols-3">
+			<Card className="border border-(--line) bg-(--surface-1) shadow-none">
+				<CardContent className="py-4">
+					<p className="island-kicker m-0">Gross · last 30 days</p>
+					<p className="mt-1 text-lg font-semibold text-(--ink)">
+						{formatNGN(data.grossAmountMinor)}
+					</p>
+				</CardContent>
+			</Card>
+			<Card className="border border-(--line) bg-(--surface-1) shadow-none">
+				<CardContent className="py-4">
+					<p className="island-kicker m-0">Net · last 30 days</p>
+					<p className="mt-1 text-lg font-semibold text-(--ink)">
+						{formatNGN(data.netAmountMinor)}
+					</p>
+				</CardContent>
+			</Card>
+			<Card className="border border-(--line) bg-(--surface-1) shadow-none">
+				<CardContent className="py-4">
+					<p className="island-kicker m-0">Transactions · last 30 days</p>
+					<p className="mt-1 text-lg font-semibold text-(--ink)">
+						{data.transactionCount.toLocaleString()}
+					</p>
+				</CardContent>
+			</Card>
+		</div>
+	);
+}
 
 function InternalMerchantDetailPage() {
 	const { merchantId } = Route.useParams();
@@ -302,6 +381,8 @@ function InternalMerchantDetailPage() {
 				</Card>
 			</div>
 
+			<MerchantRevenuePanel merchantId={merchantId} />
+
 			<Dialog open={statusOpen} onOpenChange={setStatusOpen}>
 				<DialogContent>
 					<DialogHeader>
@@ -321,7 +402,7 @@ function InternalMerchantDetailPage() {
 							>
 								<SelectTrigger
 									id="next-status"
-									className="rounded-md border-(--line) bg-(--surface) px-3"
+									className="border-(--line) bg-(--surface) px-3"
 								>
 									<SelectValue />
 								</SelectTrigger>

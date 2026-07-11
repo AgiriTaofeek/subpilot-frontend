@@ -639,3 +639,49 @@ export interface InternalDashboardSummaryDto {
 	pendingMerchantActivations: number;
 	pendingRefundApprovals: number;
 }
+
+export type InternalAnalyticsSortFieldDto =
+	| "GROSS"
+	| "FEE"
+	| "NET"
+	| "TRANSACTIONS"
+	| "ACTIVE_SUBSCRIPTIONS"
+	| "NAME";
+
+export interface InternalPlatformSummaryDto {
+	totalGmvMinor: number;
+	subpilotRevenueMinor: number;
+	totalNetPaidOutMinor: number;
+	activeSubscriptions: number;
+	newSubscriptionsInWindow: number;
+	activeMerchants: number;
+}
+
+export interface InternalMerchantRevenueRowDto {
+	merchantId: string;
+	businessName: string;
+	// "unknown" when InternalAnalyticsService can't resolve the merchant a
+	// fee ledger row references (a deleted/orphaned merchant record) — it
+	// falls back to this literal rather than dropping the row, so it's not
+	// a real MerchantStatusDto value.
+	merchantStatus: MerchantStatusDto | "unknown";
+	grossAmountMinor: number;
+	subpilotFeeMinor: number;
+	netAmountMinor: number;
+	transactionCount: number;
+	activeSubscriptions: number;
+}
+
+export interface InternalDailyRevenuePointDto {
+	date: string;
+	subpilotRevenueMinor: number;
+	gmvMinor: number;
+}
+
+export interface InternalAnalyticsResponseDto {
+	summary: InternalPlatformSummaryDto;
+	merchants: InternalMerchantRevenueRowDto[];
+	dailySeries: InternalDailyRevenuePointDto[];
+	from: string;
+	to: string;
+}

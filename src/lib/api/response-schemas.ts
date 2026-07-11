@@ -707,3 +707,56 @@ export const internalDashboardSummarySchema = createServerOnlyFn(() =>
 		})
 		.passthrough(),
 );
+
+export const internalPlatformSummarySchema = createServerOnlyFn(() =>
+	z
+		.object({
+			totalGmvMinor: z.number(),
+			subpilotRevenueMinor: z.number(),
+			totalNetPaidOutMinor: z.number(),
+			activeSubscriptions: z.number(),
+			newSubscriptionsInWindow: z.number(),
+			activeMerchants: z.number(),
+		})
+		.passthrough(),
+);
+
+export const internalMerchantRevenueRowSchema = createServerOnlyFn(() =>
+	z
+		.object({
+			merchantId: z.string(),
+			businessName: z.string(),
+			// See InternalMerchantRevenueRowDto — InternalAnalyticsService falls
+			// back to the literal "unknown" for an orphaned merchant reference,
+			// so this isn't a closed merchantStatusSchema.
+			merchantStatus: z.union([merchantStatusSchema, z.literal("unknown")]),
+			grossAmountMinor: z.number(),
+			subpilotFeeMinor: z.number(),
+			netAmountMinor: z.number(),
+			transactionCount: z.number(),
+			activeSubscriptions: z.number(),
+		})
+		.passthrough(),
+);
+
+export const internalDailyRevenuePointSchema = createServerOnlyFn(() =>
+	z
+		.object({
+			date: z.string(),
+			subpilotRevenueMinor: z.number(),
+			gmvMinor: z.number(),
+		})
+		.passthrough(),
+);
+
+export const internalAnalyticsResponseSchema = createServerOnlyFn(() =>
+	z
+		.object({
+			summary: internalPlatformSummarySchema(),
+			merchants: z.array(internalMerchantRevenueRowSchema()),
+			dailySeries: z.array(internalDailyRevenuePointSchema()),
+			from: z.string(),
+			to: z.string(),
+		})
+		.passthrough(),
+);

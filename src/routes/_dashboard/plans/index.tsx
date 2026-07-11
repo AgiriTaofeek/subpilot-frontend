@@ -547,7 +547,7 @@ function PlansListPage() {
 					}
 				>
 					{/* Desktop table */}
-					<div className="hidden overflow-hidden rounded-2xl border border-(--line) bg-(--surface-1) md:block">
+					<div className="hidden overflow-hidden border border-(--line) bg-(--surface-1) md:block">
 						<Table>
 							<TableHeader>
 								{table.getHeaderGroups().map((headerGroup) => (

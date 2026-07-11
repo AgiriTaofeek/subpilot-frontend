@@ -324,7 +324,7 @@ function OverviewPage() {
 				</CardHeader>
 				<CardContent>
 					{/* Desktop table */}
-					<div className="hidden overflow-hidden rounded-md border border-(--line) md:block">
+					<div className="hidden overflow-hidden border border-(--line) md:block">
 						<Table>
 							<TableHeader>
 								<TableRow className="border-(--line) hover:bg-transparent">

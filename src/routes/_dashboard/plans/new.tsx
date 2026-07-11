@@ -423,7 +423,7 @@ function NewPlanPage() {
 															})
 														}
 													>
-														<SelectTrigger className="w-32 rounded-md border-(--line) bg-(--surface) px-3">
+														<SelectTrigger className="w-32 border-(--line) bg-(--surface) px-3">
 															<SelectValue />
 														</SelectTrigger>
 														<SelectContent>

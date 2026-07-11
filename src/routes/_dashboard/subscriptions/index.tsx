@@ -386,7 +386,7 @@ function SubscriptionsListPage() {
 						value={planId ?? "all"}
 						onValueChange={handlePlanFilterChange}
 					>
-						<SelectTrigger className="w-48 rounded-md border-(--line) bg-(--surface) px-3">
+						<SelectTrigger className="w-48 border-(--line) bg-(--surface) px-3">
 							<SelectValue placeholder="All plans" />
 						</SelectTrigger>
 						<SelectContent>
@@ -436,7 +436,7 @@ function SubscriptionsListPage() {
 								value={planId ?? "all"}
 								onValueChange={handlePlanFilterChange}
 							>
-								<SelectTrigger className="w-full rounded-md border-(--line) bg-(--surface) px-3">
+								<SelectTrigger className="w-full border-(--line) bg-(--surface) px-3">
 									<SelectValue placeholder="All plans" />
 								</SelectTrigger>
 								<SelectContent>
@@ -502,7 +502,7 @@ function SubscriptionsListPage() {
 					}
 				>
 					{/* Desktop table */}
-					<div className="hidden overflow-hidden rounded-2xl border border-(--line) bg-(--surface-1) md:block">
+					<div className="hidden overflow-hidden border border-(--line) bg-(--surface-1) md:block">
 						<Table>
 							<TableHeader>
 								{table.getHeaderGroups().map((headerGroup) => (

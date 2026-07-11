@@ -1,5 +1,6 @@
 import {
 	BuildingsIcon,
+	ChartLineUpIcon,
 	ClipboardTextIcon,
 	CurrencyCircleDollarIcon,
 	ReceiptIcon,
@@ -41,6 +42,13 @@ const navItems = [
 		href: "/internal/refunds",
 		icon: ReceiptIcon,
 		activePrefix: "/internal/refunds",
+		superAdminOnly: true,
+	},
+	{
+		label: "Analytics",
+		href: "/internal/analytics",
+		icon: ChartLineUpIcon,
+		activePrefix: "/internal/analytics",
 		superAdminOnly: true,
 	},
 	{

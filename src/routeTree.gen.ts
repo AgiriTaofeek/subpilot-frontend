@@ -49,6 +49,7 @@ import { Route as DashboardInvoicesInvoiceIdRouteImport } from './routes/_dashbo
 import { Route as DashboardCustomersCustomerIdRouteImport } from './routes/_dashboard/customers/$customerId'
 import { Route as InternalGateInternalRefundsIndexRouteImport } from './routes/_internalGate/internal/refunds/index'
 import { Route as InternalGateInternalMerchantsIndexRouteImport } from './routes/_internalGate/internal/merchants/index'
+import { Route as InternalGateInternalAnalyticsIndexRouteImport } from './routes/_internalGate/internal/analytics/index'
 import { Route as PlansMerchantSlugPlanSlugSuccessRouteImport } from './routes/plans.$merchantSlug.$planSlug.success'
 import { Route as InternalGateInternalMerchantsMerchantIdRouteImport } from './routes/_internalGate/internal/merchants/$merchantId'
 
@@ -263,6 +264,12 @@ const InternalGateInternalMerchantsIndexRoute =
     path: '/internal/merchants/',
     getParentRoute: () => InternalGateRoute,
   } as any)
+const InternalGateInternalAnalyticsIndexRoute =
+  InternalGateInternalAnalyticsIndexRouteImport.update({
+    id: '/internal/analytics/',
+    path: '/internal/analytics/',
+    getParentRoute: () => InternalGateRoute,
+  } as any)
 const PlansMerchantSlugPlanSlugSuccessRoute =
   PlansMerchantSlugPlanSlugSuccessRouteImport.update({
     id: '/plans/$merchantSlug/$planSlug/success',
@@ -314,6 +321,7 @@ export interface FileRoutesByFullPath {
   '/portal/$token/': typeof PortalTokenIndexRoute
   '/internal/merchants/$merchantId': typeof InternalGateInternalMerchantsMerchantIdRoute
   '/plans/$merchantSlug/$planSlug/success': typeof PlansMerchantSlugPlanSlugSuccessRoute
+  '/internal/analytics/': typeof InternalGateInternalAnalyticsIndexRoute
   '/internal/merchants/': typeof InternalGateInternalMerchantsIndexRoute
   '/internal/refunds/': typeof InternalGateInternalRefundsIndexRoute
 }
@@ -354,6 +362,7 @@ export interface FileRoutesByTo {
   '/portal/$token': typeof PortalTokenIndexRoute
   '/internal/merchants/$merchantId': typeof InternalGateInternalMerchantsMerchantIdRoute
   '/plans/$merchantSlug/$planSlug/success': typeof PlansMerchantSlugPlanSlugSuccessRoute
+  '/internal/analytics': typeof InternalGateInternalAnalyticsIndexRoute
   '/internal/merchants': typeof InternalGateInternalMerchantsIndexRoute
   '/internal/refunds': typeof InternalGateInternalRefundsIndexRoute
 }
@@ -399,6 +408,7 @@ export interface FileRoutesById {
   '/portal/$token/': typeof PortalTokenIndexRoute
   '/_internalGate/internal/merchants/$merchantId': typeof InternalGateInternalMerchantsMerchantIdRoute
   '/plans/$merchantSlug/$planSlug/success': typeof PlansMerchantSlugPlanSlugSuccessRoute
+  '/_internalGate/internal/analytics/': typeof InternalGateInternalAnalyticsIndexRoute
   '/_internalGate/internal/merchants/': typeof InternalGateInternalMerchantsIndexRoute
   '/_internalGate/internal/refunds/': typeof InternalGateInternalRefundsIndexRoute
 }
@@ -442,6 +452,7 @@ export interface FileRouteTypes {
     | '/portal/$token/'
     | '/internal/merchants/$merchantId'
     | '/plans/$merchantSlug/$planSlug/success'
+    | '/internal/analytics/'
     | '/internal/merchants/'
     | '/internal/refunds/'
   fileRoutesByTo: FileRoutesByTo
@@ -482,6 +493,7 @@ export interface FileRouteTypes {
     | '/portal/$token'
     | '/internal/merchants/$merchantId'
     | '/plans/$merchantSlug/$planSlug/success'
+    | '/internal/analytics'
     | '/internal/merchants'
     | '/internal/refunds'
   id:
@@ -526,6 +538,7 @@ export interface FileRouteTypes {
     | '/portal/$token/'
     | '/_internalGate/internal/merchants/$merchantId'
     | '/plans/$merchantSlug/$planSlug/success'
+    | '/_internalGate/internal/analytics/'
     | '/_internalGate/internal/merchants/'
     | '/_internalGate/internal/refunds/'
   fileRoutesById: FileRoutesById
@@ -823,6 +836,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof InternalGateInternalMerchantsIndexRouteImport
       parentRoute: typeof InternalGateRoute
     }
+    '/_internalGate/internal/analytics/': {
+      id: '/_internalGate/internal/analytics/'
+      path: '/internal/analytics'
+      fullPath: '/internal/analytics/'
+      preLoaderRoute: typeof InternalGateInternalAnalyticsIndexRouteImport
+      parentRoute: typeof InternalGateRoute
+    }
     '/plans/$merchantSlug/$planSlug/success': {
       id: '/plans/$merchantSlug/$planSlug/success'
       path: '/plans/$merchantSlug/$planSlug/success'
@@ -896,6 +916,7 @@ interface InternalGateRouteChildren {
   InternalGateInternalFeesRoute: typeof InternalGateInternalFeesRoute
   InternalGateInternalIndexRoute: typeof InternalGateInternalIndexRoute
   InternalGateInternalMerchantsMerchantIdRoute: typeof InternalGateInternalMerchantsMerchantIdRoute
+  InternalGateInternalAnalyticsIndexRoute: typeof InternalGateInternalAnalyticsIndexRoute
   InternalGateInternalMerchantsIndexRoute: typeof InternalGateInternalMerchantsIndexRoute
   InternalGateInternalRefundsIndexRoute: typeof InternalGateInternalRefundsIndexRoute
 }
@@ -906,6 +927,8 @@ const InternalGateRouteChildren: InternalGateRouteChildren = {
   InternalGateInternalIndexRoute: InternalGateInternalIndexRoute,
   InternalGateInternalMerchantsMerchantIdRoute:
     InternalGateInternalMerchantsMerchantIdRoute,
+  InternalGateInternalAnalyticsIndexRoute:
+    InternalGateInternalAnalyticsIndexRoute,
   InternalGateInternalMerchantsIndexRoute:
     InternalGateInternalMerchantsIndexRoute,
   InternalGateInternalRefundsIndexRoute: InternalGateInternalRefundsIndexRoute,

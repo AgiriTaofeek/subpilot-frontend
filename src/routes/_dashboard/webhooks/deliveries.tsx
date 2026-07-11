@@ -275,7 +275,7 @@ function WebhookDeliveriesPage() {
 						value={endpointId ?? "all"}
 						onValueChange={handleEndpointFilterChange}
 					>
-						<SelectTrigger className="w-56 rounded-md border-(--line) bg-(--surface) px-3">
+						<SelectTrigger className="w-56 border-(--line) bg-(--surface) px-3">
 							<SelectValue placeholder="All endpoints" />
 						</SelectTrigger>
 						<SelectContent>
@@ -291,7 +291,7 @@ function WebhookDeliveriesPage() {
 						value={eventType ?? "all"}
 						onValueChange={handleEventFilterChange}
 					>
-						<SelectTrigger className="w-56 rounded-md border-(--line) bg-(--surface) px-3">
+						<SelectTrigger className="w-56 border-(--line) bg-(--surface) px-3">
 							<SelectValue placeholder="All events" />
 						</SelectTrigger>
 						<SelectContent>
@@ -331,7 +331,7 @@ function WebhookDeliveriesPage() {
 								value={endpointId ?? "all"}
 								onValueChange={handleEndpointFilterChange}
 							>
-								<SelectTrigger className="w-full rounded-md border-(--line) bg-(--surface) px-3">
+								<SelectTrigger className="w-full border-(--line) bg-(--surface) px-3">
 									<SelectValue placeholder="All endpoints" />
 								</SelectTrigger>
 								<SelectContent>
@@ -347,7 +347,7 @@ function WebhookDeliveriesPage() {
 								value={eventType ?? "all"}
 								onValueChange={handleEventFilterChange}
 							>
-								<SelectTrigger className="w-full rounded-md border-(--line) bg-(--surface) px-3">
+								<SelectTrigger className="w-full border-(--line) bg-(--surface) px-3">
 									<SelectValue placeholder="All events" />
 								</SelectTrigger>
 								<SelectContent>
@@ -393,7 +393,7 @@ function WebhookDeliveriesPage() {
 					}
 				>
 					{/* Desktop table */}
-					<div className="hidden overflow-hidden rounded-2xl border border-(--line) bg-(--surface-1) md:block">
+					<div className="hidden overflow-hidden border border-(--line) bg-(--surface-1) md:block">
 						<Table>
 							<TableHeader>
 								<TableRow className="border-(--line) hover:bg-transparent">
