@@ -1,3 +1,4 @@
+import { BankIcon } from "@phosphor-icons/react";
 import {
 	useMutation,
 	useQuery,
@@ -12,13 +13,11 @@ import {
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 import { z } from "zod";
-
 import {
 	RouteErrorFallback,
 	SessionExpiredFallback,
 } from "#/components/layout/route-error-fallback.tsx";
 import { Button } from "#/components/ui/button.tsx";
-import { Card, CardContent, CardHeader } from "#/components/ui/card.tsx";
 import {
 	Combobox,
 	ComboboxContent,
@@ -402,6 +401,13 @@ function PayoutsPage() {
 	const { data: payoutsPage, isPlaceholderData } = useQuery(
 		disbursementsQueryOptions(page, size),
 	);
+	// Both already ensured in this route's loader (small reference data, not
+	// the paginated resource) — reading them here too is free, no extra
+	// request. Previously this data only fed the (hidden-until-opened) bank
+	// sheet's pre-fill, so the saved account was never actually visible
+	// anywhere on the page itself.
+	const { data: payoutAccount } = useSuspenseQuery(payoutAccountQueryOptions());
+	const { data: payoutBanks } = useSuspenseQuery(payoutBanksQueryOptions());
 	const [bankSheetOpen, setBankSheetOpen] = useState(false);
 	const [triggerConfirmOpen, setTriggerConfirmOpen] = useState(false);
 	const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -462,38 +468,41 @@ function PayoutsPage() {
 						every invoice paid since your last successful payout.
 					</p>
 				</div>
-				<div className="flex gap-2">
-					<Button
-						variant="outline"
-						onClick={() => setBankSheetOpen(true)}
-						className="border-(--line)"
-					>
-						Bank account
-					</Button>
-					<Button
-						onClick={() => setTriggerConfirmOpen(true)}
-						className="border-0 bg-(--brand) text-(--brand-fg) hover:bg-(--brand)/90"
-					>
-						Trigger payout
-					</Button>
+				<div className="flex flex-col items-end gap-2">
+					{payoutAccount.found && payoutAccount.accountNumber ? (
+						<div className="flex items-center gap-2 border border-(--line) bg-(--surface-1) px-3 py-1.5 text-sm text-(--ink-2)">
+							<BankIcon className="size-4 text-(--ink-3)" />
+							<span className="font-medium text-(--ink)">
+								{payoutBanks.find((b) => b.bankCode === payoutAccount.bankCode)
+									?.name ?? "Bank account"}
+							</span>
+							<span>•••• {payoutAccount.accountNumber.slice(-4)}</span>
+						</div>
+					) : (
+						<StatusBadge tone="warning">No bank account on file</StatusBadge>
+					)}
+					<div className="flex gap-2">
+						<Button
+							variant="outline"
+							onClick={() => setBankSheetOpen(true)}
+							className="border-(--line)"
+						>
+							Bank account
+						</Button>
+						<Button
+							onClick={() => setTriggerConfirmOpen(true)}
+							className="border-0 bg-(--brand) text-(--brand-fg) hover:bg-(--brand)/90"
+						>
+							Trigger payout
+						</Button>
+					</div>
 				</div>
 			</div>
 
-			<Card className="border border-(--line) bg-(--surface-1) shadow-none">
-				<CardHeader className="pb-0">
-					<p className="island-kicker m-0">How payouts work</p>
-				</CardHeader>
-				<CardContent className="flex flex-col gap-1 pt-2 text-sm text-(--ink-2)">
-					<p className="m-0">
-						Triggering a payout batches every unpaid-out invoice into one
-						transfer to your saved bank account.
-					</p>
-					<p className="m-0">
-						Only one payout can be in progress at a time — wait for a pending
-						payout to resolve before triggering another.
-					</p>
-				</CardContent>
-			</Card>
+			<p className="text-sm text-(--ink-3)">
+				Only one payout can be in progress at a time — wait for a pending payout
+				to resolve before triggering another.
+			</p>
 
 			{!hasAnyPayouts ? (
 				<Empty className="rounded-2xl border border-dashed border-(--line) bg-(--surface-1)">
